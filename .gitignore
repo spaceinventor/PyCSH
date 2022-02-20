@@ -1,0 +1,22 @@
+.settings
+*.bin
+*.elf
+*.hex
+*.lss
+*.o
+*.d
+*.map
+*.sym
+.lock*
+.waf-*
+*.swp
+builddir
+*.cfg
+*.lzo
+*.csv
+*.vmem
+
+# PyCharm
+.idea/
+
+__pycache__/
