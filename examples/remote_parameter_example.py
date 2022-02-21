@@ -32,10 +32,10 @@ local_print = lambda string: print(f"{LOCAL_PREFIX}\t\t{string}")
 
 def remote_listener(parameter_identifier: int | str):
     """ Wait for the value of a local parameter to change. """
-    import libparam_py3
-    libparam_py3.param_init(yamlname=f"{CURRENT_DIRECTORY}/remote.yaml", quiet=True)
+    import pycsh
+    pycsh.param_init(yamlname=f"{CURRENT_DIRECTORY}/remote.yaml", quiet=True)
 
-    param = libparam_py3.Parameter(parameter_identifier)
+    param = pycsh.Parameter(parameter_identifier)
     original_value = param.value
 
     remote_print('Waiting for local parameter to be changed remotely...')
@@ -52,17 +52,17 @@ def remote_listener(parameter_identifier: int | str):
 
 def local_sender(parameter_identifier: int | str):
     """ Set the value of a remote parameter. """
-    import libparam_py3
-    libparam_py3.param_init(yamlname=f"{CURRENT_DIRECTORY}/local.yaml", quiet=True)
+    import pycsh
+    pycsh.param_init(yamlname=f"{CURRENT_DIRECTORY}/local.yaml", quiet=True)
 
     local_print("Waiting a bit, to ensure that the remote has noted the original value...")
 
     sleep(1)  # Make sure the server has read its own parameter list, before we alter it.
 
     local_print("Downloading a list of all remote parameters...")
-    libparam_py3.list_download(REMOTE_NODE)  # We need to download the remote parameters, so the bindings can see them.
+    pycsh.list_download(REMOTE_NODE)  # We need to download the remote parameters, so the bindings can see them.
     local_print("Creating Parameter object for remote parameter...")
-    remote_param = libparam_py3.Parameter(parameter_identifier, node=REMOTE_NODE)
+    remote_param = pycsh.Parameter(parameter_identifier, node=REMOTE_NODE)
 
     local_print("Now lets change the remote value, using the Parameter.")
 
@@ -72,7 +72,7 @@ def local_sender(parameter_identifier: int | str):
         if remote_param.type is str:
             remote_param.value = "changed example"
     else:
-        if isinstance(remote_param, libparam_py3.ParameterArray):
+        if isinstance(remote_param, pycsh.ParameterArray):
             remote_param[0] += 1
         else:
             remote_param.value += 1

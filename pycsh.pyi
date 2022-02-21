@@ -206,7 +206,7 @@ def get(param_identifier: _param_ident_hint, host: int = None, node: int = None,
 
     :raises TypeError: When an invalid param_identifier type is provided.
     :raises ValueError: When a parameter could not be found.
-    :raises RuntimeError: When called before ._param_init().
+    :raises RuntimeError: When called before .param_init().
 
     :return: The value of the retrieved parameter (As its Python type).
     """
@@ -223,7 +223,7 @@ def set(param_identifier: _param_ident_hint, value: _param_value_hint | _Iterabl
 
     :raises TypeError: When an invalid param_identifier type is provided.
     :raises ValueError: When a parameter could not be found.
-    :raises RuntimeError: When called before ._param_init().
+    :raises RuntimeError: When called before .param_init().
     """
 
 def push(node: int, timeout: int = None) -> None:
@@ -306,7 +306,7 @@ def ping(node: int, timeout: int = None, size: int = None) -> int:
     :param timeout: Timeout in ms to wait for reply.
     :param size: Payload size in bytes.
 
-    :raises RuntimeError: When called before ._param_init().
+    :raises RuntimeError: When called before .param_init().
 
     :return: >0 = echo time in mS on success, otherwise -1 for error.
     """
@@ -318,7 +318,7 @@ def ident(node: int, timeout: int = None) -> str:
     :param node: Address of subsystem.
     :param timeout: Timeout in ms to wait for reply.
 
-    :raises RuntimeError: When called before ._param_init().
+    :raises RuntimeError: When called before .param_init().
     :raises ConnectionError: When no response is received.
     """
 
@@ -344,7 +344,7 @@ def vmem_list(node: int = None, timeout: int = None, version: int = None) -> str
     :param node: Node from which the vmem should be listed.
     :param timeout: Timeout in ms when connecting to the node.
 
-    :raises RuntimeError: When called before ._param_init().
+    :raises RuntimeError: When called before .param_init().
     :raises ConnectionError: When the timeout is exceeded attempting to connect to the specified node.
     :raises MemoryError: When allocation for a CSP buffer fails.
 
@@ -358,7 +358,7 @@ def vmem_restore(node: int, vmem_id: int, timeout: int = None) -> int:
     :param node: Node on which the configuration should be restored from vmem.
     :param timeout: Timeout in ms when connecting to the node.
 
-    :raises RuntimeError: When called before ._param_init().
+    :raises RuntimeError: When called before .param_init().
     :raises ConnectionError: When the timeout is exceeded attempting to connect to the specified node.
 
     :return: Int indicating the result of the operation, 0 for success.
@@ -371,7 +371,7 @@ def vmem_backup(node: int, vmem_id: int, timeout: int = None) -> int:
     :param node: Node on which the configuration should be backed up to vmem.
     :param timeout: Timeout in ms when connecting to the node.
 
-    :raises RuntimeError: When called before ._param_init().
+    :raises RuntimeError: When called before .param_init().
     :raises ConnectionError: When the timeout is exceeded attempting to connect to the specified node.
 
     :return: Int indicating the result of the operation, 0 for success.
@@ -384,7 +384,7 @@ def vmem_unlock(node: int = None, timeout: int = None) -> int:
     :param node: Node on which the vmem should be unlocked.
     :param timeout: Timeout in ms when connecting to the node.
 
-    :raises RuntimeError: When called before ._param_init().
+    :raises RuntimeError: When called before .param_init().
     :raises ConnectionError: When the timeout is exceeded attempting to connect to the specified node.
     :raises MemoryError: When allocation for a CSP buffer fails.
 

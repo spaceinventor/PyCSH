@@ -1,20 +1,20 @@
-""" This module contains utilities for importing, initializing and using the libparam Python bindings module. """
+""" This module contains utilities for importing, initializing and using the CSH Python bindings module. """
 # Without special care, as taken by this module, users themselves will be responsible for calling ._init()
-# on the libparam bindings module if importing and using it manually.
+# on the CSH bindings module if importing and using it manually.
 
 from __future__ import annotations
 
 import sys as _sys
 from typing import Callable as _Callable
-from builddir import libparam_py3  # Actual bindings module.
+from builddir import pycsh  # Actual bindings module.
 from importlib import import_module as _import_module
 from contextlib import contextmanager as _contextmanager
 
 try:  # Importing .pyi file for typehinting.
-    import libparam_py3
+    import pycsh
 except ModuleNotFoundError: pass
 
-_libparam_typehint = libparam_py3
+_libparam_typehint = pycsh
 
 
 def Bindings(csp_version: int = ..., csp_hostname: str = ..., csp_model: str = ...,
@@ -28,7 +28,7 @@ def Bindings(csp_version: int = ..., csp_hostname: str = ..., csp_model: str = .
     :param csp_model: Which CSP model to use in the module.
     :param module_name: Optional alternative name of the module to import.
     :param quiet: Send output from C to /dev/null.
-    :return: An instance of the libparam binded module on which operations may be performed.
+    :return: An instance of the CSH binding module on which operations may be performed.
     """
 
     init_dict = {key: value for key, value in
@@ -45,14 +45,14 @@ def Bindings(csp_version: int = ..., csp_hostname: str = ..., csp_model: str = .
                  if value is not ...}
 
     if not module_name:
-        from builddir import libparam_py3 # A previous import might be reused if not deleted beforehand.
+        from builddir import pycsh  # A previous import might be reused if not deleted beforehand.
     else:
-        libparam_py3 = _import_module(module_name)
+        pycsh = _import_module(module_name)
 
     # Initialize this instance of the module with the provided settings.
-    libparam_py3.param_init(**init_dict)
+    pycsh.param_init(**init_dict)
 
-    return libparam_py3
+    return pycsh
 
 
 class ParamMapping:
@@ -93,7 +93,7 @@ class ParamMapping:
     CRYPTO_FAUL_AUTH_COUNT: _param_constructor_typehint = 156
     CRYPTO_FAUL_NONCE_COUNT: _param_constructor_typehint = 157
 
-    def __init__(self, module: _libparam_typehint = libparam_py3) -> None:
+    def __init__(self, module: _libparam_typehint = pycsh) -> None:
         super().__init__()
         self._module = module
 
@@ -109,7 +109,7 @@ class ParamMapping:
 
 
 @_contextmanager
-def temp_autosend_value(value: int = 0, module: _libparam_typehint = libparam_py3) -> _libparam_typehint:
+def temp_autosend_value(value: int = 0, module: _libparam_typehint = pycsh) -> _libparam_typehint:
     """
     Temporarily sets autosend to the provided value for the duration of the context manager block,
     to (for example) ensure that assignments are queued, and retrievals use cached values.
@@ -131,7 +131,7 @@ def temp_autosend_value(value: int = 0, module: _libparam_typehint = libparam_py
 #     module: _libparam_typehint = None
 #     original_autosend: int = None
 #
-#     def __init__(self, module: _libparam_typehint = libparam_py3) -> None:
+#     def __init__(self, module: _libparam_typehint = pycsh) -> None:
 #         self.module = module
 #         self.original_autosend = module.autosend()
 #         super().__init__()

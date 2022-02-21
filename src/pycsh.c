@@ -519,7 +519,7 @@ static PyObject * pyparam_param_get(PyObject * self, PyObject * args, PyObject *
 
 	if (!_csp_initialized) {
 		PyErr_SetString(PyExc_RuntimeError,
-			"Cannot perform operations before ._param_init() has been called.");
+			"Cannot perform operations before .param_init() has been called.");
 		return NULL;
 	}
 
@@ -765,7 +765,7 @@ static PyObject * pyparam_param_set(PyObject * self, PyObject * args, PyObject *
 
 	if (!_csp_initialized) {
 		PyErr_SetString(PyExc_RuntimeError,
-			"Cannot perform operations before ._param_init() has been called.");
+			"Cannot perform operations before .param_init() has been called.");
 		return NULL;
 	}
 
@@ -804,7 +804,7 @@ static PyObject * pyparam_param_pull(PyObject * self, PyObject * args, PyObject 
 
 	if (!_csp_initialized) {
 		PyErr_SetString(PyExc_RuntimeError,
-			"Cannot perform operations before ._param_init() has been called.");
+			"Cannot perform operations before .param_init() has been called.");
 		return NULL;
 	}
 
@@ -846,7 +846,7 @@ static PyObject * pyparam_param_push(PyObject * self, PyObject * args) {
 
 	if (!_csp_initialized) {
 		PyErr_SetString(PyExc_RuntimeError,
-			"Cannot perform operations before ._param_init() has been called.");
+			"Cannot perform operations before .param_init() has been called.");
 		return NULL;
 	}
 
@@ -1015,7 +1015,7 @@ static PyObject * pyparam_csp_ping(PyObject * self, PyObject * args, PyObject * 
 
 	if (!_csp_initialized) {
 		PyErr_SetString(PyExc_RuntimeError,
-			"Cannot perform operations before ._param_init() has been called.");
+			"Cannot perform operations before .param_init() has been called.");
 		return NULL;
 	}
 
@@ -1047,7 +1047,7 @@ static PyObject * pyparam_csp_ident(PyObject * self, PyObject * args, PyObject *
 
 	if (!_csp_initialized) {
 		PyErr_SetString(PyExc_RuntimeError,
-			"Cannot perform operations before ._param_init() has been called.");
+			"Cannot perform operations before .param_init() has been called.");
 		return NULL;
 	}
 
@@ -1090,7 +1090,7 @@ static PyObject * pyparam_vmem_list(PyObject * self, PyObject * args, PyObject *
 
 	if (!_csp_initialized) {
 		PyErr_SetString(PyExc_RuntimeError,
-			"Cannot perform operations before ._param_init() has been called.");
+			"Cannot perform operations before .param_init() has been called.");
 		return NULL;
 	}
 
@@ -1161,7 +1161,7 @@ static PyObject * pyparam_vmem_restore(PyObject * self, PyObject * args, PyObjec
 
 	if (!_csp_initialized) {
 		PyErr_SetString(PyExc_RuntimeError,
-			"Cannot perform operations before ._param_init() has been called.");
+			"Cannot perform operations before .param_init() has been called.");
 		return NULL;
 	}
 
@@ -1195,7 +1195,7 @@ static PyObject * pyparam_vmem_backup(PyObject * self, PyObject * args, PyObject
 	
 	if (!_csp_initialized) {
 		PyErr_SetString(PyExc_RuntimeError,
-			"Cannot perform operations before ._param_init() has been called.");
+			"Cannot perform operations before .param_init() has been called.");
 		return NULL;
 	}
 
@@ -1231,7 +1231,7 @@ static PyObject * pyparam_vmem_unlock(PyObject * self, PyObject * args, PyObject
 
 	if (!_csp_initialized) {
 		PyErr_SetString(PyExc_RuntimeError,
-			"Cannot perform operations before ._param_init() has been called.");
+			"Cannot perform operations before .param_init() has been called.");
 		return NULL;
 	}
 
@@ -1580,7 +1580,7 @@ static PyGetSetDef Parameter_getsetters[] = {
 
 static PyTypeObject ParameterType = {
     PyVarObject_HEAD_INIT(NULL, 0)
-    .tp_name = "libparam_py3.Parameter",
+    .tp_name = "pycsh.Parameter",
     .tp_doc = "Wrapper utility class for libparam parameters.",
     .tp_basicsize = sizeof(ParameterObject),
     .tp_itemsize = 0,
@@ -1655,7 +1655,7 @@ static PyMappingMethods ParameterArray_as_mapping = {
 
 static PyTypeObject ParameterArrayType = {
 	PyVarObject_HEAD_INIT(NULL, 0)
-	.tp_name = "libparam_py3.ParameterArray",
+	.tp_name = "pycsh.ParameterArray",
 	.tp_doc = "Wrapper utility class for libparam array parameters.",
 	.tp_basicsize = sizeof(ParameterArrayObject),
 	.tp_itemsize = 0,
@@ -1675,7 +1675,7 @@ static PyObject * ParameterList_pull(ParameterListObject *self, PyObject *args, 
 	
 	if (!_csp_initialized) {
 		PyErr_SetString(PyExc_RuntimeError,
-			"Cannot perform operations before ._param_init() has been called.");
+			"Cannot perform operations before .param_init() has been called.");
 		return NULL;
 	}
 
@@ -1725,7 +1725,7 @@ static PyObject * ParameterList_push(ParameterListObject *self, PyObject *args, 
 
 	if (!_csp_initialized) {
 		PyErr_SetString(PyExc_RuntimeError,
-			"Cannot perform operations before ._param_init() has been called.");
+			"Cannot perform operations before .param_init() has been called.");
 		return NULL;
 	}
 	
@@ -1826,7 +1826,7 @@ static int ParameterList_init(ParameterListObject *self, PyObject *args, PyObjec
    This is generally considered unpythonic however, and should't be relied upon */
 static PyTypeObject ParameterListType = {
 	PyVarObject_HEAD_INIT(NULL, 0)
-	.tp_name = "libparam_py3.ParameterList",
+	.tp_name = "pycsh.ParameterList",
 	.tp_doc = "Parameter list class with an interface to libparam's queue API.",
 	.tp_basicsize = sizeof(ParameterListObject),
 	.tp_itemsize = 0,
@@ -1986,7 +1986,7 @@ static PyMethodDef methods[] = {
 
 static struct PyModuleDef moduledef = {
 	PyModuleDef_HEAD_INIT,
-	"libparam_py3",
+	"pycsh",
 	"Bindings primarily dedicated to the CSH shell interface commands",
 	-1,
 	methods,
@@ -1995,7 +1995,7 @@ static struct PyModuleDef moduledef = {
 	NULL,
 	NULL};
 
-PyMODINIT_FUNC PyInit_libparam_py3(void) {
+PyMODINIT_FUNC PyInit_pycsh(void) {
 
 	if (PyType_Ready(&ParameterType) < 0)
         return NULL;

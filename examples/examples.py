@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 """
 Contains examples of using the libparam Python bindings and its utilities.
-See: 'libparam_py3.pyi' for functions and classes available once the bindings have been imported.
+See: 'pycsh.pyi' for functions and classes available once the bindings have been imported.
 
 Please note that the 'PYTHONPATH' and 'LD_LIBRARY_PATH' environment variables must be
 set to point at the directory of the python bindings shared object before they may be imported.
@@ -52,7 +52,7 @@ def int_param_examples(bindings) -> None:
     col_verbose = ParamClass(202)
     print(f"We have a wrapper of {col_verbose.name} on node {col_verbose.node}.")
     print(f"The {col_verbose.name} parameter is of type {col_verbose.type}.")
-    # See libparam_py3.pyi for a full list of attributes and methods available on the Parameter class.
+    # See pycsh.pyi for a full list of attributes and methods available on the Parameter class.
 
     # Let's retrieve the value of the parameter through our new instance.
     original_col_verbose_value_by_class: int = col_verbose.value
@@ -214,7 +214,7 @@ def param_mapping_example() -> None:
     # We instantiate an instance of the ParamMapping class, through which we can access parameters.
     mapping = ParamMapping()
 
-    # The arguments given to 'mapping.CSP_RTABLE()' are passed along to 'libparam_py3.Parameter()',
+    # The arguments given to 'mapping.CSP_RTABLE()' are passed along to 'pycsh.Parameter()',
     # we don't have to worry about the parameter identifier (ID or name), as that is handled for us.
     csp_rtable = mapping.CSP_RTABLE(node=LOCAL_NODE)
 
@@ -240,15 +240,15 @@ def param_vmem_examples(bindings) -> None:
 
 if __name__ == '__main__':
 
-    # While it is entirely legal for us to import libparam_py3 directly,
-    # doing so requires us to call libparam_py3._param_init() ourselves,
+    # While it is entirely legal for us to import pycsh directly,
+    # doing so requires us to call pycsh.param_init() ourselves,
     # before most operations are permitted.
     # Using the return value of the 'Bindings()' function from 'pyparam_utils',
     # therefore strips the need for most bootstrapping code.
     bindings = Bindings(quiet=True)
 
     # The following is equivalent to 'Bindings(quiet=False)':
-    # libparam_py3._param_init(quiet=True)
+    # pycsh.param_init(quiet=True)
 
     # Just as when using CSH, the node command returns the current default node,
     # as well as changing it when an integer argument is provided.
