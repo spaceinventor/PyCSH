@@ -160,14 +160,17 @@ class ParameterArray(Parameter):
         """
 
 
-class ParameterList(list[Parameter, ParameterArray]):
+class ParameterList(list[Parameter | ParameterArray]):
     """
     Convenience class providing an interface for pulling and pushing the value of multiple parameters
     in a single request using param_queue_t's
     """
 
-    def __init__(self, *args: Parameter) -> None:
-        """ Accepts a sequence of Parameter object as is initial values. """
+    def __init__(self, _: Parameter | _Iterable[Parameter] = None, /, *args: Parameter) -> None:
+        """
+        Accepts either a single iterable of Parameter objects,
+        or Parameter objects directly through *args, as its initial values.
+        """
 
     def append(self, __object: Parameter) -> None:
         """

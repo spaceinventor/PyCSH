@@ -1786,37 +1786,40 @@ static PyMethodDef ParameterList_methods[] = {
 static int ParameterList_init(ParameterListObject *self, PyObject *args, PyObject *kwds) {
 
 	int seqlen = PySequence_Fast_GET_SIZE(args);
+	PyObject *iterobj = args;  // Which object should we iterate over to get inital members.
 
 	// This .__init__() function accepts either an iterable or (Python) *args as its initial members.
-	if (seqlen == 1 && PySequence_Check(PySequence_Fast_GET_ITEM(args, 0)))
-		// This likely fails to have its intended effect if args is some weird nested iterable like:
-		// (((((1)), 2))), but this initializes a ParameterList incorrectly anyway. 
-		return ParameterList_init(self, PySequence_Fast_GET_ITEM(args, 0), kwds);
+	if (seqlen == 1) {
+		PyObject *argitem = PySequence_Fast_GET_ITEM(args, 0);
+		if (PySequence_Check(argitem)) {
+			// This likely fails to have its intended effect if args is some weird nested iterable like:
+			// (((((1)), 2))), but this initializes a ParameterList incorrectly anyway.
+			return ParameterList_init(self, argitem, kwds);
+		}
+		else if (PyIter_Check(argitem))
+			iterobj = argitem;
+	}
 
 	// Call list init without any arguments, in case it's needed.
 	if (PyList_Type.tp_init((PyObject *) self, PyTuple_Pack(0), kwds) < 0)
         return -1;
-        
-	/* We append all the items passed as arguments to self. Checking that they are Parameters as we go. */
-	/* Iterate over the objects in args directly, as opposed to copying them first.
-		I'm not sure this is entirely legal, considering the GIL and multiprocessing stuff. */
-	for (int i = 0; i < seqlen; i++) {
 
-		PyObject *item = PySequence_Fast_GET_ITEM(args, i);
+	PyObject *iter = PyObject_GetIter(iterobj);
+	PyObject *item;
 
-		if(!item) {
-            Py_DECREF(args);
-			PyErr_SetString(PyExc_RuntimeError, "Iterator went outside the bounds of the list.");
-            return -1;
-        }
+	while ((item = PyIter_Next(iter)) != NULL) {
 
 		PyObject * valuetuple = PyTuple_Pack(1, item);
 		ParameterList_append((PyObject *)self, valuetuple);
 		Py_DECREF(valuetuple);
-		if (PyErr_Occurred())
-			return -1;
 
+		Py_DECREF(item);
+
+		if (PyErr_Occurred())  // Likely to happen when we fail to append an object.
+			return -1;
 	}
+
+	Py_DECREF(iter);
 
     return 0;
 }
