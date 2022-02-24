@@ -5,7 +5,7 @@
 
 #include <fcntl.h>
 #include <stdio.h>
-
+#include <sys/utsname.h>
 
 #include <param/param.h>
 #include <vmem/vmem_server.h>
@@ -809,12 +809,12 @@ static PyObject * pyparam_param_pull(PyObject * self, PyObject * args, PyObject 
 	}
 
 	unsigned int host = 0;
+	unsigned int timeout = 1000;
 	uint32_t include_mask = 0xFFFFFFFF;
 	uint32_t exclude_mask = PM_REMOTE | PM_HWREG;
-	unsigned int timeout = 1000;
 
-	char * _str_include_mask;
-	char * _str_exclude_mask;
+	char * _str_include_mask = NULL;
+	char * _str_exclude_mask = NULL;
 
 	static char *kwlist[] = {"host", "include_mask", "exclude_mask", "timeout", NULL};
 
@@ -1263,6 +1263,8 @@ static PyObject * pyparam_vmem_unlock(PyObject * self, PyObject * args, PyObject
 
 	/* Step 1: Check initial unlock code */
 	request->unlock.code = htobe32(0x28140360);
+
+	csp_send(conn, packet);
 
 	/* Step 2: Wait for verification sequence */
 	if ((packet = csp_read(conn, timeout)) == NULL) {
@@ -1853,9 +1855,14 @@ static PyObject * pyparam_init(PyObject * self, PyObject * args, PyObject *kwds)
 		"use_prometheus", "rtable", "yamlname", "dfl_addr", "quiet", NULL,
 	};
 
-	csp_conf.version = 2;
+	static struct utsname info;
+	uname(&info);
+
 	csp_conf.hostname = "python_bindings";
-	csp_conf.model = "linux";
+	csp_conf.model = info.version;
+	csp_conf.revision = info.release;
+	csp_conf.version = 2;
+	csp_conf.dedup = CSP_DEDUP_OFF;
 
 	int use_prometheus = 0;
 	char * rtable = NULL;
@@ -1889,7 +1896,6 @@ static PyObject * pyparam_init(PyObject * self, PyObject * args, PyObject *kwds)
 	vmem_file_init(&vmem_params);
 	param_list_store_vmem_load(&vmem_params);
 
-	csp_conf.dedup = CSP_DEDUP_OFF;
 	csp_init();
 
 	if (strlen(dirname)) {
@@ -1942,7 +1948,7 @@ static PyObject * pyparam_init(PyObject * self, PyObject * args, PyObject *kwds)
 }
 
 static PyObject * _pyparam_init(PyObject * self, PyObject * args, PyObject *kwds) {
-	fprintf(stderr, "_param_init() (with underscore) is deprecated. Please use the public API (param_init()) instead.");
+	fprintf(stderr, "_param_init() (with underscore) is deprecated. Please use the public API (param_init()) instead.\n");
 	return pyparam_init(self, args, kwds);
 }
 
