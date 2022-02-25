@@ -69,8 +69,7 @@ def local_sender(parameter_identifier: int | str):
     # Change the value of the remote parameter.
     # Adapt the way we change the parameter, based on its type.
     if remote_param.type is str:
-        if remote_param.type is str:
-            remote_param.value = "changed example"
+        remote_param.value = "changed example"
     else:
         if isinstance(remote_param, pycsh.ParameterArray):
             remote_param[0] += 1

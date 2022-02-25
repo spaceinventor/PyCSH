@@ -18,12 +18,17 @@ The examples start executing at "if __name__ == '__main__'".
 """
 
 from __future__ import annotations
+
+if __name__ == '__main__':  # Support showing __doc__ with -h argument.
+    import argparse
+    argparse.ArgumentParser(description=__doc__).parse_args()
+
 # Python hates relative imports with no known parent package (Importing from parent directory),
 # but we will force it to make them anyway!
 import os
 current_directory = os.path.dirname(os.path.realpath(__file__))
 import sys; sys.path.append(current_directory[:current_directory.rindex('/')])
-from pyparam_utils import Bindings, temp_autosend_value, ParamMapping
+from PyCSH.pyparam_utils import Bindings, temp_autosend_value, ParamMapping
 
 LOCAL_NODE = 0
 
