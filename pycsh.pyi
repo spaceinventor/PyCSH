@@ -186,9 +186,9 @@ class ParameterList(list[Parameter | ParameterArray]):
         :raises ConnectionError: When no response is received.
         """
 
-    def push(self, node: int, timeout: int = None) -> None:
+    def push(self, node: int, timeout: int = None, hwid: int = None) -> None:
         """
-        Pushes all Parameters in the list as a single request.
+        Pushes all Parameters in the list in a single packet.
 
         :raises ConnectionError: When no response is received.
         """
@@ -204,7 +204,7 @@ def get(param_identifier: _param_ident_hint, host: int = None, node: int = None,
 
     :param param_identifier: string name, int id or Parameter object of the desired parameter.
     :param host: The host from which the value should be retrieved (has priority over node).
-    :param node: The node from which the value should be retrived.
+    :param node: The node from which the value should be retrieved.
     :param offset: Index to use for array parameters.
 
     :raises TypeError: When an invalid param_identifier type is provided.
@@ -229,12 +229,14 @@ def set(param_identifier: _param_ident_hint, value: _param_value_hint | _Iterabl
     :raises RuntimeError: When called before .param_init().
     """
 
-def push(node: int, timeout: int = None) -> None:
+def push(node: int, timeout: int = None, hwid: int = None) -> None:
     """
     Push the current queue.
 
     :param node: Node to which the current queue should be pushed.
     :param timeout: Timeout in milliseconds of the push request.
+    :param hwid: Hardware ID.
+
     :raises ConnectionError: when no response is received.
     """
 

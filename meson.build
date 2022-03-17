@@ -26,6 +26,13 @@ add_global_arguments('-I../include', language: 'c')
 csp_dep = dependency('csp', fallback: ['csp', 'csp_dep'], required: true)
 param_dep = dependency('param', fallback: ['param', 'param_dep'], required: true).as_link_whole()
 
+pycsh_sources = [
+	'src/pycsh.c',
+	'src/serial.c',
+	'src/prometheus.c',
+	'src/param_sniffer.c',
+]
+
 # Compile bindings for the versions specified in 'python3_versions'.
 # They may only be imported for these versions.
 foreach python_version : get_option('python3_versions')
@@ -34,7 +41,7 @@ foreach python_version : get_option('python3_versions')
 	# py.dependency() doesn't work with version constraint. Use plain
 	# dependency() instead
 	pydep = dependency('python3', version : '>=3.5', required : true)
-	py.extension_module('pycsh', 'src/pycsh.c',
+	py.extension_module('pycsh', pycsh_sources,
 						dependencies : [param_dep, pydep, csp_dep],
 						install : true)
 

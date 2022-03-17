@@ -33,6 +33,8 @@
 #include <sys/types.h>
 
 #include "lib/param/src/param/param_string.h"
+#include "src/prometheus.h"
+#include "src/param_sniffer.h"
 
 
 #define PARAMID_CSP_RTABLE					 12
@@ -748,7 +750,7 @@ static int _pyparam_util_set_array(param_t *param, PyObject *value, int host) {
 	param_queue_print((autosend ? &queue : &param_queue_set));
 	
 	if (param->node != 0)
-		if (param_push_queue(&queue, 1, param->node, 100) < 0) {
+		if (param_push_queue(&queue, 1, param->node, 100, 0) < 0) {  // TODO Kevin: We should probably have a parameter for hwid here.
 			PyErr_SetString(PyExc_ConnectionError, "No response.");
 			free(queuebuffer);
 			Py_DECREF(value);
@@ -842,7 +844,7 @@ static PyObject * pyparam_param_pull(PyObject * self, PyObject * args, PyObject 
 	Py_RETURN_NONE;
 }
 
-static PyObject * pyparam_param_push(PyObject * self, PyObject * args) {
+static PyObject * pyparam_param_push(PyObject * self, PyObject * args, PyObject * kwds) {
 
 	if (!_csp_initialized) {
 		PyErr_SetString(PyExc_RuntimeError,
@@ -852,12 +854,15 @@ static PyObject * pyparam_param_push(PyObject * self, PyObject * args) {
 
 	unsigned int node = 0;
 	unsigned int timeout = 100;
+	uint32_t hwid = 0;
 
-	if (!PyArg_ParseTuple(args, "I|I", &node, &timeout)) {
+	static char *kwlist[] = {"node", "timeout", "hwid", NULL};
+
+	if (!PyArg_ParseTupleAndKeywords(args, kwds, "I|II", kwlist, &node, &timeout, &hwid)) {
 		return NULL;  // TypeError is thrown
 	}
 
-	if (param_push_queue(&param_queue_set, 1, node, timeout) < 0) {
+	if (param_push_queue(&param_queue_set, 1, node, timeout, hwid) < 0) {
 		PyErr_SetString(PyExc_ConnectionError, "No response.");
 		return 0;
 	}
@@ -963,7 +968,7 @@ static PyObject * pyparam_param_list(PyObject * self, PyObject * args) {
 	if (_str_mask != NULL)
 		mask = param_maskstr_to_mask(_str_mask);
 
-	param_list_print(mask);
+	param_list_print(mask, 1);
 
 	return pyparam_util_parameter_list();
 }
@@ -1060,16 +1065,44 @@ static PyObject * pyparam_csp_ident(PyObject * self, PyObject * args, PyObject *
 		return NULL;  // TypeError is thrown
 	}
 
-	struct csp_cmp_message message;
+	struct csp_cmp_message msg;
+	msg.type = CSP_CMP_REQUEST;
+	msg.code = CSP_CMP_IDENT;
+	int size = sizeof(msg.type) + sizeof(msg.code) + sizeof(msg.ident);
 
-	if (csp_cmp_ident(node, timeout, &message) != CSP_ERR_NONE) {
-		PyErr_SetString(PyExc_ConnectionError, "No response.");
-		return NULL;
+	csp_conn_t * conn = csp_connect(CSP_PRIO_NORM, node, CSP_CMP, timeout, CSP_O_CRC32);
+	if (conn == NULL) {
+		return 0;
 	}
 
-	printf("%s\n%s\n%s\n%s %s\n", message.ident.hostname, message.ident.model, message.ident.revision, message.ident.date, message.ident.time);
+	csp_packet_t * packet = csp_buffer_get(size);
+	if (packet == NULL) {
+		csp_close(conn);
+		return 0;
+	}
 
-	return PyUnicode_FromFormat("%s\n%s\n%s\n%s %s\n", message.ident.hostname, message.ident.model, message.ident.revision, message.ident.date, message.ident.time);
+	/* Copy the request */
+	memcpy(packet->data, &msg, size);
+	packet->length = size;
+
+	csp_send(conn, packet);
+
+	PyObject * list_string = PyUnicode_New(0, 0);
+
+	while((packet = csp_read(conn, timeout)) != NULL) {
+		memcpy(&msg, packet->data, packet->length < size ? packet->length : size);
+		if (msg.code == CSP_CMP_IDENT) {
+			char buf[500];
+			snprintf(buf, sizeof(buf), "\nIDENT %hu\n  %s\n  %s\n  %s\n  %s %s\n", packet->id.src, msg.ident.hostname, msg.ident.model, msg.ident.revision, msg.ident.date, msg.ident.time);
+			printf("%s", buf);
+			PyUnicode_AppendAndDel(&list_string, PyUnicode_FromString(buf));
+		}
+		csp_buffer_free(packet);
+	}
+
+	csp_close(conn);
+
+	return list_string;
 	
 }
 
@@ -1094,7 +1127,7 @@ static PyObject * pyparam_vmem_list(PyObject * self, PyObject * args, PyObject *
 		return NULL;
 	}
 
-	int node = csp_get_address();
+	int node = 0;
 	int timeout = 2000;
 	int version = 1;
 
@@ -1103,7 +1136,7 @@ static PyObject * pyparam_vmem_list(PyObject * self, PyObject * args, PyObject *
 	if (!PyArg_ParseTupleAndKeywords(args, kwds, "|iii", kwlist, &node, &timeout, &version))
 		return NULL;  // Raises TypeError.
 
-	printf("Requesting vmem list from node %u timeout %u\n", node, timeout);
+	printf("Requesting vmem list from node %u timeout %u version %d\n", node, timeout, version);
 
 	csp_conn_t * conn = csp_connect(CSP_PRIO_HIGH, node, VMEM_PORT_SERVER, timeout, CSP_O_NONE);
 	if (conn == NULL) {
@@ -1137,14 +1170,14 @@ static PyObject * pyparam_vmem_list(PyObject * self, PyObject * args, PyObject *
 	if (request->version == 2) {
 		for (vmem_list2_t * vmem = (void *) packet->data; (intptr_t) vmem < (intptr_t) packet->data + packet->length; vmem++) {
 			char buf[500];
-			sprintf(buf, " %u: %-5.5s 0x%lX - %u typ %u\r\n", vmem->vmem_id, vmem->name, be64toh(vmem->vaddr), (unsigned int) be32toh(vmem->size), vmem->type);
+			snprintf(buf, sizeof(buf), " %u: %-5.5s 0x%lX - %u typ %u\r\n", vmem->vmem_id, vmem->name, be64toh(vmem->vaddr), (unsigned int) be32toh(vmem->size), vmem->type);
 			printf("%s", buf);
 			PyUnicode_AppendAndDel(&list_string, PyUnicode_FromString(buf));
 		}
 	} else {
 		for (vmem_list_t * vmem = (void *) packet->data; (intptr_t) vmem < (intptr_t) packet->data + packet->length; vmem++) {
 			char buf[500];
-			sprintf(buf, " %u: %-5.5s 0x%08X - %u typ %u\r\n", vmem->vmem_id, vmem->name, (unsigned int) be32toh(vmem->vaddr), (unsigned int) be32toh(vmem->size), vmem->type);
+			snprintf(buf, sizeof(buf), " %u: %-5.5s 0x%08X - %u typ %u\r\n", vmem->vmem_id, vmem->name, (unsigned int) be32toh(vmem->vaddr), (unsigned int) be32toh(vmem->size), vmem->type);
 			printf("%s", buf);
 			PyUnicode_AppendAndDel(&list_string, PyUnicode_FromString(buf));
 		}
@@ -1152,7 +1185,6 @@ static PyObject * pyparam_vmem_list(PyObject * self, PyObject * args, PyObject *
 
 	csp_buffer_free(packet);
 	csp_close(conn);
-
 
 	return list_string;
 }
@@ -1168,7 +1200,7 @@ static PyObject * pyparam_vmem_restore(PyObject * self, PyObject * args, PyObjec
 	// The node argument is required (even though it has a default)
 	// because Python requires that keyword/optional arguments 
 	// come after positional/required arguments (vmem_id).
-	int node = csp_get_address();
+	int node = 0;
 	int vmem_id;
 	int timeout = 2000;
 
@@ -1202,7 +1234,7 @@ static PyObject * pyparam_vmem_backup(PyObject * self, PyObject * args, PyObject
 	// The node argument is required (even though it has a default)
 	// because Python requires that keyword/optional arguments 
 	// come after positional/required arguments (vmem_id).
-	int node = csp_get_address();
+	int node = 0;
 	int vmem_id;
 	int timeout = 2000;
 
@@ -1235,7 +1267,7 @@ static PyObject * pyparam_vmem_unlock(PyObject * self, PyObject * args, PyObject
 		return NULL;
 	}
 
-	int node = csp_get_address();
+	int node = 0;
 	int timeout = 2000;
 
 	static char *kwlist[] = {"node", "timeout", NULL};
@@ -1733,10 +1765,12 @@ static PyObject * ParameterList_push(ParameterListObject *self, PyObject *args, 
 	
 	unsigned int node = 0;
 	unsigned int timeout = 100;
+	uint32_t hwid = 0;
 
-	if (!PyArg_ParseTuple(args, "I|I", &node, &timeout)) {
+	static char *kwlist[] = {"node", "timeout", "hwid", NULL};
+
+	if (!PyArg_ParseTupleAndKeywords(args, kwds, "I|II", kwlist, &node, &timeout, &hwid))
 		return NULL;  // TypeError is thrown
-	}
 
 	void * queuebuffer = malloc(PARAM_SERVER_MTU);
 	param_queue_t queue = { };
@@ -1765,7 +1799,7 @@ static PyObject * ParameterList_push(ParameterListObject *self, PyObject *args, 
 			fprintf(stderr, "Skipping non-parameter object (of type: %s) in Parameter list.", item->ob_type->tp_name);
 	}
 
-	if (param_push_queue(&queue, 1, node, timeout) < 0) {
+	if (param_push_queue(&queue, 1, node, timeout, hwid) < 0) {
 		PyErr_SetString(PyExc_ConnectionError, "No response.");
 		free(queuebuffer);
 		return NULL;
@@ -1780,7 +1814,7 @@ static PyMethodDef ParameterList_methods[] = {
      PyDoc_STR("Add a Parameter to the list.")},
 	{"pull", (PyCFunction) ParameterList_pull, METH_VARARGS,
      PyDoc_STR("Pulls all Parameters in the list as a single request.")},
-	{"push", (PyCFunction) ParameterList_push, METH_VARARGS,
+	{"push", (PyCFunction) ParameterList_push, METH_VARARGS | METH_KEYWORDS,
      PyDoc_STR("Pushes all Parameters in the list as a single request.")},
     {NULL},
 };
@@ -1892,6 +1926,11 @@ static PyObject * pyparam_init(PyObject * self, PyObject * args, PyObject *kwds)
 		stdout = devnull;
 	}
 
+	srand(time(NULL));
+
+	void serial_init(void);
+	serial_init();
+
 	/* Parameters */
 	vmem_file_init(&vmem_params);
 	param_list_store_vmem_load(&vmem_params);
@@ -1906,7 +1945,6 @@ static PyObject * pyparam_init(PyObject * self, PyObject * args, PyObject *kwds)
 		csp_yaml_init(yamlname, &dfl_addr);
 
 	}
-	param_set_local_node(dfl_addr);
 
 	csp_rdp_set_opt(3, 10000, 5000, 1, 2000, 2);
 
@@ -1937,10 +1975,10 @@ static PyObject * pyparam_init(PyObject * self, PyObject * args, PyObject *kwds)
 	static pthread_t vmem_server_handle;
 	pthread_create(&vmem_server_handle, NULL, &vmem_server_task, NULL);
 
-	// if (use_prometheus) {  // TODO Kevin: include functions.
-	// 	prometheus_init();
-	// 	param_sniffer_init();
-	// }
+	if (use_prometheus) {
+		prometheus_init();
+		param_sniffer_init();
+	}
 	
 	_csp_initialized = 1;
 	Py_RETURN_NONE;
@@ -1957,7 +1995,7 @@ static PyMethodDef methods[] = {
 	/* Converted CSH commands from param/param_slash.c */
 	{"get", 		(PyCFunction)pyparam_param_get, METH_VARARGS | METH_KEYWORDS, 	"Set the value of a parameter."},
 	{"set", 		(PyCFunction)pyparam_param_set, METH_VARARGS | METH_KEYWORDS, 	"Get the value of a parameter."},
-	{"push", 		pyparam_param_push, 			METH_VARARGS, 					"Push the current queue."},
+	{"push", 		(PyCFunction)pyparam_param_push,METH_VARARGS | METH_KEYWORDS, 	"Push the current queue."},
 	{"pull", 		(PyCFunction)pyparam_param_pull,METH_VARARGS | METH_KEYWORDS, 	"Pull all or a specific set of parameters."},
 	{"clear", 		pyparam_param_clear, 			METH_NOARGS, 					"Clears the queue."},
 	{"node", 		pyparam_param_node, 			METH_VARARGS, 					"Used to get or change the default node."},
