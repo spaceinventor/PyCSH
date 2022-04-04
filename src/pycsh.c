@@ -430,20 +430,20 @@ static PyObject * _pyparam_util_get_single(param_t *param, int offset, int autop
 			return Py_BuildValue("K", param_get_uint64(param));
 		case PARAM_TYPE_INT8:
 			if (offset != -1)
-				return Py_BuildValue("b", param_get_uint8_array(param, offset));
-			return Py_BuildValue("b", param_get_uint8(param));
+				return Py_BuildValue("b", param_get_int8_array(param, offset));
+			return Py_BuildValue("b", param_get_int8(param));
 		case PARAM_TYPE_INT16:
 			if (offset != -1)
-				return Py_BuildValue("h", param_get_uint8_array(param, offset));
-			return Py_BuildValue("h", param_get_uint8(param));
+				return Py_BuildValue("h", param_get_int16_array(param, offset));
+			return Py_BuildValue("h", param_get_int16(param));
 		case PARAM_TYPE_INT32:
 			if (offset != -1)
-				return Py_BuildValue("i", param_get_uint8_array(param, offset));
-			return Py_BuildValue("i", param_get_uint8(param));
+				return Py_BuildValue("i", param_get_int32_array(param, offset));
+			return Py_BuildValue("i", param_get_int32(param));
 		case PARAM_TYPE_INT64:
 			if (offset != -1)
-				return Py_BuildValue("k", param_get_uint8_array(param, offset));
-			return Py_BuildValue("k", param_get_uint8(param));
+				return Py_BuildValue("k", param_get_int64_array(param, offset));
+			return Py_BuildValue("k", param_get_int64(param));
 		case PARAM_TYPE_FLOAT:
 			if (offset != -1)
 				return Py_BuildValue("f", param_get_float_array(param, offset));
@@ -1716,9 +1716,10 @@ static PyObject * ParameterList_pull(ParameterListObject *self, PyObject *args, 
 	unsigned int host = 0;
 	unsigned int timeout = 100;
 
-	if (!PyArg_ParseTuple(args, "I|I", &host, &timeout)) {
+	static char *kwlist[] = {"host", "timeout", NULL};
+
+	if (!PyArg_ParseTupleAndKeywords(args, kwds, "I|I", kwlist, &host, &timeout))
 		return NULL;  // TypeError is thrown
-	}
 
 	void * queuebuffer = malloc(PARAM_SERVER_MTU);
 	param_queue_t queue = { };
@@ -1812,7 +1813,7 @@ static PyObject * ParameterList_push(ParameterListObject *self, PyObject *args, 
 static PyMethodDef ParameterList_methods[] = {
     {"append", (PyCFunction) ParameterList_append, METH_VARARGS,
      PyDoc_STR("Add a Parameter to the list.")},
-	{"pull", (PyCFunction) ParameterList_pull, METH_VARARGS,
+	{"pull", (PyCFunction) ParameterList_pull, METH_VARARGS | METH_KEYWORDS,
      PyDoc_STR("Pulls all Parameters in the list as a single request.")},
 	{"push", (PyCFunction) ParameterList_push, METH_VARARGS | METH_KEYWORDS,
      PyDoc_STR("Pushes all Parameters in the list as a single request.")},
