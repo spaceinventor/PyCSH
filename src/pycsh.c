@@ -975,17 +975,25 @@ static PyObject * pyparam_param_list(PyObject * self, PyObject * args) {
 
 static PyObject * pyparam_param_list_download(PyObject * self, PyObject * args, PyObject * kwds) {
 
+	if (!_csp_initialized) {
+		PyErr_SetString(PyExc_RuntimeError,
+			"Cannot perform operations before .param_init() has been called.");
+		return NULL;
+	}
+
 	unsigned int node;
     unsigned int timeout = 1000;
     unsigned int version = 2;
 
 	static char *kwlist[] = {"node", "timeout", "version", NULL};
 
-	if (!PyArg_ParseTupleAndKeywords(args, kwds, "I|II", kwlist, &node, &timeout, &version)) {
+	if (!PyArg_ParseTupleAndKeywords(args, kwds, "I|II", kwlist, &node, &timeout, &version))
 		return NULL;  // TypeError is thrown
-	}
 
-	param_list_download(node, timeout, version);
+	if (param_list_download(node, timeout, version) < 1) {  // We assume a connection error has occurred if we don't receive any parameters.
+		PyErr_SetString(PyExc_ConnectionError, "No response.");
+		return NULL;
+	}
 
 	return pyparam_util_parameter_list();
 

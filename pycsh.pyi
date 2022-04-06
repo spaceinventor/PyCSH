@@ -282,7 +282,10 @@ def list(mask: str = None) -> ParameterList:
 
 def list_download(node: int, timeout: int = None, version: int = None) -> ParameterList:
     """
-    Download all parameters on the specified node. Does not raise an exception on failure.
+    Download all parameters on the specified node.
+
+    :raises RuntimeError: When called before .param_init().
+    :raises ConnectionError: When no response is received.
 
     :returns: The output of list().
     """
