@@ -43,7 +43,18 @@ ninja -C builddir
 
 Build & Install (Optional)
 ```
+# Recompiling the repository will not affect system-wide imports.
+# Does not include .pyi file API documentation for IDEs
+
 sudo ninja -C builddir/ install
+```
+
+Install repo as package (Optional)
+```
+# Recompiling the repository will affect system-wide imports.
+# Includes .pyi file API documentation for IDEs
+
+sudo ln -s <FULL/PATH/TO/PyCSH/REPO>/PyCSH /usr/lib/python3/dist-packages/PyCSH
 ```
 
 ### Run
