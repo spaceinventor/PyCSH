@@ -1010,6 +1010,21 @@ static PyObject * pyparam_param_list_download(PyObject * self, PyObject * args, 
 
 }
 
+static PyObject * pyparam_param_list_forget(PyObject * self, PyObject * args, PyObject * kwds) {
+
+	int node = -1;
+    char * name = NULL;
+
+	static char *kwlist[] = {"node", "name_filter", NULL};
+
+	if (!PyArg_ParseTupleAndKeywords(args, kwds, "is", kwlist, &node, &name))
+		return NULL;  // TypeError is thrown
+
+	int res = param_list_remove_glob(node, name, 1);
+	printf("Removed %i parameters\n", res);
+	return Py_BuildValue("i", res);;
+}
+
 static PyObject * pyparam_param_list_save(PyObject * self, PyObject * args) {
 
 	int id;
@@ -2031,7 +2046,8 @@ static PyMethodDef methods[] = {
 
 	/* Converted CSH commands from param/param_list_slash.c */
 	{"list", 		pyparam_param_list, 			METH_VARARGS, 					"List all known parameters."},
-	{"list_download", (PyCFunction)pyparam_param_list_download, METH_VARARGS | METH_KEYWORDS, "Download all parameters on the specified node. Does not raise an exception on failure."},
+	{"list_download", (PyCFunction)pyparam_param_list_download, METH_VARARGS | METH_KEYWORDS, "Download all parameters on the specified node."},
+	{"list_forget", (PyCFunction)pyparam_param_list_forget, METH_VARARGS | METH_KEYWORDS, "Remove remote parameters, matching the provided arguments, from the global list."},
 	{"list_save", 	pyparam_param_list_save, 		METH_VARARGS, 					"Save a list of parameters to a file."},
 	{"list_load", 	pyparam_param_list_load, 		METH_VARARGS, 					"Load a list of parameters from a file."},
 
