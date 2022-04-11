@@ -43,8 +43,12 @@ class Parameter:
         """ Returns the name of the wrapped param_t C struct. """
 
     @property
-    def unit(self) -> str:
-        """ The unit of the wrapped param_t c struct as a string. """
+    def unit(self) -> str | None:
+        """ The unit of the wrapped param_t c struct as a string or None. """
+
+    @property
+    def docstr(self) -> str | None:
+        """ The help-text of the wrapped param_t c struct as a string or None. """
 
     @property
     def id(self) -> int:

@@ -70,10 +70,10 @@ PARAM_DEFINE_STATIC_VMEM(PARAMID_CSP_RTABLE,      csp_rtable,        PARAM_TYPE_
 
 // We include this parameter when testing the behavior of arrays, as none would exist otherwise.
 uint8_t _test_array[] = {1,2,3,4,5,6,7,8};
-PARAM_DEFINE_STATIC_RAM(1001, test_array_param,          PARAM_TYPE_UINT8,  8, sizeof(uint8_t),  PM_DEBUG, NULL, "", _test_array, NULL);
+PARAM_DEFINE_STATIC_RAM(1001, test_array_param,          PARAM_TYPE_UINT8,  8, sizeof(uint8_t),  PM_DEBUG, NULL, "", _test_array, "Parameter to use when testing arrays.");
 
 static char _test_str[80];
-PARAM_DEFINE_STATIC_RAM(1002, test_str,          PARAM_TYPE_STRING,  80, 1,  PM_DEBUG, NULL, "", _test_str, NULL);
+PARAM_DEFINE_STATIC_RAM(1002, test_str,          PARAM_TYPE_STRING,  80, 1,  PM_DEBUG, NULL, "", _test_str, "Parameter to use when testing strings");
 
 
 // Keep track of whether init has been run,
@@ -96,6 +96,7 @@ typedef struct {
 	/* Store Python strings for name and unit, to lessen the overhead of converting them from C */
 	PyObject *name;
 	PyObject *unit;
+	PyObject *docstr;
 
 	param_t *param;
 	int host;
@@ -345,8 +346,15 @@ static PyObject * _pyparam_Parameter_from_param(PyTypeObject *type, param_t * pa
 		Py_DECREF(self);
 		return NULL;
 	}
-	self->unit = PyUnicode_FromString(param->unit != NULL ? param->unit : "NULL");
+
+	self->unit = (param->unit != NULL ? PyUnicode_FromString(param->unit) : Py_None);
 	if (self->unit == NULL) {
+		Py_DECREF(self);
+		return NULL;
+	}
+
+	self->docstr = (param->docstr != NULL ? PyUnicode_FromString(param->docstr) : Py_None);
+	if (self->docstr == NULL) {
 		Py_DECREF(self);
 		return NULL;
 	}
@@ -1431,6 +1439,11 @@ static PyObject * Parameter_getunit(ParameterObject *self, void *closure) {
 	return self->unit;
 }
 
+static PyObject * Parameter_getdocstr(ParameterObject *self, void *closure) {
+	Py_INCREF(self->docstr);
+	return self->docstr;
+}
+
 static PyObject * Parameter_getid(ParameterObject *self, void *closure) {
 	return Py_BuildValue("H", self->param->id);
 }
@@ -1598,9 +1611,11 @@ as only its 'value', 'host' and 'node' are mutable, and even those are through s
 */
 static PyGetSetDef Parameter_getsetters[] = {
     {"name", (getter)Parameter_getname, NULL,
-     "name of the parameter", NULL},
+     "Returns the name of the wrapped param_t C struct.", NULL},
     {"unit", (getter)Parameter_getunit, NULL,
-     "unit of the parameter", NULL},
+     "The unit of the wrapped param_t c struct as a string or None.", NULL},
+	{"docstr", (getter)Parameter_getdocstr, NULL,
+     "The help-text of the wrapped param_t c struct as a string or None.", NULL},
 	{"id", (getter)Parameter_getid, NULL,
      "id of the parameter", NULL},
 	{"node", (getter)Parameter_getnode, (setter)Parameter_setnode,
