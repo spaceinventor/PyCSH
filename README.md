@@ -47,6 +47,7 @@ Build & Install (Optional)
 # Does not include .pyi file API documentation for IDEs
 
 sudo ninja -C builddir/ install
+# Uninstall with: sudo rm /usr/local/lib/python3/dist-packages/pycsh.cp*.so
 ```
 
 Install repo as package (Optional)
@@ -55,6 +56,7 @@ Install repo as package (Optional)
 # Includes .pyi file API documentation for IDEs
 
 sudo ln -s <FULL/PATH/TO/PyCSH/REPO>/PyCSH /usr/lib/python3/dist-packages/PyCSH
+# Uninstall by deleting: /usr/lib/python3/dist-packages/PyCSH
 ```
 
 ### Run
