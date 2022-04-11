@@ -16,6 +16,9 @@ from typing import \
 _param_value_hint = int | float | str
 _param_type_hint = _param_value_hint | bytearray
 
+# For consistencies’ sake, we override the builtin list class with the list command from CSH.
+# So let's make sure we can still retrieve the original class.
+_pylist = type([])
 
 class Parameter:
     """
@@ -160,7 +163,8 @@ class ParameterArray(Parameter):
         """
 
 
-class ParameterList(list[Parameter | ParameterArray]):
+# PyCharm may refuse to acknowledge that a list subclass is iterable, so we explicitly state that it is.
+class ParameterList(_pylist[Parameter | ParameterArray], _Iterable):
     """
     Convenience class providing an interface for pulling and pushing the value of multiple parameters
     in a single request using param_queue_t's

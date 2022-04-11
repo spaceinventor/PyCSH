@@ -177,8 +177,11 @@ finally:
     return result;
 }
 
-
-/* Checks that the argument is a Parameter object, before calling list.append(). */
+/**
+ * @brief Checks that the argument is a Parameter object, before calling list.append().
+ * Remember to PY_DECREF() the result if used internally.
+ * @return Py_None
+ */
 static PyObject * ParameterList_append(PyObject * self, PyObject * args) {
 	PyObject * obj;
 
@@ -200,7 +203,7 @@ static PyObject * ParameterList_append(PyObject * self, PyObject * args) {
 	as calling list.append() directly. But it is more flexible.
 	*/
 	PyObject * func_name = Py_BuildValue("s", "append");
-	call_super_pyname_lookup(self, func_name, args, NULL);
+	Py_DECREF(call_super_pyname_lookup(self, func_name, args, NULL));
 	Py_DECREF(func_name);
 
 	Py_RETURN_NONE;
@@ -364,7 +367,7 @@ static PyObject * pyparam_util_parameter_list() {
 	while ((param = param_list_iterate(&i)) != NULL) {
 		PyObject * parameter = _pyparam_Parameter_from_param(&ParameterType, param);
 		PyObject * argtuple = PyTuple_Pack(1, parameter);
-		ParameterList_append(list, argtuple);
+		Py_DECREF(ParameterList_append(list, argtuple));
 		Py_DECREF(argtuple);
 		Py_DECREF(parameter);
 	}
@@ -1473,8 +1476,7 @@ static int Parameter_setnode(ParameterObject *self, PyObject *value, void *closu
 static PyObject * Parameter_gethost(ParameterObject *self, void *closure) {
 	if (self->host != INT_MIN)
 		return Py_BuildValue("i", self->host);
-	Py_INCREF(Py_None);
-	return Py_None;
+	Py_RETURN_NONE;
 }
 
 /* This will change self->param to be one by the same name at the specified node. */
@@ -1819,11 +1821,11 @@ static PyObject * ParameterList_push(ParameterListObject *self, PyObject *args, 
 }
 
 static PyMethodDef ParameterList_methods[] = {
-    {"append", (PyCFunction) ParameterList_append, METH_VARARGS,
+    {"append", (PyCFunction)ParameterList_append, METH_VARARGS,
      PyDoc_STR("Add a Parameter to the list.")},
-	{"pull", (PyCFunction) ParameterList_pull, METH_VARARGS | METH_KEYWORDS,
+	{"pull", (PyCFunction)ParameterList_pull, METH_VARARGS | METH_KEYWORDS,
      PyDoc_STR("Pulls all Parameters in the list as a single request.")},
-	{"push", (PyCFunction) ParameterList_push, METH_VARARGS | METH_KEYWORDS,
+	{"push", (PyCFunction)ParameterList_push, METH_VARARGS | METH_KEYWORDS,
      PyDoc_STR("Pushes all Parameters in the list as a single request.")},
     {NULL},
 };
