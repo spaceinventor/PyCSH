@@ -26,7 +26,7 @@ class Parameter:
     Provides an interface to their attributes and values.
     """
 
-    def __init__(self, param_identifier: _param_ident_hint, node: int = None, host: int = None) -> None:
+    def __new__(cls, param_identifier: _param_ident_hint, node: int = None, host: int = None) -> Parameter | ParameterArray:
         """
         As stated; this class simply wraps existing parameters,
         and cannot create new ones. It therefore requires an 'identifier'
@@ -36,6 +36,8 @@ class Parameter:
         :param node: Node on which the parameter is located.
 
         :raises ValueError: When no parameter can be found from an otherwise valid identifier.
+
+        :returns: An instance of a Parameter or ParameterArray, matching the identifier.
         """
 
     @property
