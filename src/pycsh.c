@@ -320,9 +320,7 @@ static PyObject * pyparam_misc_get_type(PyObject * self, PyObject * args) {
 
 
 /* Create a Python Parameter object from a param_t pointer directly. */
-static PyObject * _pyparam_Parameter_from_param(PyTypeObject *type, param_t * param) {
-	// TODO Kevin: An internal constructor like this is likely bad practice and not very DRY.
-	//	Perhaps find a better way?
+static PyObject * _pyparam_Parameter_from_param(PyTypeObject *type, param_t * param, int host) {
 
 	if (param->array_size <= 1 && type == &ParameterArrayType) {
 		PyErr_SetString(PyExc_TypeError, 
@@ -373,7 +371,7 @@ static PyObject * pyparam_util_parameter_list() {
 	param_t * param;
 	param_list_iterator i = {};
 	while ((param = param_list_iterate(&i)) != NULL) {
-		PyObject * parameter = _pyparam_Parameter_from_param(&ParameterType, param);
+		PyObject * parameter = _pyparam_Parameter_from_param(&ParameterType, param, 0);
 		PyObject * argtuple = PyTuple_Pack(1, parameter);
 		Py_DECREF(ParameterList_append(list, argtuple));
 		Py_DECREF(argtuple);
@@ -1411,37 +1409,7 @@ static PyObject * Parameter_new(PyTypeObject *type, PyObject *args, PyObject *kw
 	if (param == NULL)  // Did not find a match.
 		return NULL;  // Raises TypeError or ValueError.
 
-	if (param->array_size <= 1 && type == &ParameterArrayType) {
-		PyErr_SetString(PyExc_TypeError, 
-			"Attempted to create an ParameterArray instance, for a non array parameter.");
-		return NULL;
-	} else if (param->array_size > 1)  // If the parameter is an array.
-		type = &ParameterArrayType;  // We create a ParameterArray instance instead.
-		// If you listen really carefully here, you can hear OOP idealists, screaming in agony.
-		// On a more serious note, I'm amazed that this even works at all.
-	
-	ParameterObject *self = (ParameterObject *) type->tp_alloc(type, 0);
-
-	if (self == NULL)
-		return NULL;
-
-	self->param = param;
-	self->host = host;
-
-	self->name = PyUnicode_FromString(param->name);
-	if (self->name == NULL) {
-		Py_DECREF(self);
-		return NULL;
-	}
-	self->unit = PyUnicode_FromString(param->unit != NULL ? param->unit : "NULL");
-	if (self->unit == NULL) {
-		Py_DECREF(self);
-		return NULL;
-	}
-
-	self->type = (PyTypeObject *)pyparam_misc_get_type((PyObject *)self, NULL);
-
-    return (PyObject *) self;
+    return _pyparam_Parameter_from_param(type, param, host);
 }
 
 static PyObject * Parameter_getname(ParameterObject *self, void *closure) {
