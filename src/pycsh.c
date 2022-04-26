@@ -371,7 +371,7 @@ static PyObject * pyparam_util_parameter_list() {
 	param_t * param;
 	param_list_iterator i = {};
 	while ((param = param_list_iterate(&i)) != NULL) {
-		PyObject * parameter = _pyparam_Parameter_from_param(&ParameterType, param, 0);
+		PyObject * parameter = _pyparam_Parameter_from_param(&ParameterType, param, INT_MIN);
 		PyObject * argtuple = PyTuple_Pack(1, parameter);
 		Py_DECREF(ParameterList_append(list, argtuple));
 		Py_DECREF(argtuple);
