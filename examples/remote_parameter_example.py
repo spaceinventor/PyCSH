@@ -33,7 +33,7 @@ local_print = lambda string: print(f"{LOCAL_PREFIX}\t\t{string}")
 def remote_listener(parameter_identifier: int | str):
     """ Wait for the value of a local parameter to change. """
     import pycsh
-    pycsh.param_init(yamlname=f"{CURRENT_DIRECTORY}/remote.yaml", quiet=True)
+    pycsh.init(yamlname=f"{CURRENT_DIRECTORY}/remote.yaml", quiet=True)
 
     param = pycsh.Parameter(parameter_identifier)
     original_value = param.value
@@ -53,7 +53,7 @@ def remote_listener(parameter_identifier: int | str):
 def local_sender(parameter_identifier: int | str):
     """ Set the value of a remote parameter. """
     import pycsh
-    pycsh.param_init(yamlname=f"{CURRENT_DIRECTORY}/local.yaml", quiet=True)
+    pycsh.init(yamlname=f"{CURRENT_DIRECTORY}/local.yaml", quiet=True)
 
     local_print("Waiting a bit, to ensure that the remote has noted the original value...")
 

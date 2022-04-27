@@ -47,7 +47,7 @@ def Bindings(csp_version: int = ..., csp_hostname: str = ..., csp_model: str = .
         PyCSH = _import_module(module_name)
 
     # Initialize this instance of the module with the provided settings.
-    PyCSH.param_init(**init_dict)
+    PyCSH.init(**init_dict)
 
     return PyCSH
 

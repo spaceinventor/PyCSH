@@ -213,7 +213,7 @@ static PyObject * ParameterList_append(PyObject * self, PyObject * args) {
 
 /* Retrieves a param_t from either its name, id or wrapper object.
    May raise TypeError or ValueError, returned value will be NULL in either case. */
-static param_t * _pyparam_util_find_param_t(PyObject * param_identifier, int node) {
+static param_t * _pycsh_util_find_param_t(PyObject * param_identifier, int node) {
 
 	param_t * param = NULL;
 
@@ -239,7 +239,7 @@ static param_t * _pyparam_util_find_param_t(PyObject * param_identifier, int nod
 /* Gets the best Python representation of the param_t's type, i.e 'int' for 'uint32'.
    Does not increment the reference count of the found type before returning.
    May raise TypeError for unsupported parameter types (none exist at time of writing). */
-static PyTypeObject * _pyparam_misc_param_t_type(param_t * param) {
+static PyTypeObject * _pycsh_misc_param_t_type(param_t * param) {
 
 	PyTypeObject * param_type = NULL;
 
@@ -283,9 +283,9 @@ static PyTypeObject * _pyparam_misc_param_t_type(param_t * param) {
 }
 
 
-/* Public interface for '_pyparam_misc_param_t_type()' 
+/* Public interface for '_pycsh_misc_param_t_type()'
    Increments the reference count of the found type before returning. */
-static PyObject * pyparam_misc_get_type(PyObject * self, PyObject * args) {
+static PyObject * pycsh_util_get_type(PyObject * self, PyObject * args) {
 
 	PyObject * param_identifier;
 	int node = default_node;
@@ -305,14 +305,14 @@ static PyObject * pyparam_misc_get_type(PyObject * self, PyObject * args) {
 			return NULL;  // TypeError is thrown
 		}
 
-		param = _pyparam_util_find_param_t(param_identifier, node);
+		param = _pycsh_util_find_param_t(param_identifier, node);
 	}
 
 	if (param == NULL) {  // Did not find a match.
 		return NULL;  // Raises either TypeError or ValueError.
 	}
 
-	PyTypeObject * result = _pyparam_misc_param_t_type(param);
+	PyTypeObject * result = _pycsh_misc_param_t_type(param);
 	Py_INCREF(result);
 
 	return (PyObject *)result;
@@ -320,7 +320,7 @@ static PyObject * pyparam_misc_get_type(PyObject * self, PyObject * args) {
 
 
 /* Create a Python Parameter object from a param_t pointer directly. */
-static PyObject * _pyparam_Parameter_from_param(PyTypeObject *type, param_t * param, int host) {
+static PyObject * _pycsh_Parameter_from_param(PyTypeObject *type, param_t * param, int host) {
 
 	if (param->array_size <= 1 && type == &ParameterArrayType) {
 		PyErr_SetString(PyExc_TypeError, 
@@ -357,21 +357,21 @@ static PyObject * _pyparam_Parameter_from_param(PyTypeObject *type, param_t * pa
 		return NULL;
 	}
 
-	self->type = (PyTypeObject *)pyparam_misc_get_type((PyObject *)self, NULL);
+	self->type = (PyTypeObject *)pycsh_util_get_type((PyObject *)self, NULL);
 
     return (PyObject *) self;
 }
 
 
 /* Constructs a list of Python Parameters of all known param_t returned by param_list_iterate. */
-static PyObject * pyparam_util_parameter_list() {
+static PyObject * pycsh_util_parameter_list() {
 
 	PyObject * list = PyObject_CallObject((PyObject *)&ParameterListType, NULL);
 
 	param_t * param;
 	param_list_iterator i = {};
 	while ((param = param_list_iterate(&i)) != NULL) {
-		PyObject * parameter = _pyparam_Parameter_from_param(&ParameterType, param, INT_MIN);
+		PyObject * parameter = _pycsh_Parameter_from_param(&ParameterType, param, INT_MIN);
 		PyObject * argtuple = PyTuple_Pack(1, parameter);
 		Py_DECREF(ParameterList_append(list, argtuple));
 		Py_DECREF(argtuple);
@@ -384,7 +384,7 @@ static PyObject * pyparam_util_parameter_list() {
 
 /* Checks that the specified index is within bounds of the sequence index, raises IndexError if not.
    Supports Python backwards subscriptions, mutates the index to a positive value in such cases. */
-static int _pyparam_util_index(int seqlen, int *index) {
+static int _pycsh_util_index(int seqlen, int *index) {
 	if (*index < 0)  // Python backwards subscription.
 		*index += seqlen;
 	if (*index < 0 || *index > seqlen - 1) {
@@ -398,10 +398,10 @@ static int _pyparam_util_index(int seqlen, int *index) {
 /* Private interface for getting the value of single parameter
    Increases the reference count of the returned item before returning.
    Use INT_MIN for offset as no offset. */
-static PyObject * _pyparam_util_get_single(param_t *param, int offset, int autopull, int host) {
+static PyObject * _pycsh_util_get_single(param_t *param, int offset, int autopull, int host) {
 
 	if (offset != INT_MIN) {
-		if (_pyparam_util_index(param->array_size, &offset))  // Validate the offset.
+		if (_pycsh_util_index(param->array_size, &offset))  // Validate the offset.
 			return NULL;  // Raises IndexError.
 	} else
 		offset = -1;
@@ -486,7 +486,7 @@ static PyObject * _pyparam_util_get_single(param_t *param, int offset, int autop
 
 /* Private interface for getting the value of an array parameter
    Increases the reference count of the returned tuple before returning.  */
-static PyObject * _pyparam_util_get_array(param_t *param, int autopull, int host) {
+static PyObject * _pycsh_util_get_array(param_t *param, int autopull, int host) {
 
 	// Pull the value for every index using a queue (if we're allowed to),
 	// instead of pulling them individually.
@@ -512,7 +512,7 @@ static PyObject * _pyparam_util_get_array(param_t *param, int autopull, int host
 	PyObject * value_tuple = PyTuple_New(param->array_size);
 
 	for (int i = 0; i < param->array_size; i++) {
-		PyObject * item = _pyparam_util_get_single(param, i, 0, host);
+		PyObject * item = _pycsh_util_get_single(param, i, 0, host);
 
 		if (item == NULL) {  // Something went wrong, probably a connectionerror. Let's abandon ship.
 			Py_DECREF(value_tuple);
@@ -526,11 +526,11 @@ static PyObject * _pyparam_util_get_array(param_t *param, int autopull, int host
 }
 
 
-static PyObject * pyparam_param_get(PyObject * self, PyObject * args, PyObject * kwds) {
+static PyObject * pycsh_param_get(PyObject * self, PyObject * args, PyObject * kwds) {
 
 	if (!_csp_initialized) {
 		PyErr_SetString(PyExc_RuntimeError,
-			"Cannot perform operations before .param_init() has been called.");
+			"Cannot perform operations before .init() has been called.");
 		return NULL;
 	}
 
@@ -544,19 +544,19 @@ static PyObject * pyparam_param_get(PyObject * self, PyObject * args, PyObject *
 	if (!PyArg_ParseTupleAndKeywords(args, kwds, "O|iii", kwlist, &param_identifier, &host, &node, &offset))
 		return NULL;  // TypeError is thrown
 
-	param_t *param = _pyparam_util_find_param_t(param_identifier, node);
+	param_t *param = _pycsh_util_find_param_t(param_identifier, node);
 
 	if (param == NULL)  // Did not find a match.
 		return NULL;  // Raises TypeError or ValueError.
 
-	// _pyparam_util_get_single() and _pyparam_util_get_array() will return NULL for exceptions, which is fine with us.
+	// _pycsh_util_get_single() and _pycsh_util_get_array() will return NULL for exceptions, which is fine with us.
 	if (param->array_size > 1 && param->type != PARAM_TYPE_STRING)
-		return _pyparam_util_get_array(param, autosend, host);
-	return _pyparam_util_get_single(param, offset, autosend, host);
+		return _pycsh_util_get_array(param, autosend, host);
+	return _pycsh_util_get_single(param, offset, autosend, host);
 }
 
 
-static PyObject * _pyparam_get_str_value(PyObject * obj) {
+static PyObject * _pycsh_get_str_value(PyObject * obj) {
 
 	// This 'if' exists for cases where the value 
 	// of a parmeter is assigned from that of another.
@@ -569,8 +569,8 @@ static PyObject * _pyparam_get_str_value(PyObject * obj) {
 		int host = ((ParameterObject *)obj)->host;
 
 		PyObject * value = param->array_size > 0 ? 
-			_pyparam_util_get_array(param, autosend, host) :
-			_pyparam_util_get_single(param, INT_MIN, autosend, host);
+			_pycsh_util_get_array(param, autosend, host) :
+			_pycsh_util_get_single(param, INT_MIN, autosend, host);
 
 		PyObject * strvalue = PyObject_Str(value);
 		Py_DECREF(value);
@@ -581,7 +581,7 @@ static PyObject * _pyparam_get_str_value(PyObject * obj) {
 }
 
 /* Attempts a conversion to the specified type, by calling it. */
-static PyObject * _pyparam_typeconvert(PyObject * strvalue, PyTypeObject * type, int check_only) {
+static PyObject * _pycsh_typeconvert(PyObject * strvalue, PyTypeObject * type, int check_only) {
 	// TODO Kevin: Using this to check the types of object is likely against
 	// PEP 20 -- The Zen of Python: "Explicit is better than implicit"
 
@@ -600,7 +600,7 @@ static PyObject * _pyparam_typeconvert(PyObject * strvalue, PyTypeObject * type,
 }
 
 /* Iterates over the specified iterable, and checks the type of each object. */
-static int _pyparam_typecheck_sequence(PyObject * sequence, PyTypeObject * type) {
+static int _pycsh_typecheck_sequence(PyObject * sequence, PyTypeObject * type) {
 	// This is likely not thread-safe however.
 
 	// It seems that tuples pass PySequence_Check() but not PyIter_Check(),
@@ -616,7 +616,7 @@ static int _pyparam_typecheck_sequence(PyObject * sequence, PyTypeObject * type)
 
 	while ((item = PyIter_Next(iter)) != NULL) {
 
-		if (!_pyparam_typeconvert(item, type, 1)) {
+		if (!_pycsh_typeconvert(item, type, 1)) {
 #if 0  // Should we raise the exception from the failed conversion, or our own?
 			PyObject * temppystr = PyObject_Str(item);
 			char* tempstr = (char*)PyUnicode_AsUTF8(temppystr);
@@ -635,7 +635,7 @@ static int _pyparam_typecheck_sequence(PyObject * sequence, PyTypeObject * type)
 
 /* Private interface for setting the value of a normal parameter. 
    Use INT_MIN as no offset. */
-static int _pyparam_util_set_single(param_t *param, PyObject *value, int offset, int host, param_queue_t *queue) {
+static int _pycsh_util_set_single(param_t *param, PyObject *value, int offset, int host, param_queue_t *queue) {
 	
 	if (offset != INT_MIN) {
 		if (param->type == PARAM_TYPE_STRING) {
@@ -643,13 +643,13 @@ static int _pyparam_util_set_single(param_t *param, PyObject *value, int offset,
 			return -1;
 		}
 
-		if (_pyparam_util_index(param->array_size, &offset))  // Validate the offset.
+		if (_pycsh_util_index(param->array_size, &offset))  // Validate the offset.
 			return -1;  // Raises IndexError.
 	} else
 		offset = -1;
 
 	char valuebuf[128] __attribute__((aligned(16))) = { };
-	PyObject * strvalue = _pyparam_get_str_value(value);
+	PyObject * strvalue = _pycsh_get_str_value(value);
 	param_str_to_value(param->type, (char*)PyUnicode_AsUTF8(strvalue), valuebuf);
 	Py_DECREF(strvalue);
 
@@ -690,7 +690,7 @@ static int _pyparam_util_set_single(param_t *param, PyObject *value, int offset,
 }
 
 /* Private interface for setting the value of an array parameter. */
-static int _pyparam_util_set_array(param_t *param, PyObject *value, int host) {
+static int _pycsh_util_set_array(param_t *param, PyObject *value, int host) {
 
 	// Transform lazy generators and iterators into sequences,
 	// such that their length may be retrieved in a uniform manner.
@@ -723,7 +723,7 @@ static int _pyparam_util_set_array(param_t *param, PyObject *value, int host) {
 	}
 
 	// Check that the iterable only contains valid types.
-	if (_pyparam_typecheck_sequence(value, _pyparam_misc_param_t_type(param))) {
+	if (_pycsh_typecheck_sequence(value, _pycsh_misc_param_t_type(param))) {
 		Py_DECREF(value);
 		return -3;  // Raises TypeError.
 	}
@@ -751,7 +751,7 @@ static int _pyparam_util_set_array(param_t *param, PyObject *value, int host) {
 
 		// Set local parameters immediately, use the global queue if autosend if off.
 		param_queue_t *usequeue = (!autosend ? &param_queue_set : ((param->node != 0) ? &queue : NULL));
-		_pyparam_util_set_single(param, item, i, host, usequeue);
+		_pycsh_util_set_single(param, item, i, host, usequeue);
 		
 		// 'item' is a borrowed reference, so we don't need to decrement it.
 	}
@@ -772,11 +772,11 @@ static int _pyparam_util_set_array(param_t *param, PyObject *value, int host) {
 }
 
 
-static PyObject * pyparam_param_set(PyObject * self, PyObject * args, PyObject * kwds) {
+static PyObject * pycsh_param_set(PyObject * self, PyObject * args, PyObject * kwds) {
 
 	if (!_csp_initialized) {
 		PyErr_SetString(PyExc_RuntimeError,
-			"Cannot perform operations before .param_init() has been called.");
+			"Cannot perform operations before .init() has been called.");
 		return NULL;
 	}
 
@@ -793,17 +793,17 @@ static PyObject * pyparam_param_set(PyObject * self, PyObject * args, PyObject *
 		return NULL;  // TypeError is thrown
 	}
 
-	param_t *param = _pyparam_util_find_param_t(param_identifier, node);
+	param_t *param = _pycsh_util_find_param_t(param_identifier, node);
 
 	if (param == NULL)  // Did not find a match.
 		return NULL;  // Raises TypeError or ValueError.
 
 	if((PyIter_Check(value) || PySequence_Check(value)) && !PyObject_TypeCheck(value, &PyUnicode_Type)) {
-		if (_pyparam_util_set_array(param, value, host))
+		if (_pycsh_util_set_array(param, value, host))
 			return NULL;  // Raises one of many possible exceptions.
 	} else {
 		param_queue_t *usequeue = autosend ? NULL : &param_queue_set;
-		if (_pyparam_util_set_single(param, value, offset, host, usequeue))
+		if (_pycsh_util_set_single(param, value, offset, host, usequeue))
 			return NULL;  // Raises one of many possible exceptions.
 		param_print(param, -1, NULL, 0, 2);
 	}
@@ -811,11 +811,11 @@ static PyObject * pyparam_param_set(PyObject * self, PyObject * args, PyObject *
 	Py_RETURN_NONE;
 }
 
-static PyObject * pyparam_param_pull(PyObject * self, PyObject * args, PyObject * kwds) {
+static PyObject * pycsh_param_pull(PyObject * self, PyObject * args, PyObject * kwds) {
 
 	if (!_csp_initialized) {
 		PyErr_SetString(PyExc_RuntimeError,
-			"Cannot perform operations before .param_init() has been called.");
+			"Cannot perform operations before .init() has been called.");
 		return NULL;
 	}
 
@@ -853,11 +853,11 @@ static PyObject * pyparam_param_pull(PyObject * self, PyObject * args, PyObject 
 	Py_RETURN_NONE;
 }
 
-static PyObject * pyparam_param_push(PyObject * self, PyObject * args, PyObject * kwds) {
+static PyObject * pycsh_param_push(PyObject * self, PyObject * args, PyObject * kwds) {
 
 	if (!_csp_initialized) {
 		PyErr_SetString(PyExc_RuntimeError,
-			"Cannot perform operations before .param_init() has been called.");
+			"Cannot perform operations before .init() has been called.");
 		return NULL;
 	}
 
@@ -879,7 +879,7 @@ static PyObject * pyparam_param_push(PyObject * self, PyObject * args, PyObject 
 	Py_RETURN_NONE;
 }
 
-static PyObject * pyparam_param_clear(PyObject * self, PyObject * args) {
+static PyObject * pycsh_param_clear(PyObject * self, PyObject * args) {
 
 	param_queue_get.used = 0;
 	param_queue_set.used = 0;
@@ -890,7 +890,7 @@ static PyObject * pyparam_param_clear(PyObject * self, PyObject * args) {
 
 }
 
-static PyObject * pyparam_param_node(PyObject * self, PyObject * args) {
+static PyObject * pycsh_param_node(PyObject * self, PyObject * args) {
 
 	int node = -1;
 
@@ -908,7 +908,7 @@ static PyObject * pyparam_param_node(PyObject * self, PyObject * args) {
 	return Py_BuildValue("i", default_node);
 }
 
-static PyObject * pyparam_param_paramver(PyObject * self, PyObject * args) {
+static PyObject * pycsh_param_paramver(PyObject * self, PyObject * args) {
 
 	// Not sure if the static paramver would be set to NULL, when nothing is passed.
 	int _paramver = -1;  
@@ -927,7 +927,7 @@ static PyObject * pyparam_param_paramver(PyObject * self, PyObject * args) {
 	return Py_BuildValue("i", paramver);
 }
 
-static PyObject * pyparam_param_autosend(PyObject * self, PyObject * args) {
+static PyObject * pycsh_param_autosend(PyObject * self, PyObject * args) {
 
 	int _autosend = -1;
 
@@ -945,7 +945,7 @@ static PyObject * pyparam_param_autosend(PyObject * self, PyObject * args) {
 	return Py_BuildValue("i", autosend);
 }
 
-static PyObject * pyparam_param_queue(PyObject * self, PyObject * args) {
+static PyObject * pycsh_param_queue(PyObject * self, PyObject * args) {
 
 	if ( (param_queue_get.used == 0) && (param_queue_set.used == 0) ) {
 		printf("Nothing queued\n");
@@ -964,7 +964,7 @@ static PyObject * pyparam_param_queue(PyObject * self, PyObject * args) {
 }
 
 
-static PyObject * pyparam_param_list(PyObject * self, PyObject * args) {
+static PyObject * pycsh_param_list(PyObject * self, PyObject * args) {
 
 	uint32_t mask = 0xFFFFFFFF;
 
@@ -979,14 +979,14 @@ static PyObject * pyparam_param_list(PyObject * self, PyObject * args) {
 
 	param_list_print(mask, 1);
 
-	return pyparam_util_parameter_list();
+	return pycsh_util_parameter_list();
 }
 
-static PyObject * pyparam_param_list_download(PyObject * self, PyObject * args, PyObject * kwds) {
+static PyObject * pycsh_param_list_download(PyObject * self, PyObject * args, PyObject * kwds) {
 
 	if (!_csp_initialized) {
 		PyErr_SetString(PyExc_RuntimeError,
-			"Cannot perform operations before .param_init() has been called.");
+			"Cannot perform operations before .init() has been called.");
 		return NULL;
 	}
 
@@ -1004,11 +1004,11 @@ static PyObject * pyparam_param_list_download(PyObject * self, PyObject * args, 
 		return NULL;
 	}
 
-	return pyparam_util_parameter_list();
+	return pycsh_util_parameter_list();
 
 }
 
-static PyObject * pyparam_param_list_forget(PyObject * self, PyObject * args, PyObject * kwds) {
+static PyObject * pycsh_param_list_forget(PyObject * self, PyObject * args, PyObject * kwds) {
 
 	int node = -1;
     char * name = NULL;
@@ -1023,7 +1023,7 @@ static PyObject * pyparam_param_list_forget(PyObject * self, PyObject * args, Py
 	return Py_BuildValue("i", res);;
 }
 
-static PyObject * pyparam_param_list_save(PyObject * self, PyObject * args) {
+static PyObject * pycsh_param_list_save(PyObject * self, PyObject * args) {
 
 	int id;
 
@@ -1035,7 +1035,7 @@ static PyObject * pyparam_param_list_save(PyObject * self, PyObject * args) {
 	Py_RETURN_NONE;
 }
 
-static PyObject * pyparam_param_list_load(PyObject * self, PyObject * args) {
+static PyObject * pycsh_param_list_load(PyObject * self, PyObject * args) {
 	
 	int id;
 
@@ -1048,11 +1048,11 @@ static PyObject * pyparam_param_list_load(PyObject * self, PyObject * args) {
 }
 
 
-static PyObject * pyparam_csp_ping(PyObject * self, PyObject * args, PyObject * kwds) {
+static PyObject * pycsh_csh_ping(PyObject * self, PyObject * args, PyObject * kwds) {
 
 	if (!_csp_initialized) {
 		PyErr_SetString(PyExc_RuntimeError,
-			"Cannot perform operations before .param_init() has been called.");
+			"Cannot perform operations before .init() has been called.");
 		return NULL;
 	}
 
@@ -1080,11 +1080,11 @@ static PyObject * pyparam_csp_ping(PyObject * self, PyObject * args, PyObject * 
 
 }
 
-static PyObject * pyparam_csp_ident(PyObject * self, PyObject * args, PyObject * kwds) {
+static PyObject * pycsh_csh_ident(PyObject * self, PyObject * args, PyObject * kwds) {
 
 	if (!_csp_initialized) {
 		PyErr_SetString(PyExc_RuntimeError,
-			"Cannot perform operations before .param_init() has been called.");
+			"Cannot perform operations before .init() has been called.");
 		return NULL;
 	}
 
@@ -1138,7 +1138,7 @@ static PyObject * pyparam_csp_ident(PyObject * self, PyObject * args, PyObject *
 	
 }
 
-static PyObject * pyparam_csp_reboot(PyObject * self, PyObject * args) {
+static PyObject * pycsh_csh_reboot(PyObject * self, PyObject * args) {
 
 	unsigned int node;
 
@@ -1151,11 +1151,11 @@ static PyObject * pyparam_csp_reboot(PyObject * self, PyObject * args) {
 }
 
 
-static PyObject * pyparam_vmem_list(PyObject * self, PyObject * args, PyObject * kwds) {
+static PyObject * pycsh_vmem_list(PyObject * self, PyObject * args, PyObject * kwds) {
 
 	if (!_csp_initialized) {
 		PyErr_SetString(PyExc_RuntimeError,
-			"Cannot perform operations before .param_init() has been called.");
+			"Cannot perform operations before .init() has been called.");
 		return NULL;
 	}
 
@@ -1221,11 +1221,11 @@ static PyObject * pyparam_vmem_list(PyObject * self, PyObject * args, PyObject *
 	return list_string;
 }
 
-static PyObject * pyparam_vmem_restore(PyObject * self, PyObject * args, PyObject * kwds) {
+static PyObject * pycsh_vmem_restore(PyObject * self, PyObject * args, PyObject * kwds) {
 
 	if (!_csp_initialized) {
 		PyErr_SetString(PyExc_RuntimeError,
-			"Cannot perform operations before .param_init() has been called.");
+			"Cannot perform operations before .init() has been called.");
 		return NULL;
 	}
 
@@ -1255,11 +1255,11 @@ static PyObject * pyparam_vmem_restore(PyObject * self, PyObject * args, PyObjec
 	return Py_BuildValue("i", result);
 }
 
-static PyObject * pyparam_vmem_backup(PyObject * self, PyObject * args, PyObject * kwds) {
+static PyObject * pycsh_vmem_backup(PyObject * self, PyObject * args, PyObject * kwds) {
 	
 	if (!_csp_initialized) {
 		PyErr_SetString(PyExc_RuntimeError,
-			"Cannot perform operations before .param_init() has been called.");
+			"Cannot perform operations before .init() has been called.");
 		return NULL;
 	}
 
@@ -1289,13 +1289,13 @@ static PyObject * pyparam_vmem_backup(PyObject * self, PyObject * args, PyObject
 	return Py_BuildValue("i", result);
 }
 
-static PyObject * pyparam_vmem_unlock(PyObject * self, PyObject * args, PyObject * kwds) {
+static PyObject * pycsh_vmem_unlock(PyObject * self, PyObject * args, PyObject * kwds) {
 	// TODO Kevin: This function is likely to be very short lived.
 	//	As this way of unlocking the vmem is obsolete.
 
 	if (!_csp_initialized) {
 		PyErr_SetString(PyExc_RuntimeError,
-			"Cannot perform operations before .param_init() has been called.");
+			"Cannot perform operations before .init() has been called.");
 		return NULL;
 	}
 
@@ -1404,12 +1404,12 @@ static PyObject * Parameter_new(PyTypeObject *type, PyObject *args, PyObject *kw
 		return NULL;  // TypeError is thrown
 	}
 
-	param_t * param = _pyparam_util_find_param_t(param_identifier, node);
+	param_t * param = _pycsh_util_find_param_t(param_identifier, node);
 
 	if (param == NULL)  // Did not find a match.
 		return NULL;  // Raises TypeError or ValueError.
 
-    return _pyparam_Parameter_from_param(type, param, host);
+    return _pycsh_Parameter_from_param(type, param, host);
 }
 
 static PyObject * Parameter_getname(ParameterObject *self, void *closure) {
@@ -1459,7 +1459,7 @@ static int Parameter_setnode(ParameterObject *self, PyObject *value, void *closu
 	}
 	Py_DECREF(value_tuple);
 
-	param_t * param = _pyparam_util_find_param_t(self->name, node);
+	param_t * param = _pycsh_util_find_param_t(self->name, node);
 
 	if (param == NULL)  // Did not find a match.
 		return -1;  // Raises either TypeError or ValueError.
@@ -1511,8 +1511,8 @@ static PyObject * Parameter_gettype(ParameterObject *self, void *closure) {
 
 static PyObject * Parameter_getvalue(ParameterObject *self, void *closure) {
 	if (self->param->array_size > 1 && self->param->type != PARAM_TYPE_STRING)
-		return _pyparam_util_get_array(self->param, autosend, self->host);
-	return _pyparam_util_get_single(self->param, INT_MIN, autosend, self->host);
+		return _pycsh_util_get_array(self->param, autosend, self->host);
+	return _pycsh_util_get_single(self->param, INT_MIN, autosend, self->host);
 }
 
 static int Parameter_setvalue(ParameterObject *self, PyObject *value, void *closure) {
@@ -1523,9 +1523,9 @@ static int Parameter_setvalue(ParameterObject *self, PyObject *value, void *clos
     }
 
 	if (self->param->array_size > 1 && self->param->type != PARAM_TYPE_STRING)  // Is array parameter
-		return _pyparam_util_set_array(self->param, value, self->host);
+		return _pycsh_util_set_array(self->param, value, self->host);
 	param_queue_t *usequeue = autosend ? NULL : &param_queue_set;
-	return _pyparam_util_set_single(self->param, value, INT_MIN, self->host, usequeue);  // Normal parameter
+	return _pycsh_util_set_single(self->param, value, INT_MIN, self->host, usequeue);  // Normal parameter
 }
 
 static PyObject * Parameter_is_array(ParameterObject *self, void *closure) {
@@ -1650,7 +1650,7 @@ static PyObject * ParameterArray_GetItem(ParameterObject *self, PyObject *item) 
 	if (PyErr_Occurred())
 		return NULL;  // 'Reraise' the current exception.
 
-	return _pyparam_util_get_single(self->param, index, autosend, self->host);
+	return _pycsh_util_get_single(self->param, index, autosend, self->host);
 }
 
 static int ParameterArray_SetItem(ParameterObject *self, PyObject* item, PyObject* value) {
@@ -1673,10 +1673,10 @@ static int ParameterArray_SetItem(ParameterObject *self, PyObject* item, PyObjec
 	if (PyErr_Occurred())
 		return -3;  // 'Reraise' the current exception.
 
-	// _pyparam_util_set_single() uses negative numbers for exceptions,
+	// _pycsh_util_set_single() uses negative numbers for exceptions,
 	// so we just return its return value.
 	param_queue_t *usequeue = autosend ? NULL : &param_queue_set;
-	return _pyparam_util_set_single(self->param, value, index, self->host, usequeue);
+	return _pycsh_util_set_single(self->param, value, index, self->host, usequeue);
 }
 
 static Py_ssize_t ParameterArray_length(ParameterObject *self) {
@@ -1717,7 +1717,7 @@ static PyObject * ParameterList_pull(ParameterListObject *self, PyObject *args, 
 	
 	if (!_csp_initialized) {
 		PyErr_SetString(PyExc_RuntimeError,
-			"Cannot perform operations before .param_init() has been called.");
+			"Cannot perform operations before .init() has been called.");
 		return NULL;
 	}
 
@@ -1768,7 +1768,7 @@ static PyObject * ParameterList_push(ParameterListObject *self, PyObject *args, 
 
 	if (!_csp_initialized) {
 		PyErr_SetString(PyExc_RuntimeError,
-			"Cannot perform operations before .param_init() has been called.");
+			"Cannot perform operations before .init() has been called.");
 		return NULL;
 	}
 	
@@ -1885,7 +1885,7 @@ static PyTypeObject ParameterListType = {
 };
 
 
-static PyObject * pyparam_init(PyObject * self, PyObject * args, PyObject *kwds) {
+static PyObject * pycsh_init(PyObject * self, PyObject * args, PyObject *kwds) {
 
 	if (_csp_initialized) {
 		PyErr_SetString(PyExc_RuntimeError,
@@ -1994,49 +1994,43 @@ static PyObject * pyparam_init(PyObject * self, PyObject * args, PyObject *kwds)
 
 }
 
-static PyObject * _pyparam_init(PyObject * self, PyObject * args, PyObject *kwds) {
-	fprintf(stderr, "_param_init() (with underscore) is deprecated. Please use the public API (param_init()) instead.\n");
-	return pyparam_init(self, args, kwds);
-}
 
 static PyMethodDef methods[] = {
 
-	/* Converted CSH commands from param/param_slash.c */
-	{"get", 		(PyCFunction)pyparam_param_get, METH_VARARGS | METH_KEYWORDS, 	"Set the value of a parameter."},
-	{"set", 		(PyCFunction)pyparam_param_set, METH_VARARGS | METH_KEYWORDS, 	"Get the value of a parameter."},
-	{"push", 		(PyCFunction)pyparam_param_push,METH_VARARGS | METH_KEYWORDS, 	"Push the current queue."},
-	{"pull", 		(PyCFunction)pyparam_param_pull,METH_VARARGS | METH_KEYWORDS, 	"Pull all or a specific set of parameters."},
-	{"clear", 		pyparam_param_clear, 			METH_NOARGS, 					"Clears the queue."},
-	{"node", 		pyparam_param_node, 			METH_VARARGS, 					"Used to get or change the default node."},
-	{"paramver", 	pyparam_param_paramver, 		METH_VARARGS, 					"Used to get or change the parameter version."},
-	{"autosend", 	pyparam_param_autosend, 		METH_VARARGS, 					"Used to get or change whether autosend is enabled."},
-	{"queue", 		pyparam_param_queue, 			METH_NOARGS, 					"Print the current status of the queue."},
+	/* Converted CSH commands from libparam/src/param/param_slash.c */
+	{"get", 		(PyCFunction)pycsh_param_get, 	METH_VARARGS | METH_KEYWORDS, "Set the value of a parameter."},
+	{"set", 		(PyCFunction)pycsh_param_set, 	METH_VARARGS | METH_KEYWORDS, "Get the value of a parameter."},
+	{"push", 		(PyCFunction)pycsh_param_push,	METH_VARARGS | METH_KEYWORDS, "Push the current queue."},
+	{"pull", 		(PyCFunction)pycsh_param_pull,	METH_VARARGS | METH_KEYWORDS, "Pull all or a specific set of parameters."},
+	{"clear", 		pycsh_param_clear, 			  	METH_NOARGS, 				  "Clears the queue."},
+	{"node", 		pycsh_param_node, 			  	METH_VARARGS, 				  "Used to get or change the default node."},
+	{"paramver", 	pycsh_param_paramver, 		  	METH_VARARGS, 				  "Used to get or change the parameter version."},
+	{"autosend", 	pycsh_param_autosend, 		  	METH_VARARGS, 				  "Used to get or change whether autosend is enabled."},
+	{"queue", 		pycsh_param_queue,			  	METH_NOARGS, 				  "Print the current status of the queue."},
 
-	/* Converted CSH commands from param/param_list_slash.c */
-	{"list", 		pyparam_param_list, 			METH_VARARGS, 					"List all known parameters."},
-	{"list_download", (PyCFunction)pyparam_param_list_download, METH_VARARGS | METH_KEYWORDS, "Download all parameters on the specified node."},
-	{"list_forget", (PyCFunction)pyparam_param_list_forget, METH_VARARGS | METH_KEYWORDS, "Remove remote parameters, matching the provided arguments, from the global list."},
-	{"list_save", 	pyparam_param_list_save, 		METH_VARARGS, 					"Save a list of parameters to a file."},
-	{"list_load", 	pyparam_param_list_load, 		METH_VARARGS, 					"Load a list of parameters from a file."},
+	/* Converted CSH commands from libparam/src/param/list/param_list_slash.c */
+	{"list", 		pycsh_param_list,			  	METH_VARARGS, 				  "List all known parameters."},
+	{"list_download", (PyCFunction)pycsh_param_list_download, METH_VARARGS | METH_KEYWORDS, "Download all parameters on the specified node."},
+	{"list_forget", (PyCFunction)pycsh_param_list_forget, METH_VARARGS | METH_KEYWORDS, "Remove remote parameters, matching the provided arguments, from the global list."},
+	{"list_save", 	pycsh_param_list_save, 		  	METH_VARARGS, 				  "Save a list of parameters to a file."},
+	{"list_load", 	pycsh_param_list_load, 		  	METH_VARARGS, 				  "Load a list of parameters from a file."},
 
-	/* Converted CSH commands from slash_csp.c */
-	/* Including these here is not entirely optimal, they may be removed. */
-	{"ping", 		(PyCFunction)pyparam_csp_ping, 	METH_VARARGS | METH_KEYWORDS, 	"Ping the specified node."},
-	{"ident", 		(PyCFunction)pyparam_csp_ident, METH_VARARGS | METH_KEYWORDS, 	"Print the identity of the specified node."},
-	{"reboot", 		pyparam_csp_reboot, 			METH_VARARGS, 					"Reboot the specified node."},
+	/* Converted CSH commands from csh/src/slash_csp.c */
+	{"ping", 		(PyCFunction)pycsh_csh_ping, 	METH_VARARGS | METH_KEYWORDS, "Ping the specified node."},
+	{"ident", 		(PyCFunction)pycsh_csh_ident,	METH_VARARGS | METH_KEYWORDS, "Print the identity of the specified node."},
+	{"reboot", 		pycsh_csh_reboot, 			 	METH_VARARGS, 				  "Reboot the specified node."},
 
-	/* Miscellaneous utility functions */
-	{"get_type", 	pyparam_misc_get_type, 			METH_VARARGS, 					"Gets the type of the specified parameter."},
+	/* Utility functions */
+	{"get_type", 	pycsh_util_get_type, 		  	METH_VARARGS, 				  "Gets the type of the specified parameter."},
 
-	/* Converted vmem commands. */
-	{"vmem_list", 	(PyCFunction)pyparam_vmem_list,   METH_VARARGS | METH_KEYWORDS,	"Builds a string of the vmem at the specified node."},
-	{"vmem_restore",(PyCFunction)pyparam_vmem_restore,METH_VARARGS | METH_KEYWORDS, "Restore the configuration on the specified node."},
-	{"vmem_backup", (PyCFunction)pyparam_vmem_backup, METH_VARARGS | METH_KEYWORDS, "Back up the configuration on the specified node."},
-	{"vmem_unlock", (PyCFunction)pyparam_vmem_unlock, METH_VARARGS | METH_KEYWORDS, "Unlock the vmem on the specified node, such that it may be changed by a backup (for example)."},
+	/* Converted vmem commands from libparam/src/vmem/vmem_client_slash.c */
+	{"vmem_list", 	(PyCFunction)pycsh_vmem_list,   METH_VARARGS | METH_KEYWORDS, "Builds a string of the vmem at the specified node."},
+	{"vmem_restore",(PyCFunction)pycsh_vmem_restore,METH_VARARGS | METH_KEYWORDS, "Restore the configuration on the specified node."},
+	{"vmem_backup", (PyCFunction)pycsh_vmem_backup, METH_VARARGS | METH_KEYWORDS, "Back up the configuration on the specified node."},
+	{"vmem_unlock", (PyCFunction)pycsh_vmem_unlock, METH_VARARGS | METH_KEYWORDS, "Unlock the vmem on the specified node, such that it may be changed by a backup (for example)."},
 
 	/* Misc */
-	{"param_init", (PyCFunction)pyparam_init, 		METH_VARARGS | METH_KEYWORDS, 	"Initializes the module, with the provided settings."},
-	{"_param_init", (PyCFunction)_pyparam_init, 	METH_VARARGS | METH_KEYWORDS, 	"Deprecated private init API."},
+	{"init", (PyCFunction)pycsh_init, 				METH_VARARGS | METH_KEYWORDS, "Initializes the module, with the provided settings."},
 
 	/* sentinel */
 	{NULL, NULL, 0, NULL}};

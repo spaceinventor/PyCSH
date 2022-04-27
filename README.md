@@ -64,7 +64,7 @@ sudo ln -s <FULL/PATH/TO/PyCSH/REPO>/PyCSH /usr/lib/python3/dist-packages/PyCSH
 import PyCSH
 
 def main():
-    PyCSH.param_init()  # Accepts many options, including .yaml file with config.
+    PyCSH.init()  # Accepts many options, including .yaml file with config.
     # <CODE GOES HERE>
 
 if __name__ == '__main__':

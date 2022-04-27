@@ -28,7 +28,7 @@ if __name__ == '__main__':  # Support showing __doc__ with -h argument.
 import os
 current_directory = os.path.dirname(os.path.realpath(__file__))
 import sys; sys.path.append(current_directory[:current_directory.rindex('/')])
-from PyCSH.pyparam_utils import Bindings, temp_autosend_value, ParamMapping
+from PyCSH.utils import Bindings, temp_autosend_value, ParamMapping
 
 LOCAL_NODE = 0
 
@@ -245,15 +245,15 @@ def param_vmem_examples(bindings) -> None:
 
 if __name__ == '__main__':
 
-    # While it is entirely legal for us to import pycsh directly,
-    # doing so requires us to call pycsh.param_init() ourselves,
+    # While it is entirely legal for us to import PyCSH directly,
+    # doing so requires us to call PyCSH.init() ourselves,
     # before most operations are permitted.
-    # Using the return value of the 'Bindings()' function from 'pyparam_utils',
+    # Using the return value of the 'Bindings()' function from PyCSH.utils,
     # therefore strips the need for most bootstrapping code.
     bindings = Bindings(quiet=True)
 
     # The following is equivalent to 'Bindings(quiet=False)':
-    # pycsh.param_init(quiet=True)
+    # pycsh.init(quiet=True)
 
     # Just as when using CSH, the node command returns the current default node,
     # as well as changing it when an integer argument is provided.

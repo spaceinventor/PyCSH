@@ -219,7 +219,7 @@ def get(param_identifier: _param_ident_hint, host: int = None, node: int = None,
 
     :raises TypeError: When an invalid param_identifier type is provided.
     :raises ValueError: When a parameter could not be found.
-    :raises RuntimeError: When called before .param_init().
+    :raises RuntimeError: When called before .init().
 
     :return: The value of the retrieved parameter (As its Python type).
     """
@@ -236,7 +236,7 @@ def set(param_identifier: _param_ident_hint, value: _param_value_hint | _Iterabl
 
     :raises TypeError: When an invalid param_identifier type is provided.
     :raises ValueError: When a parameter could not be found.
-    :raises RuntimeError: When called before .param_init().
+    :raises RuntimeError: When called before .init().
     """
 
 def push(node: int, timeout: int = None, hwid: int = None) -> None:
@@ -294,7 +294,7 @@ def list_download(node: int, timeout: int = None, version: int = None) -> Parame
     """
     Download all parameters on the specified node.
 
-    :raises RuntimeError: When called before .param_init().
+    :raises RuntimeError: When called before .init().
     :raises ConnectionError: When no response is received.
 
     :returns: The output of list().
@@ -333,7 +333,7 @@ def ping(node: int, timeout: int = None, size: int = None) -> int:
     :param timeout: Timeout in ms to wait for reply.
     :param size: Payload size in bytes.
 
-    :raises RuntimeError: When called before .param_init().
+    :raises RuntimeError: When called before .init().
 
     :return: >0 = echo time in mS on success, otherwise -1 for error.
     """
@@ -345,7 +345,7 @@ def ident(node: int, timeout: int = None) -> str:
     :param node: Address of subsystem.
     :param timeout: Timeout in ms to wait for reply.
 
-    :raises RuntimeError: When called before .param_init().
+    :raises RuntimeError: When called before .init().
     :raises ConnectionError: When no response is received.
     """
 
@@ -371,7 +371,7 @@ def vmem_list(node: int = None, timeout: int = None, version: int = None) -> str
     :param node: Node from which the vmem should be listed.
     :param timeout: Timeout in ms when connecting to the node.
 
-    :raises RuntimeError: When called before .param_init().
+    :raises RuntimeError: When called before .init().
     :raises ConnectionError: When the timeout is exceeded attempting to connect to the specified node.
     :raises MemoryError: When allocation for a CSP buffer fails.
 
@@ -385,7 +385,7 @@ def vmem_restore(node: int, vmem_id: int, timeout: int = None) -> int:
     :param node: Node on which the configuration should be restored from vmem.
     :param timeout: Timeout in ms when connecting to the node.
 
-    :raises RuntimeError: When called before .param_init().
+    :raises RuntimeError: When called before .init().
     :raises ConnectionError: When the timeout is exceeded attempting to connect to the specified node.
 
     :return: Int indicating the result of the operation, 0 for success.
@@ -398,7 +398,7 @@ def vmem_backup(node: int, vmem_id: int, timeout: int = None) -> int:
     :param node: Node on which the configuration should be backed up to vmem.
     :param timeout: Timeout in ms when connecting to the node.
 
-    :raises RuntimeError: When called before .param_init().
+    :raises RuntimeError: When called before .init().
     :raises ConnectionError: When the timeout is exceeded attempting to connect to the specified node.
 
     :return: Int indicating the result of the operation, 0 for success.
@@ -411,7 +411,7 @@ def vmem_unlock(node: int = None, timeout: int = None) -> int:
     :param node: Node on which the vmem should be unlocked.
     :param timeout: Timeout in ms when connecting to the node.
 
-    :raises RuntimeError: When called before .param_init().
+    :raises RuntimeError: When called before .init().
     :raises ConnectionError: When the timeout is exceeded attempting to connect to the specified node.
     :raises MemoryError: When allocation for a CSP buffer fails.
 
@@ -419,23 +419,10 @@ def vmem_unlock(node: int = None, timeout: int = None) -> int:
     """
 
 
-def param_init(csp_version = None, csp_hostname: str = None, csp_model: str = None,
+def init(csp_version = None, csp_hostname: str = None, csp_model: str = None,
                 use_prometheus: int = None, rtable: str = None, yamlname: str = None, dfl_addr: int = None, quiet: int = None) -> None:
     """
     Initializes the module, with the provided settings.
-
-    :param csp_version: Which CSP version to use in the module.
-    :param csp_hostname: Which CSP hostname to use in the module.
-    :param csp_model: Which CSP model to use in the module.
-    :param quiet: Whether to redirect CSH stdout to /dev/null.
-    :param yamlname: Name and path to the .yaml file with which the bindings/CSH-session should be configured.
-    """
-
-
-def _param_init(csp_version = None, csp_hostname: str = None, csp_model: str = None,
-                use_prometheus: int = None, rtable: str = None, yamlname: str = None, dfl_addr: int = None, quiet: int = None) -> None:
-    """
-    Deprecated private init API.
 
     :param csp_version: Which CSP version to use in the module.
     :param csp_hostname: Which CSP hostname to use in the module.
