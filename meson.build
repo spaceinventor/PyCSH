@@ -22,19 +22,34 @@ project('csh_bindings', 'c', subproject_dir: 'lib', default_options: [
 
 add_global_arguments('-I../include', language: 'c')
 
-#csp_dep = dependency('csp', fallback: ['csp', 'csp_dep'], required: true).as_link_whole()
 csp_dep = dependency('csp', fallback: ['csp', 'csp_dep'], required: true)
 param_dep = dependency('param', fallback: ['param', 'param_dep'], required: true).as_link_whole()
 
+
 pycsh_sources = [
+
+	# Module
 	'src/pycsh.c',
-	'src/serial.c',
-	'src/prometheus.c',
-	'src/param_sniffer.c',
+
+	# Classes
+	'src/parameter/parameter.c',
+	'src/parameter/parameterarray.c',
+	'src/parameter/parameterlist.c',
+
+	# Wrapper functions
+	'src/wrapper.c',
+
+	# Utilities
+	'src/utils.c',
+
+	# Dependencies from CSH
+	'src/csh/serial.c',
+	'src/csh/prometheus.c',
+	'src/csh/param_sniffer.c',
 ]
 
-# Compile bindings for the versions specified in 'python3_versions'.
-# They may only be imported for these versions.
+# Compile PyCSH for the versions specified in 'python3_versions'.
+# It may only be imported for these versions.
 foreach python_version : get_option('python3_versions')
 
 	py = import('python').find_installation(python_version)

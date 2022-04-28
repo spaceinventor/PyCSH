@@ -42,7 +42,7 @@ def Bindings(csp_version: int = ..., csp_hostname: str = ..., csp_model: str = .
                  if value is not ...}
 
     if not module_name:
-        from builddir import PyCSH  # A previous import might be reused if not deleted beforehand.
+        import PyCSH  # A previous import might be reused if not deleted beforehand.
     else:
         PyCSH = _import_module(module_name)
 
