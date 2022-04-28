@@ -338,6 +338,7 @@ static PyObject * _pycsh_Parameter_from_param(PyTypeObject *type, param_t * para
 	}
 
 	self->param = param;
+	self->host = host;
 
 	self->name = PyUnicode_FromString(param->name);
 	if (self->name == NULL) {
