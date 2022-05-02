@@ -14,10 +14,10 @@ The versions specified there must be installed when compiling manually.
 
 ### Build
 
-Requirements: build-essential, libsocketcan-dev, can-utils, libzmq3-dev, libyaml-dev, meson
+Requirements: build-essential, libsocketcan-dev, can-utils, libzmq3-dev, libyaml-dev, meson, pkg-config
 
 ```
-sudo apt-get install build-essential libsocketcan-dev can-utils libzmq3-dev libyaml-dev
+sudo apt-get install build-essential libsocketcan-dev can-utils libzmq3-dev libyaml-dev pkg-config
 sudo pip3 install meson ninja
 ```
 
