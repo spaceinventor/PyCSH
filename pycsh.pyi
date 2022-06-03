@@ -26,7 +26,7 @@ class Parameter:
     Provides an interface to their attributes and values.
     """
 
-    def __new__(cls, param_identifier: _param_ident_hint, node: int = None, host: int = None) -> Parameter | ParameterArray:
+    def __new__(cls, param_identifier: _param_ident_hint, node: int = None, host: int = None, timeout: int = None) -> Parameter | ParameterArray:
         """
         As stated; this class simply wraps existing parameters,
         and cannot create new ones. It therefore requires an 'identifier'
@@ -113,6 +113,17 @@ class Parameter:
     @property
     def timestamp(self) -> int:
         """ Returns the timestamp of the wrapped param_t C struct. """
+
+    @property
+    def timeout(self) -> int:
+        """ Returns the default timeout of the Parameter value in milliseconds. """
+
+    @timeout.setter
+    def timeout(self, value: int) -> None:
+        """
+        Sets the default timeout of the Parameter in milliseconds.
+        Use None to reset default value.
+        """
 
 
 class ParameterArray(Parameter):
@@ -208,7 +219,7 @@ _param_ident_hint = int | str | Parameter  # Types accepted for finding a param_
 
 
 # Libparam commands
-def get(param_identifier: _param_ident_hint, host: int = None, node: int = None, offset: int = None) -> _param_value_hint | tuple[_param_value_hint]:
+def get(param_identifier: _param_ident_hint, host: int = None, node: int = None, offset: int = None, timeout: int = None) -> _param_value_hint | tuple[_param_value_hint]:
     """
     Get the value of a parameter.
 
@@ -216,6 +227,7 @@ def get(param_identifier: _param_ident_hint, host: int = None, node: int = None,
     :param host: The host from which the value should be retrieved (has priority over node).
     :param node: The node from which the value should be retrieved.
     :param offset: Index to use for array parameters.
+    :param timeout: Timeout of pull transaction in milliseconds (Has no effect when autosend is 0).
 
     :raises TypeError: When an invalid param_identifier type is provided.
     :raises ValueError: When a parameter could not be found.
@@ -224,7 +236,7 @@ def get(param_identifier: _param_ident_hint, host: int = None, node: int = None,
     :return: The value of the retrieved parameter (As its Python type).
     """
 
-def set(param_identifier: _param_ident_hint, value: _param_value_hint | _Iterable[int | float], host: int = None, node: int = None, offset: int = None) -> None:
+def set(param_identifier: _param_ident_hint, value: _param_value_hint | _Iterable[int | float], host: int = None, node: int = None, offset: int = None, timeout: int = None) -> None:
     """
     Set the value of a parameter.
 
@@ -233,6 +245,7 @@ def set(param_identifier: _param_ident_hint, value: _param_value_hint | _Iterabl
     :param host: The host from which the value should be retrieved (has priority over node).
     :param node: The node from which the value should be retrieved.
     :param offset: Index to use for array parameters.
+    :param timeout: Timeout of push transaction in milliseconds (Has no effect when autosend is 0).
 
     :raises TypeError: When an invalid param_identifier type is provided.
     :raises ValueError: When a parameter could not be found.

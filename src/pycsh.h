@@ -11,6 +11,8 @@
 
 #include <param/param_queue.h>
 
+#define PYCSH_DFL_TIMEOUT 1000  // In milliseconds
+
 uint8_t csp_initialized();
 
 extern param_queue_t param_queue_set;

@@ -66,13 +66,14 @@ static void Parameter_dealloc(ParameterObject *self) {
 /* May perform black magic and return a ParameterArray instead of the specified type. */
 static PyObject * Parameter_new(PyTypeObject *type, PyObject *args, PyObject *kwds) {
 
-	static char *kwlist[] = {"param_identifier", "node", "host", NULL};
+	static char *kwlist[] = {"param_identifier", "node", "host", "timeout", NULL};
 
 	PyObject * param_identifier;  // Raw argument object/type passed. Identify its type when needed.
 	int node = default_node;
 	int host = INT_MIN;
+	int timeout = PYCSH_DFL_TIMEOUT;
 
-	if (!PyArg_ParseTupleAndKeywords(args, kwds, "O|ii", kwlist, &param_identifier, &node, &host)) {
+	if (!PyArg_ParseTupleAndKeywords(args, kwds, "O|iii", kwlist, &param_identifier, &node, &host, &timeout)) {
 		return NULL;  // TypeError is thrown
 	}
 
@@ -81,7 +82,7 @@ static PyObject * Parameter_new(PyTypeObject *type, PyObject *args, PyObject *kw
 	if (param == NULL)  // Did not find a match.
 		return NULL;  // Raises TypeError or ValueError.
 
-    return _pycsh_Parameter_from_param(type, param, host);
+    return _pycsh_Parameter_from_param(type, param, host, timeout);
 }
 
 static PyObject * Parameter_getname(ParameterObject *self, void *closure) {
@@ -183,8 +184,8 @@ static PyObject * Parameter_gettype(ParameterObject *self, void *closure) {
 
 static PyObject * Parameter_getvalue(ParameterObject *self, void *closure) {
 	if (self->param->array_size > 1 && self->param->type != PARAM_TYPE_STRING)
-		return _pycsh_util_get_array(self->param, autosend, self->host);
-	return _pycsh_util_get_single(self->param, INT_MIN, autosend, self->host);
+		return _pycsh_util_get_array(self->param, autosend, self->host, self->timeout);
+	return _pycsh_util_get_single(self->param, INT_MIN, autosend, self->host, self->timeout);
 }
 
 static int Parameter_setvalue(ParameterObject *self, PyObject *value, void *closure) {
@@ -195,9 +196,9 @@ static int Parameter_setvalue(ParameterObject *self, PyObject *value, void *clos
     }
 
 	if (self->param->array_size > 1 && self->param->type != PARAM_TYPE_STRING)  // Is array parameter
-		return _pycsh_util_set_array(self->param, value, self->host);
+		return _pycsh_util_set_array(self->param, value, self->host, self->timeout);
 	param_queue_t *usequeue = autosend ? NULL : &param_queue_set;
-	return _pycsh_util_set_single(self->param, value, INT_MIN, self->host, usequeue);  // Normal parameter
+	return _pycsh_util_set_single(self->param, value, INT_MIN, self->host, self->timeout, usequeue);  // Normal parameter
 }
 
 static PyObject * Parameter_is_array(ParameterObject *self, void *closure) {
@@ -222,6 +223,37 @@ static PyObject * Parameter_gettimestamp(ParameterObject *self, void *closure) {
 	return Py_BuildValue("I", self->param->timestamp);
 }
 
+static PyObject * Parameter_gettimeout(ParameterObject *self, void *closure) {
+	return Py_BuildValue("i", self->timeout);
+}
+
+static int Parameter_settimeout(ParameterObject *self, PyObject *value, void *closure) {
+
+	if (value == NULL) {
+        PyErr_SetString(PyExc_TypeError, "Cannot delete the timeout attribute");
+        return -1;
+    }
+
+	if (value == Py_None) {
+		self->timeout = PYCSH_DFL_TIMEOUT;
+		return 0;
+	}
+
+	if(!PyLong_Check(value)) {
+		PyErr_SetString(PyExc_TypeError,
+                        "The timeout attribute must be set to an int or None");
+        return -1;
+	}
+
+	int timeout = _PyLong_AsInt(value);
+
+	if (PyErr_Occurred())
+		return -1;  // 'Reraise' the current exception.
+
+	self->timeout = timeout;
+
+	return 0;
+}
 
 
 /* 
@@ -253,6 +285,8 @@ static PyGetSetDef Parameter_getsetters[] = {
      "mask of the parameter", NULL},
 	{"timestamp", (getter)Parameter_gettimestamp, NULL,
      "timestamp of the parameter", NULL},
+	{"timeout", (getter)Parameter_gettimeout, (setter)Parameter_settimeout,
+     "timeout of the parameter", NULL},
     {NULL}  /* Sentinel */
 };
 

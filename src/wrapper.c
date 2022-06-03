@@ -33,10 +33,11 @@ PyObject * pycsh_param_get(PyObject * self, PyObject * args, PyObject * kwds) {
 	int host = INT_MIN;
 	int node = default_node;
 	int offset = INT_MIN;  // Using INT_MIN as the least likely value as Parameter arrays should be backwards subscriptable like lists.
+	int timeout = PYCSH_DFL_TIMEOUT;
 
-	static char *kwlist[] = {"param_identifier", "host", "node", "offset", NULL};
+	static char *kwlist[] = {"param_identifier", "host", "node", "offset", "timeout", NULL};
 
-	if (!PyArg_ParseTupleAndKeywords(args, kwds, "O|iii", kwlist, &param_identifier, &host, &node, &offset))
+	if (!PyArg_ParseTupleAndKeywords(args, kwds, "O|iiii", kwlist, &param_identifier, &host, &node, &offset, &offset))
 		return NULL;  // TypeError is thrown
 
 	param_t *param = _pycsh_util_find_param_t(param_identifier, node);
@@ -46,8 +47,8 @@ PyObject * pycsh_param_get(PyObject * self, PyObject * args, PyObject * kwds) {
 
 	// _pycsh_util_get_single() and _pycsh_util_get_array() will return NULL for exceptions, which is fine with us.
 	if (param->array_size > 1 && param->type != PARAM_TYPE_STRING)
-		return _pycsh_util_get_array(param, autosend, host);
-	return _pycsh_util_get_single(param, offset, autosend, host);
+		return _pycsh_util_get_array(param, autosend, host, timeout);
+	return _pycsh_util_get_single(param, offset, autosend, host, timeout);
 }
 
 PyObject * pycsh_param_set(PyObject * self, PyObject * args, PyObject * kwds) {
@@ -63,11 +64,11 @@ PyObject * pycsh_param_set(PyObject * self, PyObject * args, PyObject * kwds) {
 	int host = INT_MIN;
 	int node = default_node;
 	int offset = INT_MIN;  // Using INT_MIN as the least likely value as Parameter arrays should be backwards subscriptable like lists.
+	int timeout = PYCSH_DFL_TIMEOUT;
 
-
-	static char *kwlist[] = {"param_identifier", "value", "host", "node", "offset", NULL};
+	static char *kwlist[] = {"param_identifier", "value", "host", "node", "offset", "timeout", NULL};
 	
-	if (!PyArg_ParseTupleAndKeywords(args, kwds, "OO|iii", kwlist, &param_identifier, &value, &host, &node, &offset)) {
+	if (!PyArg_ParseTupleAndKeywords(args, kwds, "OO|iiii", kwlist, &param_identifier, &value, &host, &node, &offset, &offset)) {
 		return NULL;  // TypeError is thrown
 	}
 
@@ -77,11 +78,11 @@ PyObject * pycsh_param_set(PyObject * self, PyObject * args, PyObject * kwds) {
 		return NULL;  // Raises TypeError or ValueError.
 
 	if((PyIter_Check(value) || PySequence_Check(value)) && !PyObject_TypeCheck(value, &PyUnicode_Type)) {
-		if (_pycsh_util_set_array(param, value, host))
+		if (_pycsh_util_set_array(param, value, host, timeout))
 			return NULL;  // Raises one of many possible exceptions.
 	} else {
 		param_queue_t *usequeue = autosend ? NULL : &param_queue_set;
-		if (_pycsh_util_set_single(param, value, offset, host, usequeue))
+		if (_pycsh_util_set_single(param, value, offset, host, timeout, usequeue))
 			return NULL;  // Raises one of many possible exceptions.
 		param_print(param, -1, NULL, 0, 2);
 	}
@@ -98,7 +99,7 @@ PyObject * pycsh_param_pull(PyObject * self, PyObject * args, PyObject * kwds) {
 	}
 
 	unsigned int host = 0;
-	unsigned int timeout = 1000;
+	unsigned int timeout = PYCSH_DFL_TIMEOUT;
 	uint32_t include_mask = 0xFFFFFFFF;
 	uint32_t exclude_mask = PM_REMOTE | PM_HWREG;
 
@@ -140,7 +141,7 @@ PyObject * pycsh_param_push(PyObject * self, PyObject * args, PyObject * kwds) {
 	}
 
 	unsigned int node = 0;
-	unsigned int timeout = 100;
+	unsigned int timeout = PYCSH_DFL_TIMEOUT;
 	uint32_t hwid = 0;
 
 	static char *kwlist[] = {"node", "timeout", "hwid", NULL};
@@ -269,7 +270,7 @@ PyObject * pycsh_param_list_download(PyObject * self, PyObject * args, PyObject 
 	}
 
 	unsigned int node;
-    unsigned int timeout = 1000;
+    unsigned int timeout = PYCSH_DFL_TIMEOUT;
     unsigned int version = 2;
 
 	static char *kwlist[] = {"node", "timeout", "version", NULL};
@@ -337,7 +338,7 @@ PyObject * pycsh_csh_ping(PyObject * self, PyObject * args, PyObject * kwds) {
 	}
 
 	unsigned int node;
-	unsigned int timeout = 1000;
+	unsigned int timeout = PYCSH_DFL_TIMEOUT;
 	unsigned int size = 1;
 
 	static char *kwlist[] = {"node", "timeout", "size", NULL};
@@ -369,7 +370,7 @@ PyObject * pycsh_csh_ident(PyObject * self, PyObject * args, PyObject * kwds) {
 	}
 
 	unsigned int node;
-	unsigned int timeout = 1000;
+	unsigned int timeout = PYCSH_DFL_TIMEOUT;
 
 	static char *kwlist[] = {"node", "timeout", NULL};
 
