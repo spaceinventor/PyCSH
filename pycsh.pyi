@@ -26,7 +26,7 @@ class Parameter:
     Provides an interface to their attributes and values.
     """
 
-    def __new__(cls, param_identifier: _param_ident_hint, node: int = None, host: int = None, timeout: int = None) -> Parameter | ParameterArray:
+    def __new__(cls, param_identifier: _param_ident_hint, node: int = None, host: int = None, timeout: int = None, retries: int = None) -> Parameter | ParameterArray:
         """
         As stated; this class simply wraps existing parameters,
         and cannot create new ones. It therefore requires an 'identifier'
@@ -34,6 +34,8 @@ class Parameter:
 
         :param param_identifier: an int or string of the parameter ID or name respectively.
         :param node: Node on which the parameter is located.
+        :param timeout: Default timeout period for this parameter in milliseconds.
+        :param retries: Number of retries available for timeouts.
 
         :raises ValueError: When no parameter can be found from an otherwise valid identifier.
 
@@ -122,6 +124,17 @@ class Parameter:
     def timeout(self, value: int) -> None:
         """
         Sets the default timeout of the Parameter in milliseconds.
+        Use None to reset default value.
+        """
+
+    @property
+    def retries(self) -> int:
+        """ Returns the number of retries the parameter has for transactions. """
+
+    @timeout.setter
+    def retries(self, value: int) -> None:
+        """
+        Sets the retries the parameter has for transactions.
         Use None to reset default value.
         """
 
@@ -219,7 +232,7 @@ _param_ident_hint = int | str | Parameter  # Types accepted for finding a param_
 
 
 # Libparam commands
-def get(param_identifier: _param_ident_hint, host: int = None, node: int = None, offset: int = None, timeout: int = None) -> _param_value_hint | tuple[_param_value_hint]:
+def get(param_identifier: _param_ident_hint, host: int = None, node: int = None, offset: int = None, timeout: int = None, retries: int = None) -> _param_value_hint | tuple[_param_value_hint]:
     """
     Get the value of a parameter.
 
@@ -228,6 +241,7 @@ def get(param_identifier: _param_ident_hint, host: int = None, node: int = None,
     :param node: The node from which the value should be retrieved.
     :param offset: Index to use for array parameters.
     :param timeout: Timeout of pull transaction in milliseconds (Has no effect when autosend is 0).
+    :param retries: Number of retries available for timeouts.
 
     :raises TypeError: When an invalid param_identifier type is provided.
     :raises ValueError: When a parameter could not be found.
@@ -236,7 +250,7 @@ def get(param_identifier: _param_ident_hint, host: int = None, node: int = None,
     :return: The value of the retrieved parameter (As its Python type).
     """
 
-def set(param_identifier: _param_ident_hint, value: _param_value_hint | _Iterable[int | float], host: int = None, node: int = None, offset: int = None, timeout: int = None) -> None:
+def set(param_identifier: _param_ident_hint, value: _param_value_hint | _Iterable[int | float], host: int = None, node: int = None, offset: int = None, timeout: int = None, retries: int = None) -> None:
     """
     Set the value of a parameter.
 
@@ -246,24 +260,26 @@ def set(param_identifier: _param_ident_hint, value: _param_value_hint | _Iterabl
     :param node: The node from which the value should be retrieved.
     :param offset: Index to use for array parameters.
     :param timeout: Timeout of push transaction in milliseconds (Has no effect when autosend is 0).
+    :param retries: Number of retries available for timeouts.
 
     :raises TypeError: When an invalid param_identifier type is provided.
     :raises ValueError: When a parameter could not be found.
     :raises RuntimeError: When called before .init().
     """
 
-def push(node: int, timeout: int = None, hwid: int = None) -> None:
+def push(node: int, timeout: int = None, hwid: int = None, retries: int = None) -> None:
     """
     Push the current queue.
 
     :param node: Node to which the current queue should be pushed.
     :param timeout: Timeout in milliseconds of the push request.
     :param hwid: Hardware ID.
+    :param retries: Number of retries available for timeouts.
 
     :raises ConnectionError: when no response is received.
     """
 
-def pull(host: int, include_mask: str = None, exclude_mask: str = None, timeout: int = None) -> None:
+def pull(host: int, include_mask: str = None, exclude_mask: str = None, timeout: int = None, retries: int = None) -> None:
     """ Pull all or a specific set of parameters. """
 
 def clear() -> None:
