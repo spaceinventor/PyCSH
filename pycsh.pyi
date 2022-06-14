@@ -449,13 +449,19 @@ def vmem_unlock(node: int = None, timeout: int = None) -> int:
 
 
 def init(csp_version = None, csp_hostname: str = None, csp_model: str = None,
-                use_prometheus: int = None, rtable: str = None, yamlname: str = None, dfl_addr: int = None, quiet: int = None) -> None:
+                use_prometheus: int = None, rtable: str = None, yamlname: str = None, dfl_addr: int = None, stdout: int | str = None, stderr: int | str = None) -> None:
     """
     Initializes the module, with the provided settings.
 
     :param csp_version: Which CSP version to use in the module.
     :param csp_hostname: Which CSP hostname to use in the module.
     :param csp_model: Which CSP model to use in the module.
-    :param quiet: Whether to redirect CSH stdout to /dev/null.
     :param yamlname: Name and path to the .yaml file with which the bindings/CSH-session should be configured.
+    :param dfl_addr: Override CSH' own node with the specified number.
+    :param stdout: Redirect CSH stdout to the specified file. Supports subprocess.DEVNULL for quiet operation.
+    :param stderr: Redirect CSH stderr to the specified file. Supports subprocess.DEVNULL for quiet operation.
+
+    :raises ValueError: Incorrect integer value specified for stdout or stderr.
+    :raises IOError: When opening a file for stdout or stderr fails.
+    :raises RuntimeError: When called multiple times.
     """

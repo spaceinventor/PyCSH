@@ -29,6 +29,7 @@ import os
 current_directory = os.path.dirname(os.path.realpath(__file__))
 import sys; sys.path.append(current_directory[:current_directory.rindex('/')])
 from PyCSH.utils import Bindings, temp_autosend_value, ParamMapping
+from subprocess import DEVNULL
 
 LOCAL_NODE = 0
 
@@ -250,10 +251,10 @@ if __name__ == '__main__':
     # before most operations are permitted.
     # Using the return value of the 'Bindings()' function from PyCSH.utils,
     # therefore strips the need for most bootstrapping code.
-    bindings = Bindings(quiet=True)
+    bindings = Bindings(stdout=DEVNULL)
 
-    # The following is equivalent to 'Bindings(quiet=False)':
-    # pycsh.init(quiet=True)
+    # The following is equivalent to 'Bindings(stdout=DEVNULL)':
+    # pycsh.init(stdout=DEVNULL)
 
     # Just as when using CSH, the node command returns the current default node,
     # as well as changing it when an integer argument is provided.

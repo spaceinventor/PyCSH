@@ -145,11 +145,9 @@ static PyTypeObject * _pycsh_misc_param_t_type(param_t * param) {
 			break;
 		}
 		default:  // Raise NotImplementedError when param_type remains NULL.
+			PyErr_SetString(PyExc_NotImplementedError, "Unsupported parameter type.");
 			break;
 	}
-
-	if (param_type == NULL)
-		PyErr_SetString(PyExc_NotImplementedError, "Unsupported parameter type.");
 
 	return param_type;  // or NULL (for NotImplementedError).
 }

@@ -105,6 +105,51 @@ int default_node = -1;
 int autosend = 1;
 int paramver = 2;
 
+// TODO Kevin: It's probably not safe to call this function consecutively with the same std_stream or stream_buf.
+static int _handle_stream(PyObject * stream_identifier, FILE *std_stream, FILE *stream_buf) {
+	if (!stream_identifier)
+		return 0;
+
+	if (PyLong_Check(stream_identifier)) {
+		long int val = PyLong_AsLong(stream_identifier);
+		switch (val) {
+			case -2:  // STDOUT
+				break;  // Default behavior is correct, don't do anything.
+			case -3:  // DEVNULL
+				// fclose(stdout);
+				;static FILE * devnull = NULL;  // Semicolon prevents the compiler from getting confused.
+				// Open /dev/null stream if needed
+				if ((stream_buf = freopen("/dev/null", "w", std_stream)) == NULL) {
+					char buf[150];
+					snprintf(buf, 150, "Impossible error! Can't open /dev/null: %s\n", strerror(errno));
+					PyErr_SetString(PyExc_IOError, buf);
+					return -1;
+				}
+				std_stream = devnull;
+				break;
+			default:
+				PyErr_SetString(PyExc_ValueError, "Argument should be either -2 for subprocess.STDOUT, -3 for subprocess.DEVNULL or a string to a file.");
+				return -2;
+		}
+	} else if (PyUnicode_Check(stream_identifier)) {
+		const char *filename = PyUnicode_AsUTF8(stream_identifier);
+
+		if (stream_buf != NULL)
+			fclose(stream_buf);
+
+		if ((stream_buf = freopen(filename, "w", std_stream)) == NULL) {
+			char buf[30 + strlen(filename)];
+			sprintf(buf, "Failed to open file: %s", filename);
+			PyErr_SetString(PyExc_IOError, buf);
+			return -3;
+		}
+		// std_stream = stream_buf;
+	} else {
+		PyErr_SetString(PyExc_TypeError, "Argument should be either -2 for subprocess.STDOUT, -3 for subprocess.DEVNULL or a string to a file.");
+		return -4;
+	}
+	return 0;
+}
 
 static PyObject * pycsh_init(PyObject * self, PyObject * args, PyObject *kwds) {
 
@@ -116,7 +161,7 @@ static PyObject * pycsh_init(PyObject * self, PyObject * args, PyObject *kwds) {
 
 	static char *kwlist[] = {
 		"csp_version", "csp_hostname", "csp_model", 
-		"use_prometheus", "rtable", "yamlname", "dfl_addr", "quiet", NULL,
+		"use_prometheus", "rtable", "yamlname", "dfl_addr", "stdout", "stderr", NULL,
 	};
 
 	static struct utsname info;
@@ -134,26 +179,28 @@ static PyObject * pycsh_init(PyObject * self, PyObject * args, PyObject *kwds) {
 	char * dirname = getenv("HOME");
 	unsigned int dfl_addr = 0;
 	
-	int quiet = 0;
+	PyObject *csh_stdout = NULL;
+	PyObject *csh_stderr = NULL;
 	
 
-	if (!PyArg_ParseTupleAndKeywords(args, kwds, "|BssissIi", kwlist,
+	if (!PyArg_ParseTupleAndKeywords(args, kwds, "|BssissIOO:init", kwlist,
 		&csp_conf.version,  &csp_conf.hostname, 
 		&csp_conf.model, &use_prometheus, &rtable,
-		&yamlname, &dfl_addr, &quiet)
+		&yamlname, &dfl_addr, &csh_stdout, &csh_stderr)
 	)
 		return NULL;  // TypeError is thrown
 
 	if (strcmp(yamlname, "csh.yaml"))
 		dirname = "";
 
-	if (quiet) {
-		static FILE * devnull;
-		if ((devnull = fopen("/dev/null", "w")) == NULL) {
-			fprintf(stderr, "Impossible error! Can't open /dev/null: %s\n", strerror(errno));
-			exit(1);
-		}
-		stdout = devnull;
+	// TODO Kevin: Support reassigning streams through module function or global.
+	static FILE *temp_stdout_fp = NULL;
+	static FILE *temp_stderr_fp = NULL;
+	if (
+		_handle_stream(csh_stdout, stdout, temp_stdout_fp) != 0 ||
+		_handle_stream(csh_stderr, stderr, temp_stderr_fp) != 0
+	) {
+		return NULL;
 	}
 
 	srand(time(NULL));

@@ -15,7 +15,8 @@ _libparam_typehint = PyCSH
 
 
 def Bindings(csp_version: int = ..., csp_hostname: str = ..., csp_model: str = ...,
-             use_prometheus: int = ..., rtable: str = ..., yamlname: str = ..., dfl_addr: int = ..., quiet: int = ...,
+             use_prometheus: int = ..., rtable: str = ..., yamlname: str = ..., dfl_addr: int = ...,
+             stdout: int | str = ..., stderr: int | str = ...,
              *, module_name: str = None) -> _libparam_typehint:
     """
     Imports and customizes a new instance of the libparam bindings module based on the provided arguments.
@@ -23,8 +24,12 @@ def Bindings(csp_version: int = ..., csp_hostname: str = ..., csp_model: str = .
     :param csp_version: Which CSP version to use in the module.
     :param csp_hostname: Which CSP hostname to use in the module.
     :param csp_model: Which CSP model to use in the module.
+    :param yamlname: Name and path to the .yaml file with which the bindings/CSH-session should be configured.
+    :param dfl_addr: Override CSH' own node with the specified number.
+    :param stdout: Redirect CSH stdout to the specified file. Supports subprocess.DEVNULL for quiet operation.
+    :param stderr: Redirect CSH stderr to the specified file. Supports subprocess.DEVNULL for quiet operation.
     :param module_name: Optional alternative name of the module to import.
-    :param quiet: Send output from C to /dev/null.
+
     :return: An instance of the CSH binding module on which operations may be performed.
     """
 
@@ -37,7 +42,8 @@ def Bindings(csp_version: int = ..., csp_hostname: str = ..., csp_model: str = .
                      'rtable': rtable,
                      'yamlname': yamlname,
                      'dfl_addr': dfl_addr,
-                     'quiet': quiet,
+                     'stdout': stdout,
+                     'stderr': stderr,
                  }.items()
                  if value is not ...}
 
