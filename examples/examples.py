@@ -25,11 +25,11 @@ if __name__ == '__main__':  # Support showing __doc__ with -h argument.
 
 # Python hates relative imports with no known parent package (Importing from parent directory),
 # but we will force it to make them anyway!
-import os
-current_directory = os.path.dirname(os.path.realpath(__file__))
-import sys; sys.path.append(current_directory[:current_directory.rindex('/')])
+from os import path
+current_directory = path.dirname(path.realpath(__file__))
+import sys; sys.path.append(path.split(path.split(current_directory)[0])[0])
 from PyCSH.utils import Bindings, temp_autosend_value, ParamMapping
-from subprocess import DEVNULL
+from subprocess import DEVNULL, STDOUT
 
 LOCAL_NODE = 0
 
