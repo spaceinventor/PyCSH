@@ -31,15 +31,11 @@ PyObject * pycsh_param_autosend(PyObject * self, PyObject * args);
 PyObject * pycsh_param_queue(PyObject * self, PyObject * args);
 
 
-PyObject * pycsh_param_list(PyObject * self, PyObject * args);
+PyObject * pycsh_param_list(PyObject * self, PyObject * args, PyObject * kwds);
 
 PyObject * pycsh_param_list_download(PyObject * self, PyObject * args, PyObject * kwds);
 
 PyObject * pycsh_param_list_forget(PyObject * self, PyObject * args, PyObject * kwds);
-
-PyObject * pycsh_param_list_save(PyObject * self, PyObject * args);
-
-PyObject * pycsh_param_list_load(PyObject * self, PyObject * args);
 
 
 PyObject * pycsh_csh_ping(PyObject * self, PyObject * args, PyObject * kwds);

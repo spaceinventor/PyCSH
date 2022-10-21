@@ -41,7 +41,6 @@
 
 #include <sys/types.h>
 
-#include "lib/param/src/param/param_string.h"
 #include "csh/prometheus.h"
 #include "csh/param_sniffer.h"
 
@@ -192,12 +191,12 @@ static PyObject * pycsh_init(PyObject * self, PyObject * args, PyObject *kwds) {
 		dirname = "";
 
 	// TODO Kevin: Support reassigning streams through module function or global.
-	static FILE *temp_stdout_fp = NULL;
-	static FILE *temp_stderr_fp = NULL;
+	static FILE * temp_stdout_fd = NULL;
+	static FILE * temp_stderr_fd = NULL;
 
 	if (
-		_handle_stream(csh_stdout, &stdout, temp_stdout_fp) != 0 ||
-		_handle_stream(csh_stderr, &stderr, temp_stderr_fp) != 0
+		_handle_stream(csh_stdout, &stdout, temp_stdout_fd) != 0 ||
+		_handle_stream(csh_stderr, &stderr, temp_stderr_fd) != 0
 	) {
 		return NULL;
 	}
@@ -209,7 +208,6 @@ static PyObject * pycsh_init(PyObject * self, PyObject * args, PyObject *kwds) {
 
 	/* Parameters */
 	vmem_file_init(&vmem_params);
-	param_list_store_vmem_load(&vmem_params);
 
 	csp_init();
 
@@ -276,11 +274,11 @@ static PyMethodDef methods[] = {
 	{"queue", 		pycsh_param_queue,			  	METH_NOARGS, 				  "Print the current status of the queue."},
 
 	/* Converted CSH commands from libparam/src/param/list/param_list_slash.c */
-	{"list", 		pycsh_param_list,			  	METH_VARARGS, 				  "List all known parameters."},
+	{"list", 		(PyCFunction)pycsh_param_list,	METH_VARARGS | METH_KEYWORDS, "List all known parameters."},
 	{"list_download", (PyCFunction)pycsh_param_list_download, METH_VARARGS | METH_KEYWORDS, "Download all parameters on the specified node."},
 	{"list_forget", (PyCFunction)pycsh_param_list_forget, METH_VARARGS | METH_KEYWORDS, "Remove remote parameters, matching the provided arguments, from the global list."},
-	{"list_save", 	pycsh_param_list_save, 		  	METH_VARARGS, 				  "Save a list of parameters to a file."},
-	{"list_load", 	pycsh_param_list_load, 		  	METH_VARARGS, 				  "Load a list of parameters from a file."},
+	// {"list_save", 	pycsh_param_list_save, 		  	METH_VARARGS, 				  "Save a list of parameters to a file."},
+	// {"list_load", 	pycsh_param_list_load, 		  	METH_VARARGS, 				  "Load a list of parameters from a file."},
 
 	/* Converted CSH commands from csh/src/slash_csp.c */
 	{"ping", 		(PyCFunction)pycsh_csh_ping, 	METH_VARARGS | METH_KEYWORDS, "Ping the specified node."},

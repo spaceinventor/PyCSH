@@ -15,7 +15,6 @@ project('csh_bindings', 'c', subproject_dir: 'lib', default_options: [
 	'param:slash=false',
 	'param:commands=false',
 	'param:scheduler=false',
-	'param:commands_client=true',
 	'param:scheduler_client=true',
 	'param:collector=true',
 	'param:list_dynamic=true',])

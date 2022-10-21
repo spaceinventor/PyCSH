@@ -12,8 +12,6 @@
 #include <param/param_server.h>
 #include <param/param_client.h>
 
-#include "lib/param/src/param/param_string.h"
-
 #include "pycsh.h"
 #include "parameter/parameter.h"
 #include "parameter/parameterarray.h"
@@ -353,6 +351,10 @@ PyObject * _pycsh_util_get_single(param_t *param, int offset, int autopull, int 
 			char buf[size];
 			param_get_data(param, buf, size);
 			return Py_BuildValue("O&", buf);
+		}
+		default: {
+			/* Default case to make the compiler happy. Set error and return */
+			break;
 		}
 	}
 	PyErr_SetString(PyExc_NotImplementedError, "Unsupported parameter type for get operation.");

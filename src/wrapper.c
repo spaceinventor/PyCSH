@@ -245,20 +245,26 @@ PyObject * pycsh_param_queue(PyObject * self, PyObject * args) {
 }
 
 
-PyObject * pycsh_param_list(PyObject * self, PyObject * args) {
+PyObject * pycsh_param_list(PyObject * self, PyObject * args, PyObject * kwds) {
 
-	uint32_t mask = 0xFFFFFFFF;
+	int node = default_node;
+    int verbosity = 1;
+    char * maskstr = NULL;
+	char * globstr = NULL;
 
-	char * _str_mask = NULL;
+	static char *kwlist[] = {"node", "verbose", "mask", "globstr", NULL};
 
-	if (!PyArg_ParseTuple(args, "|s", &_str_mask)) {
+	if (!PyArg_ParseTupleAndKeywords(args, kwds, "|iiss", kwlist, &node, &verbosity, &maskstr, &globstr)) {
 		return NULL;
 	}
 
-	if (_str_mask != NULL)
-		mask = param_maskstr_to_mask(_str_mask);
+	/* Interpret maskstring */
+    uint32_t mask = 0xFFFFFFFF;
+    if (maskstr != NULL) {
+        mask = param_maskstr_to_mask(maskstr);
+    }
 
-	param_list_print(mask, 1);
+	param_list_print(mask, node, globstr, verbosity);
 
 	return pycsh_util_parameter_list();
 }
@@ -293,41 +299,17 @@ PyObject * pycsh_param_list_download(PyObject * self, PyObject * args, PyObject 
 
 PyObject * pycsh_param_list_forget(PyObject * self, PyObject * args, PyObject * kwds) {
 
-	int node = -1;
-    char * name = NULL;
+	int node = default_node;
+    int verbose = 1;
 
-	static char *kwlist[] = {"node", "name_filter", NULL};
+	static char *kwlist[] = {"node", "verbose", NULL};
 
-	if (!PyArg_ParseTupleAndKeywords(args, kwds, "|is", kwlist, &node, &name))
+	if (!PyArg_ParseTupleAndKeywords(args, kwds, "|ii", kwlist, &node, &verbose))
 		return NULL;  // TypeError is thrown
 
-	int res = param_list_remove_glob(node, name, 1);
+	int res = param_list_remove(node, verbose);
 	printf("Removed %i parameters\n", res);
 	return Py_BuildValue("i", res);;
-}
-
-PyObject * pycsh_param_list_save(PyObject * self, PyObject * args) {
-
-	int id;
-
-	if (!PyArg_ParseTuple(args, "i", &id))
-		return NULL;  // Raises TypeError.
-
-	param_list_store_vmem_save(vmem_index_to_ptr(id));
-
-	Py_RETURN_NONE;
-}
-
-PyObject * pycsh_param_list_load(PyObject * self, PyObject * args) {
-	
-	int id;
-
-	if (!PyArg_ParseTuple(args, "i", &id))
-		return NULL;  // Raises TypeError.
-
-	param_list_store_vmem_load(vmem_index_to_ptr(id));
-
-	Py_RETURN_NONE;
 }
 
 

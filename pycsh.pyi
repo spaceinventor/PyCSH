@@ -312,7 +312,7 @@ def autosend(autosend: int = None) -> int:
 def queue() -> None:
     """ Print the current status of the queue. """
 
-def list(mask: str = None) -> ParameterList:
+def list(node: int = None, verbose: int =None, mask: str = None, globstr: str = None) -> ParameterList:
     """
     List all known parameters, remote and local alike.
 
@@ -329,27 +329,13 @@ def list_download(node: int, timeout: int = None, version: int = None) -> Parame
     :returns: The output of list().
     """
 
-def list_forget(node: int = None, name_filter: str = None) -> int:
+def list_forget(node: int = None, verbose: int = None) -> int:
     """
     Remove remote parameters, matching the provided arguments, from the global list.
 
     :param node: Remove parameters from this node. Use <1 for all nodes.
     :param name_filter: Wildcard name pattern to filter parameters by.
     :returns: Count of parameters affected.
-    """
-
-def list_save(vmem_id: int) -> None:
-    """
-    Save a list of parameters to a file.
-
-    :param vmem_id: Use vmem_list() for examples.
-    """
-
-def list_load(vmem_id: int) -> None:
-    """
-    Load a list of parameters from a file. Parameters will be loaded automatically when the module is initialized.
-
-    :param vmem_id: Use vmem_list() for examples.
     """
 
 
