@@ -60,3 +60,6 @@ foreach python_version : get_option('python3_versions')
 						install : true)
 
 endforeach
+
+# Add .pyi file for type-hints
+configure_file(input: 'pycsh.pyi', output: 'pycsh.pyi', copy: true)
