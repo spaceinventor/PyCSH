@@ -209,7 +209,7 @@ static int ParameterList_init(ParameterListObject *self, PyObject *args, PyObjec
 
 /* Subclass of the Python list which implements an interface to libparam's queue API. 
    This makes some attempts to restricts and validate its contents to be parameters.
-   This is generally considered unpythonic however, and should't be relied upon */
+   This is generally considered unpythonic however, and shouldn't be relied upon */
 PyTypeObject ParameterListType = {
 	PyVarObject_HEAD_INIT(NULL, 0)
 	.tp_name = "pycsh.ParameterList",

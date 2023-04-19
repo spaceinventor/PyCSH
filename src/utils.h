@@ -16,7 +16,6 @@
 #include <param/param_queue.h>
 
 
-
 /* Source: https://pythonextensionpatterns.readthedocs.io/en/latest/super_call.html */
 PyObject * call_super_pyname_lookup(PyObject *self, PyObject *func_name, PyObject *args, PyObject *kwargs);
 
