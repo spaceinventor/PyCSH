@@ -435,7 +435,7 @@ def vmem_unlock(node: int = None, timeout: int = None) -> int:
 
 
 def init(csp_version = None, csp_hostname: str = None, csp_model: str = None,
-                use_prometheus: int = None, rtable: str = None, yamlname: str = None, dfl_addr: int = None, stdout: int | str = None, stderr: int | str = None) -> None:
+                use_prometheus: int = None, rtable: str = None, yamlname: str = None, dfl_addr: int = None, quiet: int = None, stdout: int | str = None, stderr: int | str = None) -> None:
     """
     Initializes the module, with the provided settings.
 
@@ -444,6 +444,7 @@ def init(csp_version = None, csp_hostname: str = None, csp_model: str = None,
     :param csp_model: Which CSP model to use in the module.
     :param yamlname: Name and path to the .yaml file with which the bindings/CSH-session should be configured.
     :param dfl_addr: Override CSH' own node with the specified number.
+    :param quiet: Send output from C to /dev/null. "quiet" argument takes precedence over the "stdout" & "stderr" arguments.
     :param stdout: Redirect CSH stdout to the specified file. Supports subprocess.DEVNULL for quiet operation.
     :param stderr: Redirect CSH stderr to the specified file. Supports subprocess.DEVNULL for quiet operation.
 

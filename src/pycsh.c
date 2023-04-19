@@ -106,7 +106,7 @@ int paramver = 2;
 
 // TODO Kevin: It's probably not safe to call this function consecutively with the same std_stream or stream_buf.
 static int _handle_stream(PyObject * stream_identifier, FILE **std_stream, FILE *stream_buf) {
-	if (!stream_identifier)
+	if (stream_identifier == NULL)
 		return 0;
 
 	if (PyLong_Check(stream_identifier)) {
@@ -158,7 +158,7 @@ static PyObject * pycsh_init(PyObject * self, PyObject * args, PyObject *kwds) {
 
 	static char *kwlist[] = {
 		"csp_version", "csp_hostname", "csp_model", 
-		"use_prometheus", "rtable", "yamlname", "dfl_addr", "stdout", "stderr", NULL,
+		"use_prometheus", "rtable", "yamlname", "dfl_addr", "quiet", "stdout", "stderr", NULL,
 	};
 
 	static struct utsname info;
@@ -175,15 +175,17 @@ static PyObject * pycsh_init(PyObject * self, PyObject * args, PyObject *kwds) {
 	char * yamlname = "csh.yaml";
 	char * dirname = getenv("HOME");
 	unsigned int dfl_addr = 0;
+
+	int quiet = 0;
 	
 	PyObject *csh_stdout = NULL;
 	PyObject *csh_stderr = NULL;
 	
 
-	if (!PyArg_ParseTupleAndKeywords(args, kwds, "|BssissIOO:init", kwlist,
+	if (!PyArg_ParseTupleAndKeywords(args, kwds, "|BssissIiOO:init", kwlist,
 		&csp_conf.version,  &csp_conf.hostname, 
 		&csp_conf.model, &use_prometheus, &rtable,
-		&yamlname, &dfl_addr, &csh_stdout, &csh_stderr)
+		&yamlname, &dfl_addr, &csh_stdout, &csh_stderr, &quiet)
 	)
 		return NULL;  // TypeError is thrown
 
@@ -194,7 +196,14 @@ static PyObject * pycsh_init(PyObject * self, PyObject * args, PyObject *kwds) {
 	static FILE * temp_stdout_fd = NULL;
 	static FILE * temp_stderr_fd = NULL;
 
-	if (
+	if (quiet) {
+		if ((temp_stdout_fd = fopen("/dev/null", "w")) == NULL) {
+			fprintf(stderr, "Impossible error! Can't open /dev/null: %s\n", strerror(errno));
+			exit(1);
+		}
+		stdout = temp_stdout_fd;
+	}
+	else if (
 		_handle_stream(csh_stdout, &stdout, temp_stdout_fd) != 0 ||
 		_handle_stream(csh_stderr, &stderr, temp_stderr_fd) != 0
 	) {
