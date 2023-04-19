@@ -11,6 +11,7 @@
 
 #include <param/param_server.h>
 #include <param/param_client.h>
+#include <param/param_string.h>
 
 #include "pycsh.h"
 #include "parameter/parameter.h"
@@ -393,7 +394,7 @@ PyObject * _pycsh_util_get_array(param_t *param, int autopull, int host, int tim
 	for (int i = 0; i < param->array_size; i++) {
 		PyObject * item = _pycsh_util_get_single(param, i, 0, host, timeout, retries);
 
-		if (item == NULL) {  // Something went wrong, probably a connectionerror. Let's abandon ship.
+		if (item == NULL) {  // Something went wrong, probably a ConnectionError. Let's abandon ship.
 			Py_DECREF(value_tuple);
 			return NULL;
 		}
