@@ -405,8 +405,6 @@ PyObject * _pycsh_util_get_array(param_t *param, int autopull, int host, int tim
 	return value_tuple;
 }
 
-
-
 static PyObject * _pycsh_get_str_value(PyObject * obj) {
 
 	// This 'if' exists for cases where the value 

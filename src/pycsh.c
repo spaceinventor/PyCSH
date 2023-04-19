@@ -100,7 +100,7 @@ uint8_t csp_initialized() {
 
 param_queue_t param_queue_set = { };
 param_queue_t param_queue_get = { };
-int default_node = -1;
+unsigned int default_node = -1;
 int autosend = 1;
 int paramver = 2;
 

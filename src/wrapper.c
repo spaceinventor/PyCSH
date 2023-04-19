@@ -277,18 +277,19 @@ PyObject * pycsh_param_list_download(PyObject * self, PyObject * args, PyObject 
 		return NULL;
 	}
 
-	unsigned int node;
+	unsigned int node = default_node;
     unsigned int timeout = PYCSH_DFL_TIMEOUT;
     unsigned int version = 2;
+	int include_remotes = 0;
 
-	static char *kwlist[] = {"node", "timeout", "version", NULL};
+	static char *kwlist[] = {"node", "timeout", "version", "remotes", NULL};
 
-	if (!PyArg_ParseTupleAndKeywords(args, kwds, "I|II", kwlist, &node, &timeout, &version))
+	if (!PyArg_ParseTupleAndKeywords(args, kwds, "|IIII", kwlist, &node, &timeout, &version, &include_remotes))
 		return NULL;  // TypeError is thrown
 
 	// TODO Kevin: Downloading parameters with an incorrect version, can lead to a segmentation version.
 	//	Had it been easier to detect when a incorrect version is used, we would've raised an exception instead.
-	if (param_list_download(node, timeout, version) < 1) {  // We assume a connection error has occurred if we don't receive any parameters.
+	if (param_list_download(node, timeout, version, include_remotes) < 1) {  // We assume a connection error has occurred if we don't receive any parameters.
 		PyErr_SetString(PyExc_ConnectionError, "No response.");
 		return NULL;
 	}
