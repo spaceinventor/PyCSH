@@ -46,6 +46,7 @@
 #include "wrapper/py_csp.h"
 #include "wrapper/param_py.h"
 #include "wrapper/dflopt_py.h"
+#include "wrapper/csp_init_py.h"
 #include "wrapper/vmem_client_py.h"
 
 
@@ -90,7 +91,7 @@ PARAM_DEFINE_STATIC_RAM(1002, test_str,          PARAM_TYPE_STRING,  80, 1,  PM_
 
 // Keep track of whether init has been run,
 // to prevent unexpected behavior from running relevant functions first.
-static uint8_t _csp_initialized = 0;
+uint8_t _csp_initialized = 0;
 
 uint8_t csp_initialized() {
 	return _csp_initialized;
@@ -294,7 +295,16 @@ static PyMethodDef methods[] = {
 	{"get_type", 	pycsh_util_get_type, 		  	METH_VARARGS, 				  "Gets the type of the specified parameter."},
 
 	/* Converted vmem commands from libparam/src/vmem/vmem_client_slash.c */
-	{"vmem", 	(PyCFunction)pycsh_vmem,   METH_VARARGS | METH_KEYWORDS, "Builds a string of the vmem at the specified node."},
+
+	/* Wrappers for src/csp_init_cmd.c */
+	{"csp_init", 	(PyCFunction)pycsh_csh_csp_init,   METH_VARARGS | METH_KEYWORDS, "Initialize CSP"},
+	{"csp_add_zmq", (PyCFunction)pycsh_csh_csp_ifadd_zmq,   METH_VARARGS | METH_KEYWORDS, "Add a new ZMQ interface"},
+	{"csp_add_kiss",(PyCFunction)pycsh_csh_csp_ifadd_kiss,   METH_VARARGS | METH_KEYWORDS, "Add a new KISS/UART interface"},
+#if (CSP_HAVE_LIBSOCKETCAN)
+	{"csp_add_can", (PyCFunction)pycsh_csh_csp_ifadd_can,   METH_VARARGS | METH_KEYWORDS, "Add a new UDP interface"},
+#endif
+	{"csp_add_udp", (PyCFunction)pycsh_csh_csp_ifadd_udp,   METH_VARARGS | METH_KEYWORDS, "Add a new TUN interface"},
+	{"csp_add_tun", (PyCFunction)pycsh_csh_csp_ifadd_tun,   METH_VARARGS | METH_KEYWORDS, "Add a new route"},
 
 	/* Misc */
 	{"init", (PyCFunction)pycsh_init, 				METH_VARARGS | METH_KEYWORDS, "Initializes the module, with the provided settings."},
