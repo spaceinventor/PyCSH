@@ -17,15 +17,8 @@
 #include <sys/utsname.h>
 
 #include <param/param.h>
-#include <param/param_collector.h>
-#include <param/param_queue.h>
-#include <param/param_list.h>
 #include <param/param_server.h>
-#include <param/param_client.h>
 
-#include <vmem/vmem_server.h>
-#include <vmem/vmem_client.h>
-#include <vmem/vmem_ram.h>
 #include <vmem/vmem_file.h>
 
 #include <csp/csp.h>
@@ -44,11 +37,16 @@
 #include "csh/prometheus.h"
 #include "csh/param_sniffer.h"
 
+#include "utils.h"
+
 #include "parameter/parameter.h"
 #include "parameter/parameterarray.h"
 #include "parameter/parameterlist.h"
-#include "wrapper.h"
-#include "utils.h"
+
+#include "wrapper/py_csp.h"
+#include "wrapper/param_py.h"
+#include "wrapper/dflopt_py.h"
+#include "wrapper/vmem_client_py.h"
 
 
 #define PARAMID_CSP_RTABLE					 12
@@ -100,9 +98,8 @@ uint8_t csp_initialized() {
 
 param_queue_t param_queue_set = { };
 param_queue_t param_queue_get = { };
-unsigned int default_node = -1;
-int autosend = 1;
-int paramver = 2;
+unsigned int pycsh_dfl_node = -1;
+unsigned int pycsh_dfl_timeout = 1000;
 
 // TODO Kevin: It's probably not safe to call this function consecutively with the same std_stream or stream_buf.
 static int _handle_stream(PyObject * stream_identifier, FILE **std_stream, FILE *stream_buf) {
@@ -277,10 +274,9 @@ static PyMethodDef methods[] = {
 	{"push", 		(PyCFunction)pycsh_param_push,	METH_VARARGS | METH_KEYWORDS, "Push the current queue."},
 	{"pull", 		(PyCFunction)pycsh_param_pull,	METH_VARARGS | METH_KEYWORDS, "Pull all or a specific set of parameters."},
 	{"clear", 		pycsh_param_clear, 			  	METH_NOARGS, 				  "Clears the queue."},
-	{"node", 		pycsh_param_node, 			  	METH_VARARGS, 				  "Used to get or change the default node."},
-	{"paramver", 	pycsh_param_paramver, 		  	METH_VARARGS, 				  "Used to get or change the parameter version."},
-	{"autosend", 	pycsh_param_autosend, 		  	METH_VARARGS, 				  "Used to get or change whether autosend is enabled."},
-	{"queue", 		pycsh_param_queue,			  	METH_NOARGS, 				  "Print the current status of the queue."},
+	{"node", 		pycsh_slash_node, 			  	METH_VARARGS, 				  "Used to get or change the default node."},
+	{"timeout", 	pycsh_slash_timeout, 			METH_VARARGS, 		  		  "Used to get or change the default timeout."},
+	{"queue", 		pycsh_param_cmd,			  	METH_NOARGS, 				  "Print the current command."},
 
 	/* Converted CSH commands from libparam/src/param/list/param_list_slash.c */
 	{"list", 		(PyCFunction)pycsh_param_list,	METH_VARARGS | METH_KEYWORDS, "List all known parameters."},
@@ -290,18 +286,15 @@ static PyMethodDef methods[] = {
 	// {"list_load", 	pycsh_param_list_load, 		  	METH_VARARGS, 				  "Load a list of parameters from a file."},
 
 	/* Converted CSH commands from csh/src/slash_csp.c */
-	{"ping", 		(PyCFunction)pycsh_csh_ping, 	METH_VARARGS | METH_KEYWORDS, "Ping the specified node."},
-	{"ident", 		(PyCFunction)pycsh_csh_ident,	METH_VARARGS | METH_KEYWORDS, "Print the identity of the specified node."},
-	{"reboot", 		pycsh_csh_reboot, 			 	METH_VARARGS, 				  "Reboot the specified node."},
+	{"ping", 		(PyCFunction)pycsh_slash_ping, 	METH_VARARGS | METH_KEYWORDS, "Ping the specified node."},
+	{"ident", 		(PyCFunction)pycsh_slash_ident,	METH_VARARGS | METH_KEYWORDS, "Print the identity of the specified node."},
+	{"reboot", 		pycsh_slash_reboot, 			 	METH_VARARGS, 				  "Reboot the specified node."},
 
 	/* Utility functions */
 	{"get_type", 	pycsh_util_get_type, 		  	METH_VARARGS, 				  "Gets the type of the specified parameter."},
 
 	/* Converted vmem commands from libparam/src/vmem/vmem_client_slash.c */
-	{"vmem_list", 	(PyCFunction)pycsh_vmem_list,   METH_VARARGS | METH_KEYWORDS, "Builds a string of the vmem at the specified node."},
-	{"vmem_restore",(PyCFunction)pycsh_vmem_restore,METH_VARARGS | METH_KEYWORDS, "Restore the configuration on the specified node."},
-	{"vmem_backup", (PyCFunction)pycsh_vmem_backup, METH_VARARGS | METH_KEYWORDS, "Back up the configuration on the specified node."},
-	{"vmem_unlock", (PyCFunction)pycsh_vmem_unlock, METH_VARARGS | METH_KEYWORDS, "Unlock the vmem on the specified node, such that it may be changed by a backup (for example)."},
+	{"vmem", 	(PyCFunction)pycsh_vmem,   METH_VARARGS | METH_KEYWORDS, "Builds a string of the vmem at the specified node."},
 
 	/* Misc */
 	{"init", (PyCFunction)pycsh_init, 				METH_VARARGS | METH_KEYWORDS, "Initializes the module, with the provided settings."},

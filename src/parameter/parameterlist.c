@@ -60,7 +60,7 @@ static PyObject * ParameterList_pull(ParameterListObject *self, PyObject *args, 
 	}
 
 	unsigned int host = 0;
-	unsigned int timeout = PYCSH_DFL_TIMEOUT;
+	unsigned int timeout = pycsh_dfl_timeout;
 
 	static char *kwlist[] = {"host", "timeout", NULL};
 
@@ -111,7 +111,7 @@ static PyObject * ParameterList_push(ParameterListObject *self, PyObject *args, 
 	}
 	
 	unsigned int node = 0;
-	unsigned int timeout = PYCSH_DFL_TIMEOUT;
+	unsigned int timeout = pycsh_dfl_timeout;
 	uint32_t hwid = 0;
 
 	static char *kwlist[] = {"node", "timeout", "hwid", NULL};

@@ -157,7 +157,7 @@ static PyTypeObject * _pycsh_misc_param_t_type(param_t * param) {
 PyObject * pycsh_util_get_type(PyObject * self, PyObject * args) {
 
 	PyObject * param_identifier;
-	int node = default_node;
+	int node = pycsh_dfl_node;
 
 	param_t * param;
 
@@ -243,7 +243,7 @@ PyObject * pycsh_util_parameter_list() {
 	param_t * param;
 	param_list_iterator i = {};
 	while ((param = param_list_iterate(&i)) != NULL) {
-		PyObject * parameter = _pycsh_Parameter_from_param(&ParameterType, param, INT_MIN, PYCSH_DFL_TIMEOUT, 1);
+		PyObject * parameter = _pycsh_Parameter_from_param(&ParameterType, param, INT_MIN, pycsh_dfl_timeout, 1);
 		PyObject * argtuple = PyTuple_Pack(1, parameter);
 		Py_DECREF(ParameterList_append(list, argtuple));
 		Py_DECREF(argtuple);

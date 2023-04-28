@@ -69,9 +69,9 @@ static PyObject * Parameter_new(PyTypeObject *type, PyObject *args, PyObject *kw
 	static char *kwlist[] = {"param_identifier", "node", "host", "timeout", "retries", NULL};
 
 	PyObject * param_identifier;  // Raw argument object/type passed. Identify its type when needed.
-	int node = default_node;
+	int node = pycsh_dfl_node;
 	int host = INT_MIN;
-	int timeout = PYCSH_DFL_TIMEOUT;
+	int timeout = pycsh_dfl_timeout;
 	int retries = 1;
 
 	if (!PyArg_ParseTupleAndKeywords(args, kwds, "O|iiii", kwlist, &param_identifier, &node, &host, &timeout, &retries)) {
@@ -236,7 +236,7 @@ static int Parameter_settimeout(ParameterObject *self, PyObject *value, void *cl
     }
 
 	if (value == Py_None) {
-		self->timeout = PYCSH_DFL_TIMEOUT;
+		self->timeout = pycsh_dfl_timeout;
 		return 0;
 	}
 

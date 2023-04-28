@@ -11,6 +11,7 @@ project('csh_bindings', 'c', subproject_dir: 'lib', default_options: [
 	'csp:qfifo_len=1000',
 	'csp:rdp_max_window=1000',
 	'csp:port_max_bind=16',
+	'csp:have_rtable=true',  # TODO Kevin: rtable should not be necessary
 	'param:have_fopen=true',
 	'param:slash=false',
 	'param:commands=false',
@@ -36,7 +37,11 @@ pycsh_sources = [
 	'src/parameter/parameterlist.c',
 
 	# Wrapper functions
-	'src/wrapper.c',
+	'src/wrapper/dflopt_py.c',
+	'src/wrapper/param_list_py.c',
+	'src/wrapper/param_py.c',
+	'src/wrapper/py_csp.c',
+	'src/wrapper/vmem_client_py.c',
 
 	# Utilities
 	'src/utils.c',

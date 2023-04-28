@@ -293,24 +293,16 @@ def node(node: int = None) -> int:
     :return: The current default node.
     """
 
-def paramver(paramver: int = None) -> int:
+def timeout(timeout: int = None) -> int:
     """
-    Used to get or change the parameter version.
+    Used to get or change the default timeout.
 
-    :param paramver: Integer to change the parameter version to.
-    :return: The current parameter version.
-    """
-
-def autosend(autosend: int = None) -> int:
-    """
-    Used to get or change whether autosend is enabled.
-
-    :param autosend: Integer value (representing True or False) to set autosend to.
-    :return: The current value/status of autosend.
+    :param timeout: Integer to change the default timeout to.
+    :return: The current default timeout.
     """
 
-def queue() -> None:
-    """ Print the current status of the queue. """
+def cmd() -> None:
+    """ Print the current command. """
 
 def list(node: int = None, verbose: int =None, mask: str = None, globstr: str = None) -> ParameterList:
     """
@@ -379,7 +371,7 @@ def get_type(param_identifier: _param_ident_hint, node: int = None) -> _param_ty
 
 
 # Vmem commands
-def vmem_list(node: int = None, timeout: int = None, version: int = None) -> str:
+def vmem(node: int = None, timeout: int = None, version: int = None) -> str:
     """
     Builds a string of the vmem at the specified node.
 
@@ -391,46 +383,6 @@ def vmem_list(node: int = None, timeout: int = None, version: int = None) -> str
     :raises MemoryError: When allocation for a CSP buffer fails.
 
     :return: The string of the vmem at the specfied node.
-    """
-
-def vmem_restore(node: int, vmem_id: int, timeout: int = None) -> int:
-    """
-    Restore the configuration on the specified node.
-
-    :param node: Node on which the configuration should be restored from vmem.
-    :param timeout: Timeout in ms when connecting to the node.
-
-    :raises RuntimeError: When called before .init().
-    :raises ConnectionError: When the timeout is exceeded attempting to connect to the specified node.
-
-    :return: Int indicating the result of the operation, 0 for success.
-    """
-
-def vmem_backup(node: int, vmem_id: int, timeout: int = None) -> int:
-    """
-    Back up the configuration on the specified node.
-
-    :param node: Node on which the configuration should be backed up to vmem.
-    :param timeout: Timeout in ms when connecting to the node.
-
-    :raises RuntimeError: When called before .init().
-    :raises ConnectionError: When the timeout is exceeded attempting to connect to the specified node.
-
-    :return: Int indicating the result of the operation, 0 for success.
-    """
-
-def vmem_unlock(node: int = None, timeout: int = None) -> int:
-    """
-    Unlock the vmem on the specified node, such that it may be changed by a backup (for example).
-
-    :param node: Node on which the vmem should be unlocked.
-    :param timeout: Timeout in ms when connecting to the node.
-
-    :raises RuntimeError: When called before .init().
-    :raises ConnectionError: When the timeout is exceeded attempting to connect to the specified node.
-    :raises MemoryError: When allocation for a CSP buffer fails.
-
-    :return: Int indicating the result of the operation, 0 for success.
     """
 
 
