@@ -37,12 +37,12 @@ pycsh_sources = [
 	'src/parameter/parameterlist.c',
 
 	# Wrapper functions
-	'src/wrapper/dflopt_py.c',
-	'src/wrapper/param_list_py.c',
-	'src/wrapper/param_py.c',
 	'src/wrapper/py_csp.c',
-	'src/wrapper/vmem_client_py.c',
+	'src/wrapper/param_py.c',
+	'src/wrapper/dflopt_py.c',
 	'src/wrapper/csp_init_py.c',
+	'src/wrapper/param_list_py.c',
+	'src/wrapper/vmem_client_py.c',
 
 	# Utilities
 	'src/utils.c',

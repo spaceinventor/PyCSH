@@ -9,6 +9,7 @@
 #include <Python.h>
 
 #include "../pycsh.h"
+#include "../utils.h"
 
 #include "param_list_py.h"
 

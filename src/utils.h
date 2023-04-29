@@ -31,25 +31,25 @@ PyObject * pycsh_util_get_type(PyObject * self, PyObject * args);
 
 
 /* Create a Python Parameter object from a param_t pointer directly. */
-PyObject * _pycsh_Parameter_from_param(PyTypeObject *type, param_t * param, int host, int timeout, int retries);
+PyObject * _pycsh_Parameter_from_param(PyTypeObject *type, param_t * param, int host, int timeout, int retries, int paramver);
 
 
 /* Constructs a list of Python Parameters of all known param_t returned by param_list_iterate. */
-PyObject * pycsh_util_parameter_list();
+PyObject * pycsh_util_parameter_list(void);
 
 /* Private interface for getting the value of single parameter
    Increases the reference count of the returned item before returning.
    Use INT_MIN for offset as no offset. */
-PyObject * _pycsh_util_get_single(param_t *param, int offset, int autopull, int host, int timeout, int retries);
+PyObject * _pycsh_util_get_single(param_t *param, int offset, int autopull, int host, int timeout, int retries, int paramver);
 
 /* Private interface for getting the value of an array parameter
    Increases the reference count of the returned tuple before returning.  */
-PyObject * _pycsh_util_get_array(param_t *param, int autopull, int host, int timeout, int retries);
+PyObject * _pycsh_util_get_array(param_t *param, int autopull, int host, int timeout, int retries, int paramver);
 
 
 /* Private interface for setting the value of a normal parameter. 
    Use INT_MIN as no offset. */
-int _pycsh_util_set_single(param_t *param, PyObject *value, int offset, int host, int timeout, int retries, param_queue_t *queue);
+int _pycsh_util_set_single(param_t *param, PyObject *value, int offset, int host, int timeout, int retries, int paramver, int remote);
 
 /* Private interface for setting the value of an array parameter. */
-int _pycsh_util_set_array(param_t *param, PyObject *value, int host, int timeout, int retries);
+int _pycsh_util_set_array(param_t *param, PyObject *value, int host, int timeout, int retries, int paramver);

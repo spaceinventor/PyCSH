@@ -17,7 +17,12 @@
 #include <sys/utsname.h>
 
 #include <param/param.h>
-#include <param/param_server.h>
+#ifdef PARAM_HAVE_COMMANDS
+#include <param/param_commands.h>
+#endif
+#ifdef PARAM_HAVE_SCHEDULER
+#include <param/param_scheduler.h>
+#endif
 
 #include <vmem/vmem_file.h>
 
@@ -47,38 +52,21 @@
 #include "wrapper/param_py.h"
 #include "wrapper/dflopt_py.h"
 #include "wrapper/csp_init_py.h"
+#include "wrapper/param_list_py.h"
 #include "wrapper/vmem_client_py.h"
 
 
-#define PARAMID_CSP_RTABLE					 12
-
-// Here be forward declerations.
-//static PyTypeObject ParameterType;
-//static PyTypeObject ParameterArrayType;
-//static PyTypeObject ParameterListType;
-
-VMEM_DEFINE_FILE(csp, "csp", "cspcnf.vmem", 120);
-VMEM_DEFINE_FILE(params, "param", "params.csv", 50000);
 VMEM_DEFINE_FILE(col, "col", "colcnf.vmem", 120);
+#ifdef PARAM_HAVE_COMMANDS
+VMEM_DEFINE_FILE(commands, "cmd", "commands.vmem", 2048);
+#endif
+#ifdef PARAM_HAVE_SCHEDULER
+VMEM_DEFINE_FILE(schedule, "sch", "schedule.vmem", 2048);
+#endif
 VMEM_DEFINE_FILE(dummy, "dummy", "dummy.txt", 1000000);
 
-void * param_collector_task(void * param) {
-	param_collector_loop(param);
-	return NULL;
-}
-
-void * router_task(void * param) {
-	while(1) {
-		csp_route_work();
-	}
-}
-
-void * vmem_server_task(void * param) {
-	vmem_server_loop(param);
-	return NULL;
-}
-
-PARAM_DEFINE_STATIC_VMEM(PARAMID_CSP_RTABLE,      csp_rtable,        PARAM_TYPE_STRING, 64, 0, PM_SYSCONF, NULL, "", csp, 0, NULL);
+// #define PARAMID_CSP_RTABLE					 12
+// PARAM_DEFINE_STATIC_VMEM(PARAMID_CSP_RTABLE,      csp_rtable,        PARAM_TYPE_STRING, 64, 0, PM_SYSCONF, NULL, "", csp, 0, NULL);
 
 
 // We include this parameter when testing the behavior of arrays, as none would exist otherwise.
@@ -97,10 +85,28 @@ uint8_t csp_initialized() {
 	return _csp_initialized;
 }
 
-param_queue_t param_queue_set = { };
-param_queue_t param_queue_get = { };
-unsigned int pycsh_dfl_node = -1;
+unsigned int pycsh_dfl_node = 0;
 unsigned int pycsh_dfl_timeout = 1000;
+
+uint64_t clock_get_nsec(void) {
+	struct timespec ts;
+	clock_gettime(CLOCK_MONOTONIC, &ts);
+	return ts.tv_sec * 1E9 + ts.tv_nsec;
+}
+
+void * onehz_task(void * param) {
+	while(1) {
+#ifdef PARAM_HAVE_SCHEDULER
+		csp_timestamp_t scheduler_time = {};
+        csp_clock_get_time(&scheduler_time);
+        param_schedule_server_update(scheduler_time.tv_sec * 1E9 + scheduler_time.tv_nsec);
+#endif
+		// Py_BEGIN_ALLOW_THREADS;
+		sleep(1);
+		// Py_END_ALLOW_THREADS;
+	}
+	return NULL;
+}
 
 // TODO Kevin: It's probably not safe to call this function consecutively with the same std_stream or stream_buf.
 static int _handle_stream(PyObject * stream_identifier, FILE **std_stream, FILE *stream_buf) {
@@ -155,40 +161,17 @@ static PyObject * pycsh_init(PyObject * self, PyObject * args, PyObject *kwds) {
 	}
 
 	static char *kwlist[] = {
-		"csp_version", "csp_hostname", "csp_model", 
-		"use_prometheus", "rtable", "yamlname", "dfl_addr", "quiet", "stdout", "stderr", NULL,
+		"quiet", "stdout", "stderr", NULL,
 	};
 
-	static struct utsname info;
-	uname(&info);
-
-	csp_conf.hostname = "python_bindings";
-	csp_conf.model = info.version;
-	csp_conf.revision = info.release;
-	csp_conf.version = 2;
-	csp_conf.dedup = CSP_DEDUP_OFF;
-
-	int use_prometheus = 0;
-	char * rtable = NULL;
-	char * yamlname = "csh.yaml";
-	char * dirname = getenv("HOME");
-	unsigned int dfl_addr = 0;
-
 	int quiet = 0;
-	
 	PyObject *csh_stdout = NULL;
 	PyObject *csh_stderr = NULL;
 	
 
-	if (!PyArg_ParseTupleAndKeywords(args, kwds, "|BssissIiOO:init", kwlist,
-		&csp_conf.version,  &csp_conf.hostname, 
-		&csp_conf.model, &use_prometheus, &rtable,
-		&yamlname, &dfl_addr, &csh_stdout, &csh_stderr, &quiet)
+	if (!PyArg_ParseTupleAndKeywords(args, kwds, "|iOO:init", kwlist, &quiet, &csh_stdout, &csh_stderr)
 	)
 		return NULL;  // TypeError is thrown
-
-	if (strcmp(yamlname, "csh.yaml"))
-		dirname = "";
 
 	// TODO Kevin: Support reassigning streams through module function or global.
 	static FILE * temp_stdout_fd = NULL;
@@ -213,53 +196,22 @@ static PyObject * pycsh_init(PyObject * self, PyObject * args, PyObject *kwds) {
 	void serial_init(void);
 	serial_init();
 
-	/* Parameters */
-	vmem_file_init(&vmem_params);
+	/* TODO Kevin: If we include slash as a submodule, we should init it here. */
 
-	csp_init();
-
-	if (strlen(dirname)) {
-		char buildpath[100];
-		snprintf(buildpath, 100, "%s/%s", dirname, yamlname);
-		csp_yaml_init(buildpath, &dfl_addr);
-	} else {
-		csp_yaml_init(yamlname, &dfl_addr);
-
-	}
-
-	csp_rdp_set_opt(3, 10000, 5000, 1, 2000, 2);
-
-#if (CSP_HAVE_STDIO)
-	if (rtable && csp_rtable_check(rtable)) {
-		int error = csp_rtable_load(rtable);
-		if (error < 1) {
-			printf("csp_rtable_load(%s) failed, error: %d\n", rtable, error);
-		}
-	}
+#ifdef PARAM_HAVE_COMMANDS
+	vmem_file_init(&vmem_commands);
+	param_command_server_init();
 #endif
-	(void) rtable;
-
-	csp_bind_callback(csp_service_handler, CSP_ANY);
-	csp_bind_callback(param_serve, PARAM_PORT_SERVER);
+#ifdef PARAM_HAVE_SCHEDULER
+	param_schedule_server_init();
+#endif
 
 	vmem_file_init(&vmem_dummy);
 
-	/* Start a collector task */
-	vmem_file_init(&vmem_col);
+	static pthread_t onehz_handle;
+	pthread_create(&onehz_handle, NULL, &onehz_task, NULL);
 
-	static pthread_t param_collector_handle;
-	pthread_create(&param_collector_handle, NULL, &param_collector_task, NULL);
-
-	static pthread_t router_handle;
-	pthread_create(&router_handle, NULL, &router_task, NULL);
-
-	static pthread_t vmem_server_handle;
-	pthread_create(&vmem_server_handle, NULL, &vmem_server_task, NULL);
-
-	if (use_prometheus) {
-		prometheus_init();
-		param_sniffer_init();
-	}
+	/* TODO Kevin: If we include slash as a submodule, we should run the init file here. */
 	
 	_csp_initialized = 1;
 	Py_RETURN_NONE;
@@ -272,9 +224,10 @@ static PyMethodDef methods[] = {
 	/* Converted CSH commands from libparam/src/param/param_slash.c */
 	{"get", 		(PyCFunction)pycsh_param_get, 	METH_VARARGS | METH_KEYWORDS, "Set the value of a parameter."},
 	{"set", 		(PyCFunction)pycsh_param_set, 	METH_VARARGS | METH_KEYWORDS, "Get the value of a parameter."},
-	{"push", 		(PyCFunction)pycsh_param_push,	METH_VARARGS | METH_KEYWORDS, "Push the current queue."},
+	// {"push", 		(PyCFunction)pycsh_param_push,	METH_VARARGS | METH_KEYWORDS, "Push the current queue."},
 	{"pull", 		(PyCFunction)pycsh_param_pull,	METH_VARARGS | METH_KEYWORDS, "Pull all or a specific set of parameters."},
-	{"clear", 		pycsh_param_clear, 			  	METH_NOARGS, 				  "Clears the queue."},
+	{"cmd_done", 	pycsh_param_cmd_done, 			METH_NOARGS, 				  "Clears the queue."},
+	{"cmd_new", 	(PyCFunction)pycsh_param_cmd_new,METH_VARARGS | METH_KEYWORDS, "Create a new command"},
 	{"node", 		pycsh_slash_node, 			  	METH_VARARGS, 				  "Used to get or change the default node."},
 	{"timeout", 	pycsh_slash_timeout, 			METH_VARARGS, 		  		  "Used to get or change the default timeout."},
 	{"queue", 		pycsh_param_cmd,			  	METH_NOARGS, 				  "Print the current command."},
@@ -295,6 +248,7 @@ static PyMethodDef methods[] = {
 	{"get_type", 	pycsh_util_get_type, 		  	METH_VARARGS, 				  "Gets the type of the specified parameter."},
 
 	/* Converted vmem commands from libparam/src/vmem/vmem_client_slash.c */
+	{"vmem", 	(PyCFunction)pycsh_param_vmem,   METH_VARARGS | METH_KEYWORDS, "Builds a string of the vmem at the specified node."},
 
 	/* Wrappers for src/csp_init_cmd.c */
 	{"csp_init", 	(PyCFunction)pycsh_csh_csp_init,   METH_VARARGS | METH_KEYWORDS, "Initialize CSP"},

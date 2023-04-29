@@ -11,7 +11,8 @@ from __future__ import annotations
 
 from typing import \
     Any as _Any, \
-    Iterable as _Iterable
+    Iterable as _Iterable, \
+    Literal as _Literal
 
 _param_value_hint = int | float | str
 _param_type_hint = _param_value_hint | bytearray
@@ -220,7 +221,7 @@ class ParameterList(_pylist[Parameter | ParameterArray], _Iterable):
         :raises ConnectionError: When no response is received.
         """
 
-    def push(self, node: int, timeout: int = None, hwid: int = None) -> None:
+    def push(self, node: int, timeout: int = None, hwid: int = None, paramver: int = 2) -> None:
         """
         Pushes all Parameters in the list in a single packet.
 
@@ -232,13 +233,14 @@ _param_ident_hint = int | str | Parameter  # Types accepted for finding a param_
 
 
 # Libparam commands
-def get(param_identifier: _param_ident_hint, host: int = None, node: int = None, offset: int = None, timeout: int = None, retries: int = None) -> _param_value_hint | tuple[_param_value_hint]:
+def get(param_identifier: _param_ident_hint, node: int = None, server: int = None, paramver: int = 2, offset: int = None, timeout: int = None, retries: int = None) -> _param_value_hint | tuple[_param_value_hint]:
     """
     Get the value of a parameter.
 
     :param param_identifier: string name, int id or Parameter object of the desired parameter.
-    :param host: The host from which the value should be retrieved (has priority over node).
-    :param node: The node from which the value should be retrieved.
+    :param node: node (default = <env>)
+    :param server: server to get parameters from (default = node)
+    :param paramver: parameter system version (default = 2)
     :param offset: Index to use for array parameters.
     :param timeout: Timeout of pull transaction in milliseconds (Has no effect when autosend is 0).
     :param retries: Number of retries available for timeouts.
@@ -250,14 +252,15 @@ def get(param_identifier: _param_ident_hint, host: int = None, node: int = None,
     :return: The value of the retrieved parameter (As its Python type).
     """
 
-def set(param_identifier: _param_ident_hint, value: _param_value_hint | _Iterable[int | float], host: int = None, node: int = None, offset: int = None, timeout: int = None, retries: int = None) -> None:
+def set(param_identifier: _param_ident_hint, value: _param_value_hint | _Iterable[int | float], node: int = None, server: int = None, paramver: int = 2, offset: int = None, timeout: int = None, retries: int = None) -> None:
     """
     Set the value of a parameter.
 
     :param param_identifier: string name, int id or Parameter object of the desired parameter.
     :param value: The new value of the parameter. .__str__() of the provided object will be used.
-    :param host: The host from which the value should be retrieved (has priority over node).
-    :param node: The node from which the value should be retrieved.
+    :param node: node (default = <env>)
+    :param server: server to get parameters from (default = node)
+    :param paramver: parameter system version (default = 2)
     :param offset: Index to use for array parameters.
     :param timeout: Timeout of push transaction in milliseconds (Has no effect when autosend is 0).
     :param retries: Number of retries available for timeouts.
@@ -282,7 +285,18 @@ def push(node: int, timeout: int = None, hwid: int = None, retries: int = None) 
 def pull(host: int, include_mask: str = None, exclude_mask: str = None, timeout: int = None, retries: int = None) -> None:
     """ Pull all or a specific set of parameters. """
 
-def clear() -> None:
+def cmd_new(type: _Literal['get', 'set'], name: str = None, paramver: int = 2) -> None:
+    """
+    Create a new global command/queue
+
+    :param type: Whether to create a 'get' or 'set' queue.
+    :param name: Name of the new queue.
+    :param paramver: parameter system verison (default = 2)
+
+    :raises ValueError: When an incorrect type of queue is specified.
+    """
+
+def cmd_done() -> None:
     """ Clears the queue. """
 
 def node(node: int = None) -> int:

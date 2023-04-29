@@ -14,7 +14,7 @@
 
 #include "../pycsh.h"
 
-PyObject * pycsh_vmem(PyObject * self, PyObject * args, PyObject * kwds) {
+PyObject * pycsh_param_vmem(PyObject * self, PyObject * args, PyObject * kwds) {
 
 	if (!csp_initialized()) {
 		PyErr_SetString(PyExc_RuntimeError,

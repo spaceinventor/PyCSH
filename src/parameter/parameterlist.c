@@ -61,10 +61,11 @@ static PyObject * ParameterList_pull(ParameterListObject *self, PyObject *args, 
 
 	unsigned int host = 0;
 	unsigned int timeout = pycsh_dfl_timeout;
+	int paramver = 2;
 
-	static char *kwlist[] = {"host", "timeout", NULL};
+	static char *kwlist[] = {"host", "timeout", "paramver", NULL};
 
-	if (!PyArg_ParseTupleAndKeywords(args, kwds, "I|I", kwlist, &host, &timeout))
+	if (!PyArg_ParseTupleAndKeywords(args, kwds, "I|Ii", kwlist, &host, &timeout, &paramver))
 		return NULL;  // TypeError is thrown
 
 	void * queuebuffer = malloc(PARAM_SERVER_MTU);
@@ -113,10 +114,11 @@ static PyObject * ParameterList_push(ParameterListObject *self, PyObject *args, 
 	unsigned int node = 0;
 	unsigned int timeout = pycsh_dfl_timeout;
 	uint32_t hwid = 0;
+	int paramver = 2;
 
-	static char *kwlist[] = {"node", "timeout", "hwid", NULL};
+	static char *kwlist[] = {"node", "timeout", "hwid", "paramver", NULL};
 
-	if (!PyArg_ParseTupleAndKeywords(args, kwds, "I|II", kwlist, &node, &timeout, &hwid))
+	if (!PyArg_ParseTupleAndKeywords(args, kwds, "I|IIi", kwlist, &node, &timeout, &hwid, &paramver))
 		return NULL;  // TypeError is thrown
 
 	void * queuebuffer = malloc(PARAM_SERVER_MTU);

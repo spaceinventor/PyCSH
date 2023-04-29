@@ -13,8 +13,5 @@
 
 uint8_t csp_initialized();
 
-extern param_queue_t param_queue_set;
-extern param_queue_t param_queue_get;
-
 extern unsigned int pycsh_dfl_node;
 extern unsigned int pycsh_dfl_timeout;  // In milliseconds

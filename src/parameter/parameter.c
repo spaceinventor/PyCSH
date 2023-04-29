@@ -66,15 +66,16 @@ static void Parameter_dealloc(ParameterObject *self) {
 /* May perform black magic and return a ParameterArray instead of the specified type. */
 static PyObject * Parameter_new(PyTypeObject *type, PyObject *args, PyObject *kwds) {
 
-	static char *kwlist[] = {"param_identifier", "node", "host", "timeout", "retries", NULL};
+	static char *kwlist[] = {"param_identifier", "node", "host", "paramver", "timeout", "retries", NULL};
 
 	PyObject * param_identifier;  // Raw argument object/type passed. Identify its type when needed.
 	int node = pycsh_dfl_node;
 	int host = INT_MIN;
+	int paramver = 2;
 	int timeout = pycsh_dfl_timeout;
 	int retries = 1;
 
-	if (!PyArg_ParseTupleAndKeywords(args, kwds, "O|iiii", kwlist, &param_identifier, &node, &host, &timeout, &retries)) {
+	if (!PyArg_ParseTupleAndKeywords(args, kwds, "O|iiiii", kwlist, &param_identifier, &node, &host, &paramver, &timeout, &retries)) {
 		return NULL;  // TypeError is thrown
 	}
 
@@ -83,7 +84,7 @@ static PyObject * Parameter_new(PyTypeObject *type, PyObject *args, PyObject *kw
 	if (param == NULL)  // Did not find a match.
 		return NULL;  // Raises TypeError or ValueError.
 
-    return _pycsh_Parameter_from_param(type, param, host, timeout, retries);
+    return _pycsh_Parameter_from_param(type, param, host, timeout, retries, paramver);
 }
 
 static PyObject * Parameter_getname(ParameterObject *self, void *closure) {
@@ -183,13 +184,23 @@ static PyObject * Parameter_gettype(ParameterObject *self, void *closure) {
 	return (PyObject *)self->type;
 }
 
-static PyObject * Parameter_getvalue(ParameterObject *self, void *closure) {
-	if (self->param->array_size > 1 && self->param->type != PARAM_TYPE_STRING)
-		return _pycsh_util_get_array(self->param, autosend, self->host, self->timeout, self->retries);
-	return _pycsh_util_get_single(self->param, INT_MIN, autosend, self->host, self->timeout, self->retries);
+static PyObject * Parameter_getoldvalue(ParameterObject *self, void *closure) {
+	PyErr_SetString(PyExc_AttributeError, "Parameter.value has been changed to .remote_value and .cached_value instead");
+	return NULL;
 }
 
-static int Parameter_setvalue(ParameterObject *self, PyObject *value, void *closure) {
+static int Parameter_setoldvalue(ParameterObject *self, PyObject *value, void *closure) {
+	PyErr_SetString(PyExc_AttributeError, "Parameter.value has been changed to .remote_value and .cached_value instead");
+	return -1;
+}
+
+static PyObject * Parameter_getvalue(ParameterObject *self, int remote) {
+	if (self->param->array_size > 1 && self->param->type != PARAM_TYPE_STRING)
+		return _pycsh_util_get_array(self->param, remote, self->host, self->timeout, self->retries, self->paramver);
+	return _pycsh_util_get_single(self->param, INT_MIN, remote, self->host, self->timeout, self->retries, self->paramver);
+}
+
+static int Parameter_setvalue(ParameterObject *self, PyObject *value, int remote) {
 
 	if (value == NULL) {
         PyErr_SetString(PyExc_TypeError, "Cannot delete the value attribute");
@@ -197,9 +208,24 @@ static int Parameter_setvalue(ParameterObject *self, PyObject *value, void *clos
     }
 
 	if (self->param->array_size > 1 && self->param->type != PARAM_TYPE_STRING)  // Is array parameter
-		return _pycsh_util_set_array(self->param, value, self->host, self->timeout, self->retries);
-	param_queue_t *usequeue = autosend ? NULL : &param_queue_set;
-	return _pycsh_util_set_single(self->param, value, INT_MIN, self->host, self->timeout, self->retries, usequeue);  // Normal parameter
+		return _pycsh_util_set_array(self->param, value, self->host, self->timeout, self->retries, self->paramver);
+	return _pycsh_util_set_single(self->param, value, INT_MIN, self->host, self->timeout, self->retries, self->paramver, remote);  // Normal parameter
+}
+
+static PyObject * Parameter_getremote_value(ParameterObject *self, void *closure) {
+	return Parameter_getvalue(self, 1);
+}
+
+static PyObject * Parameter_getcached_value(ParameterObject *self, void *closure) {
+	return Parameter_getvalue(self, 0);
+}
+
+static int Parameter_setremote_value(ParameterObject *self, PyObject *value, void *closure) {
+	return Parameter_setvalue(self, value, 1);
+}
+
+static int Parameter_setcached_value(ParameterObject *self, PyObject *value, void *closure) {
+	return Parameter_setvalue(self, value, 0);
 }
 
 static PyObject * Parameter_is_array(ParameterObject *self, void *closure) {
@@ -307,7 +333,11 @@ static PyGetSetDef Parameter_getsetters[] = {
      "host of the parameter", NULL},
 	{"type", (getter)Parameter_gettype, NULL,
      "type of the parameter", NULL},
-	{"value", (getter)Parameter_getvalue, (setter)Parameter_setvalue,
+	{"remote_value", (getter)Parameter_getremote_value, (setter)Parameter_setremote_value,
+     "get/set the remote (and cached) value of the parameter", NULL},
+	{"cached_value", (getter)Parameter_getcached_value, (setter)Parameter_setcached_value,
+     "get/set the cached value of the parameter", NULL},
+	{"value", (getter)Parameter_getoldvalue, (setter)Parameter_setoldvalue,
      "value of the parameter", NULL},
 	{"is_array", (getter)Parameter_is_array, NULL,
      "whether the parameter is an array", NULL},

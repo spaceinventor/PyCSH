@@ -30,6 +30,7 @@ typedef struct {
 	char valuebuf[128] __attribute__((aligned(16)));
 	int timeout;
 	int retries;
+	int paramver;
 } ParameterObject;
 
 extern PyTypeObject ParameterType;

@@ -10,4 +10,4 @@
 #define PY_SSIZE_T_CLEAN
 #include <Python.h>
 
-PyObject * pycsh_vmem(PyObject * self, PyObject * args, PyObject * kwds);
+PyObject * pycsh_param_vmem(PyObject * self, PyObject * args, PyObject * kwds);

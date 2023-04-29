@@ -25,7 +25,4 @@ PyObject * pycsh_param_pull(PyObject * self, PyObject * args, PyObject * kwds);
 
 PyObject * pycsh_param_cmd_new(PyObject * self, PyObject * args, PyObject * kwds);
 
-
-PyObject * pycsh_param_cmd_done(PyObject * self, PyObject * args, PyObject * kwds);
-
-PyObject * pycsh_param_cmd_print(PyObject * self, PyObject * args, PyObject * kwds);
+PyObject * pycsh_param_cmd_done(PyObject * self, PyObject * args);

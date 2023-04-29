@@ -189,7 +189,7 @@ PyObject * pycsh_util_get_type(PyObject * self, PyObject * args) {
 
 
 /* Create a Python Parameter object from a param_t pointer directly. */
-PyObject * _pycsh_Parameter_from_param(PyTypeObject *type, param_t * param, int host, int timeout, int retries) {
+PyObject * _pycsh_Parameter_from_param(PyTypeObject *type, param_t * param, int host, int timeout, int retries, int paramver) {
 
 	if (param->array_size <= 1 && type == &ParameterArrayType) {
 		PyErr_SetString(PyExc_TypeError, 
@@ -210,6 +210,7 @@ PyObject * _pycsh_Parameter_from_param(PyTypeObject *type, param_t * param, int 
 	self->host = host;
 	self->timeout = timeout;
 	self->retries = retries;
+	self->paramver = paramver;
 
 	self->name = PyUnicode_FromString(param->name);
 	if (self->name == NULL) {
@@ -236,14 +237,16 @@ PyObject * _pycsh_Parameter_from_param(PyTypeObject *type, param_t * param, int 
 
 
 /* Constructs a list of Python Parameters of all known param_t returned by param_list_iterate. */
-PyObject * pycsh_util_parameter_list() {
+PyObject * pycsh_util_parameter_list(void) {
 
 	PyObject * list = PyObject_CallObject((PyObject *)&ParameterListType, NULL);
 
 	param_t * param;
 	param_list_iterator i = {};
 	while ((param = param_list_iterate(&i)) != NULL) {
-		PyObject * parameter = _pycsh_Parameter_from_param(&ParameterType, param, INT_MIN, pycsh_dfl_timeout, 1);
+		/* CSH does not specify a paramver when listing parameters,
+			so we just use 2 as the default version for the created instances. */
+		PyObject * parameter = _pycsh_Parameter_from_param(&ParameterType, param, INT_MIN, pycsh_dfl_timeout, 1, 2);
 		PyObject * argtuple = PyTuple_Pack(1, parameter);
 		Py_DECREF(ParameterList_append(list, argtuple));
 		Py_DECREF(argtuple);
@@ -270,7 +273,7 @@ static int _pycsh_util_index(int seqlen, int *index) {
 /* Private interface for getting the value of single parameter
    Increases the reference count of the returned item before returning.
    Use INT_MIN for offset as no offset. */
-PyObject * _pycsh_util_get_single(param_t *param, int offset, int autopull, int host, int timeout, int retries) {
+PyObject * _pycsh_util_get_single(param_t *param, int offset, int autopull, int host, int timeout, int retries, int paramver) {
 
 	if (offset != INT_MIN) {
 		if (_pycsh_util_index(param->array_size, &offset))  // Validate the offset.
@@ -364,7 +367,7 @@ PyObject * _pycsh_util_get_single(param_t *param, int offset, int autopull, int 
 
 /* Private interface for getting the value of an array parameter
    Increases the reference count of the returned tuple before returning.  */
-PyObject * _pycsh_util_get_array(param_t *param, int autopull, int host, int timeout, int retries) {
+PyObject * _pycsh_util_get_array(param_t *param, int autopull, int host, int timeout, int retries, int paramver) {
 
 	// Pull the value for every index using a queue (if we're allowed to),
 	// instead of pulling them individually.
@@ -392,7 +395,7 @@ PyObject * _pycsh_util_get_array(param_t *param, int autopull, int host, int tim
 	PyObject * value_tuple = PyTuple_New(param->array_size);
 
 	for (int i = 0; i < param->array_size; i++) {
-		PyObject * item = _pycsh_util_get_single(param, i, 0, host, timeout, retries);
+		PyObject * item = _pycsh_util_get_single(param, i, 0, host, timeout, retries, paramver);
 
 		if (item == NULL) {  // Something went wrong, probably a ConnectionError. Let's abandon ship.
 			Py_DECREF(value_tuple);
@@ -418,10 +421,11 @@ static PyObject * _pycsh_get_str_value(PyObject * obj) {
 		int host = ((ParameterObject *)obj)->host;
 		int timeout = ((ParameterObject *)obj)->timeout;
 		int retries = ((ParameterObject *)obj)->retries;
+		int paramver = ((ParameterObject *)obj)->paramver;
 
 		PyObject * value = param->array_size > 0 ? 
-			_pycsh_util_get_array(param, autosend, host, timeout, retries) :
-			_pycsh_util_get_single(param, INT_MIN, autosend, host, timeout, retries);
+			_pycsh_util_get_array(param, 0, host, timeout, retries, paramver) :
+			_pycsh_util_get_single(param, INT_MIN, 0, host, timeout, retries, paramver);
 
 		PyObject * strvalue = PyObject_Str(value);
 		Py_DECREF(value);
@@ -486,7 +490,7 @@ static int _pycsh_typecheck_sequence(PyObject * sequence, PyTypeObject * type) {
 
 /* Private interface for setting the value of a normal parameter. 
    Use INT_MIN as no offset. */
-int _pycsh_util_set_single(param_t *param, PyObject *value, int offset, int host, int timeout, int retries, param_queue_t *queue) {
+int _pycsh_util_set_single(param_t *param, PyObject *value, int offset, int host, int timeout, int retries, int paramver, int remote) {
 	
 	if (offset != INT_MIN) {
 		if (param->type == PARAM_TYPE_STRING) {
@@ -504,46 +508,36 @@ int _pycsh_util_set_single(param_t *param, PyObject *value, int offset, int host
 	param_str_to_value(param->type, (char*)PyUnicode_AsUTF8(strvalue), valuebuf);
 	Py_DECREF(strvalue);
 
-	// TODO Kevin: The structure of setting the parameters has been refactored,
+	int dest = (host != INT_MIN ? host : param->node);
+
+	// TODO Kevin: The way we set the parameters has been refactored,
 	//	confirm that it still behaves like the original (especially for remote host parameters).
-	if (queue == NULL) {  // Set the parameter immediately, if no queue is provided.
+	if (remote && (dest != 0)) {  // When allowed, set remote parameter immediately.
 
-		if (param->node == 0) {
-			if (offset < 0)
-				offset = 0;
-			param_set(param, offset, valuebuf);
-
-		} else {
-			for (size_t i = 0; i < (retries > 0 ? retries : 1); i++)
-				if (param_push_single(param, offset, valuebuf, 1, (host != INT_MIN ? host : param->node), timeout, paramver) < 0)
-					if (i >= retries-1) {
-						PyErr_SetString(PyExc_ConnectionError, "No response");
-						return -2;
-					}
-		}
+		for (size_t i = 0; i < (retries > 0 ? retries : 1); i++)
+			if (param_push_single(param, offset, valuebuf, 1, dest, timeout, paramver) < 0)
+				if (i >= retries-1) {
+					PyErr_SetString(PyExc_ConnectionError, "No response");
+					return -2;
+				}
 
 		param_print(param, offset, NULL, 0, 2);
 
-	} else {  // Otherwise; use the queue.
+	} else {  // Otherwise; set local cached value.
 
-		if (!queue->buffer) {
-			if (queue == &param_queue_set)  // We can initialize the global static queue.
-				param_queue_init(&param_queue_set, malloc(PARAM_SERVER_MTU), PARAM_SERVER_MTU, 0, PARAM_QUEUE_TYPE_SET, paramver);
-			else {  // But not dynamically allocated queues, because we can't free them ourselves.
-				PyErr_SetString(PyExc_SystemError, "Attempted to add parameter to uninitialized queue");
-				return -3;
-			}
+		if (offset < 0) {
+			for (int i = 0; i < param->array_size; i++)
+				param_set(param, i, valuebuf);
+		} else {
+			param_set(param, offset, valuebuf);
 		}
-		if (param_queue_add(queue, param, offset, valuebuf) < 0)
-			printf("Queue full\n");
-
 	}
 
 	return 0;
 }
 
 /* Private interface for setting the value of an array parameter. */
-int _pycsh_util_set_array(param_t *param, PyObject *value, int host, int timeout, int retries) {
+int _pycsh_util_set_array(param_t *param, PyObject *value, int host, int timeout, int retries, int paramver) {
 
 	// Transform lazy generators and iterators into sequences,
 	// such that their length may be retrieved in a uniform manner.
@@ -602,14 +596,16 @@ int _pycsh_util_set_array(param_t *param, PyObject *value, int host, int timeout
 			return -4;
 		}
 
+#if 0  /* TODO Kevin: When should we use queues with the new cmd system? */
 		// Set local parameters immediately, use the global queue if autosend if off.
 		param_queue_t *usequeue = (!autosend ? &param_queue_set : ((param->node != 0) ? &queue : NULL));
-		_pycsh_util_set_single(param, item, i, host, timeout, retries, usequeue);
+#endif
+		_pycsh_util_set_single(param, item, i, host, timeout, retries, paramver, 1);
 		
 		// 'item' is a borrowed reference, so we don't need to decrement it.
 	}
 
-	param_queue_print((autosend ? &queue : &param_queue_set));
+	param_queue_print(&queue);
 	
 	if (param->node != 0)
 		if (param_push_queue(&queue, 1, param->node, 100, 0) < 0) {  // TODO Kevin: We should probably have a parameter for hwid here.
