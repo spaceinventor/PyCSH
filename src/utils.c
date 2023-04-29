@@ -93,7 +93,7 @@ param_t * _pycsh_util_find_param_t(PyObject * param_identifier, int node) {
 	else if (PyLong_Check(param_identifier))  // is_int
 		param = param_list_find_id(node, (int)PyLong_AsLong(param_identifier));
 	else if (PyObject_TypeCheck(param_identifier, &ParameterType))
-		param = ((ParameterObject *)param_identifier)->param;
+		param = &((ParameterObject *)param_identifier)->param;
 	else {  // Invalid type passed.
 		PyErr_SetString(PyExc_TypeError,
 			"Parameter identifier must be either an integer or string of the parameter ID or name respectively.");
@@ -166,8 +166,8 @@ PyObject * pycsh_util_get_type(PyObject * self, PyObject * args) {
 	if (self && PyObject_TypeCheck(self, &ParameterType)) {
 		ParameterObject *_self = (ParameterObject *)self;
 
-		node = _self->param->node;
-		param = _self->param;
+		node = _self->param.node;
+		param = &_self->param;
 
 	} else {
 		if (!PyArg_ParseTuple(args, "O|i", &param_identifier, &node)) {
@@ -189,7 +189,12 @@ PyObject * pycsh_util_get_type(PyObject * self, PyObject * args) {
 
 
 /* Create a Python Parameter object from a param_t pointer directly. */
-PyObject * _pycsh_Parameter_from_param(PyTypeObject *type, param_t * param, int host, int timeout, int retries, int paramver) {
+PyObject * _pycsh_Parameter_from_param(PyTypeObject *type, param_t * param, const PyObject * callback, int host, int timeout, int retries, int paramver) {
+
+	// This parameter is already wrapped by a ParameterObject, which we may return instead.
+	if (param->callback == Parameter_callback)
+		/* TODO Kevin: How should we handle when: host, timeout, retries and paramver are different for the existing parameter? */
+		return Py_NewRef((ParameterObject *)((char *)param - offsetof(ParameterObject, param)));
 
 	if (param->array_size <= 1 && type == &ParameterArrayType) {
 		PyErr_SetString(PyExc_TypeError, 
@@ -202,33 +207,15 @@ PyObject * _pycsh_Parameter_from_param(PyTypeObject *type, param_t * param, int 
 
 	ParameterObject *self = (ParameterObject *)type->tp_alloc(type, 0);
 
-	if (self == NULL) {
+	if (self == NULL)
 		return NULL;
-	}
 
-	self->param = param;
+	/* This new parameter will not function correctly while the copied param_t exists before it in the global list. */
+	memcpy(&self->param, param, sizeof(param_t));
 	self->host = host;
 	self->timeout = timeout;
 	self->retries = retries;
 	self->paramver = paramver;
-
-	self->name = PyUnicode_FromString(param->name);
-	if (self->name == NULL) {
-		Py_DECREF(self);
-		return NULL;
-	}
-
-	self->unit = (param->unit != NULL ? PyUnicode_FromString(param->unit) : Py_None);
-	if (self->unit == NULL) {
-		Py_DECREF(self);
-		return NULL;
-	}
-
-	self->docstr = (param->docstr != NULL ? PyUnicode_FromString(param->docstr) : Py_None);
-	if (self->docstr == NULL) {
-		Py_DECREF(self);
-		return NULL;
-	}
 
 	self->type = (PyTypeObject *)pycsh_util_get_type((PyObject *)self, NULL);
 
@@ -246,7 +233,7 @@ PyObject * pycsh_util_parameter_list(void) {
 	while ((param = param_list_iterate(&i)) != NULL) {
 		/* CSH does not specify a paramver when listing parameters,
 			so we just use 2 as the default version for the created instances. */
-		PyObject * parameter = _pycsh_Parameter_from_param(&ParameterType, param, INT_MIN, pycsh_dfl_timeout, 1, 2);
+		PyObject * parameter = _pycsh_Parameter_from_param(&ParameterType, param, NULL, INT_MIN, pycsh_dfl_timeout, 1, 2);
 		PyObject * argtuple = PyTuple_Pack(1, parameter);
 		Py_DECREF(ParameterList_append(list, argtuple));
 		Py_DECREF(argtuple);
@@ -417,11 +404,13 @@ static PyObject * _pycsh_get_str_value(PyObject * obj) {
 	if (PyObject_TypeCheck(obj, &ParameterType)) {
 		// Return the value of the Parameter.
 
-		param_t * param = ((ParameterObject *)obj)->param;
-		int host = ((ParameterObject *)obj)->host;
-		int timeout = ((ParameterObject *)obj)->timeout;
-		int retries = ((ParameterObject *)obj)->retries;
-		int paramver = ((ParameterObject *)obj)->paramver;
+		ParameterObject *paramobj = ((ParameterObject *)obj);
+
+		param_t * param = &paramobj->param;
+		int host = paramobj->host;
+		int timeout = paramobj->timeout;
+		int retries = paramobj->retries;
+		int paramver = paramobj->paramver;
 
 		PyObject * value = param->array_size > 0 ? 
 			_pycsh_util_get_array(param, 0, host, timeout, retries, paramver) :

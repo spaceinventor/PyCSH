@@ -159,6 +159,7 @@ PyObject * pycsh_csh_csp_ifadd_kiss(PyObject * self, PyObject * args, PyObject *
     int error = csp_usart_open_and_add_kiss_interface(&conf, name, &iface);
     if (error != CSP_ERR_NONE) {
         PyErr_SetString(PyExc_SystemError, "Failed to add kiss interface");
+        return NULL;
     }
 
     iface->is_default = dfl;
@@ -196,6 +197,7 @@ PyObject * pycsh_csh_csp_ifadd_can(PyObject * self, PyObject * args, PyObject * 
         char errbuf[100];
         snprintf(errbuf, 100, "failed to add CAN interface [%s], error: %d", device, error);
         PyErr_SetString(PyExc_SystemError, errbuf);
+        return NULL;
     }
 
     iface->is_default = dfl;

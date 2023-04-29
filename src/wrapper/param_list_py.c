@@ -10,6 +10,7 @@
 
 #include "../pycsh.h"
 #include "../utils.h"
+#include "../parameter/parameter.h"
 
 #include "param_list_py.h"
 
@@ -56,10 +57,36 @@ PyObject * pycsh_param_list_download(PyObject * self, PyObject * args, PyObject 
 		return NULL;  // TypeError is thrown
 
 	// TODO Kevin: Downloading parameters with an incorrect version, can lead to a segmentation fault.
-	//	Had it been easier to detect when a incorrect version is used, we would've raised an exception instead.
+	//	Had it been easier to detect when an incorrect version is used, we would've raised an exception instead.
 	if (param_list_download(node, timeout, version, include_remotes) < 1) {  // We assume a connection error has occurred if we don't receive any parameters.
 		PyErr_SetString(PyExc_ConnectionError, "No response.");
 		return NULL;
+	}
+
+	/* Despite the nastiness, we reallocate the downloaded parameters, such that they become embedded in a ParameterObject.
+		Embedding the parameters allows us to create new parameters from Python, without the need for a lookup table for Python callbacks. */
+	param_list_iterator i = {};
+	param_t * iter_param = param_list_iterate(&i);
+
+	while (iter_param) {
+
+		if (i.phase == 0)
+			continue;  // We cannot reallocate static parameters.
+			/* TODO Kevin: We could, however, consider reusing their .addr for our new parameter.
+				But not here in .list_download() */
+
+		param_t * param = iter_param;  // Free the current parameter after we have used it to iterate.
+		iter_param = param_list_iterate(&i);
+
+		if (param->callback == Parameter_callback)
+			continue;  // This parameter doesn't need reallocation.
+
+		ParameterObject * pyparam = (ParameterObject *)_pycsh_Parameter_from_param(&ParameterType, param, NULL, INT_MIN, pycsh_dfl_timeout, 1, 2);
+
+		// Using param_list_remove_specific() means we iterate thrice, but it is simpler.
+		param_list_remove_specific(param, 0);
+
+		param_list_add(&pyparam->param);
 	}
 
 	return pycsh_util_parameter_list();

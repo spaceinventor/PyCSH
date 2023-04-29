@@ -21,11 +21,12 @@ typedef struct {
 	//uint32_t mask;
 
 	/* Store Python strings for name and unit, to lessen the overhead of converting them from C */
-	PyObject *name;
-	PyObject *unit;
-	PyObject *docstr;
+	// PyObject *name;
+	// PyObject *unit;
+	// PyObject *docstr;
+	PyObject *callback;
 
-	param_t *param;
+	param_t param;
 	int host;
 	char valuebuf[128] __attribute__((aligned(16)));
 	int timeout;
@@ -34,3 +35,4 @@ typedef struct {
 } ParameterObject;
 
 extern PyTypeObject ParameterType;
+void Parameter_callback(param_t * param, int offset);

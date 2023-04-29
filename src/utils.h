@@ -31,7 +31,7 @@ PyObject * pycsh_util_get_type(PyObject * self, PyObject * args);
 
 
 /* Create a Python Parameter object from a param_t pointer directly. */
-PyObject * _pycsh_Parameter_from_param(PyTypeObject *type, param_t * param, int host, int timeout, int retries, int paramver);
+PyObject * _pycsh_Parameter_from_param(PyTypeObject *type, param_t * param, const PyObject * callback, int host, int timeout, int retries, int paramver);
 
 
 /* Constructs a list of Python Parameters of all known param_t returned by param_list_iterate. */

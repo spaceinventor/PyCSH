@@ -9,16 +9,27 @@
 
 #include "parameter.h"
 
+#include "structmember.h"
+
 #include <param/param.h>
 
 #include "../pycsh.h"
 #include "../utils.h"
 
 
+void Parameter_callback(param_t * param, int offset) {
+	ParameterObject *python_param = (ParameterObject *)((char *)param - offsetof(ParameterObject, param));
+	PyObject *python_callback = python_param->callback;
+	PyObject *pyoffset = Py_BuildValue("i", offset);
+	PyObject * args = PyTuple_Pack(2, python_param, pyoffset);
+	PyObject_CallObject(python_callback, args);
+	Py_DECREF(args);
+	Py_DECREF(pyoffset);
+}
 
 /* 1 for success. Comapares the wrapped param_t for parameters, otherwise 0. Assumes self to be a ParameterObject. */
 static int Parameter_equal(PyObject *self, PyObject *other) {
-	if (PyObject_TypeCheck(other, &ParameterType) && ((ParameterObject *)other)->param == ((ParameterObject *)self)->param)
+	if (PyObject_TypeCheck(other, &ParameterType) && (memcmp(&(((ParameterObject *)other)->param), &(((ParameterObject *)self)->param), sizeof(param_t)) == 0))
 		return 1;
 	return 0;
 }
@@ -50,14 +61,12 @@ static PyObject * Parameter_richcompare(PyObject *self, PyObject *other, int op)
 
 static PyObject * Parameter_str(ParameterObject *self) {
 	char buf[100];
-	sprintf(buf, "[id:%i|node:%i] %s | %s", self->param->id, self->param->node, self->param->name, self->type->tp_name);
+	sprintf(buf, "[id:%i|node:%i] %s | %s", self->param.id, self->param.node, self->param.name, self->type->tp_name);
 	return Py_BuildValue("s", buf);
 }
 
 static void Parameter_dealloc(ParameterObject *self) {
 	Py_XDECREF((PyObject*)self->type);
-	Py_XDECREF(self->name);
-	Py_XDECREF(self->unit);
 	// Get the type of 'self' in case the user has subclassed 'Parameter'.
 	// Not that this makes a lot of sense to do.
 	Py_TYPE(self)->tp_free((PyObject *) self);
@@ -84,30 +93,59 @@ static PyObject * Parameter_new(PyTypeObject *type, PyObject *args, PyObject *kw
 	if (param == NULL)  // Did not find a match.
 		return NULL;  // Raises TypeError or ValueError.
 
-    return _pycsh_Parameter_from_param(type, param, host, timeout, retries, paramver);
+    return _pycsh_Parameter_from_param(type, param, NULL, host, timeout, retries, paramver);
 }
 
-static PyObject * Parameter_getname(ParameterObject *self, void *closure) {
-	Py_INCREF(self->name);
-	return self->name;
+static ParameterObject * Parameter_create_new(uint16_t id, param_type_e type, char * name, char * unit, char * docstr, void * addr, int array_size, const PyObject * callback, int host, int timeout, int retries, int paramver) {
+	param_t param = {
+		.id = id,
+		.type = type,
+		.name = name,
+		.unit = unit,
+		.docstr = docstr,
+		.addr = addr,
+		.array_size = array_size,
+		.array_step = param_typesize(type),
+	};
+	return (ParameterObject *)_pycsh_Parameter_from_param(&ParameterType, &param, callback, host, timeout, retries, paramver);
 }
 
-static PyObject * Parameter_getunit(ParameterObject *self, void *closure) {
-	Py_INCREF(self->unit);
-	return self->unit;
+static PyObject * Parameter_list_create_new(PyObject *cls, PyObject * args, PyObject * kwds) {
+
+	uint16_t id;
+	param_type_e type = PARAM_TYPE_INT32;
+	char * name;
+	char * unit = "";
+	char * docstr = "";
+	int array_size = 0;
+	PyObject * callback = NULL;
+	int host = INT_MIN;
+	// TODO Kevin: What are these 2 doing here?
+	int timeout = pycsh_dfl_timeout;
+	int retries = 0;
+	int paramver = 2;
+
+	static char *kwlist[] = {"id", "name", "unit", "docstr", "array_size", "callback", "host", "timeout", "retries", "paramver", NULL};
+
+	if (!PyArg_ParseTupleAndKeywords(args, kwds, "Hs|ssiOiiii", kwlist, &id, &name, &unit, &docstr, &array_size, &callback, &host, &timeout, &retries, &paramver))
+		return NULL;  // TypeError is thrown
+
+	if (array_size < 1)
+		array_size = 1;
+
+	void * physaddr = calloc(param_typesize(type), array_size);  // physaddr will be freed when the parameter is removed from the list.
+	ParameterObject * python_param = Parameter_create_new(id, type, name, unit, docstr, physaddr, array_size, callback, host, timeout, retries, paramver);
+
+	Py_INCREF(python_param);  // Parameter list holds a reference to the ParameterObject
+	param_list_add(&python_param->param);
+
+	/* return should steal the reference created by Parameter_create_new() */
+	return (PyObject *)python_param;
 }
 
-static PyObject * Parameter_getdocstr(ParameterObject *self, void *closure) {
-	Py_INCREF(self->docstr);
-	return self->docstr;
-}
-
-static PyObject * Parameter_getid(ParameterObject *self, void *closure) {
-	return Py_BuildValue("H", self->param->id);
-}
-
+#if 0
 static PyObject * Parameter_getnode(ParameterObject *self, void *closure) {
-	return Py_BuildValue("H", self->param->node);
+	return Py_BuildValue("H", self->param.node);
 }
 
 /* This will change self->param to be one by the same name at the specified node. */
@@ -134,7 +172,7 @@ static int Parameter_setnode(ParameterObject *self, PyObject *value, void *closu
 	}
 	Py_DECREF(value_tuple);
 
-	param_t * param = _pycsh_util_find_param_t(self->name, node);
+	param_t * param = param_list_find_id(node, self->param.id);
 
 	if (param == NULL)  // Did not find a match.
 		return -1;  // Raises either TypeError or ValueError.
@@ -143,6 +181,7 @@ static int Parameter_setnode(ParameterObject *self, PyObject *value, void *closu
 
 	return 0;
 }
+#endif
 
 static PyObject * Parameter_gethost(ParameterObject *self, void *closure) {
 	if (self->host != INT_MIN)
@@ -179,11 +218,6 @@ static int Parameter_sethost(ParameterObject *self, PyObject *value, void *closu
 	return 0;
 }
 
-static PyObject * Parameter_gettype(ParameterObject *self, void *closure) {
-	Py_INCREF(self->type);
-	return (PyObject *)self->type;
-}
-
 static PyObject * Parameter_getoldvalue(ParameterObject *self, void *closure) {
 	PyErr_SetString(PyExc_AttributeError, "Parameter.value has been changed to .remote_value and .cached_value instead");
 	return NULL;
@@ -195,9 +229,9 @@ static int Parameter_setoldvalue(ParameterObject *self, PyObject *value, void *c
 }
 
 static PyObject * Parameter_getvalue(ParameterObject *self, int remote) {
-	if (self->param->array_size > 1 && self->param->type != PARAM_TYPE_STRING)
-		return _pycsh_util_get_array(self->param, remote, self->host, self->timeout, self->retries, self->paramver);
-	return _pycsh_util_get_single(self->param, INT_MIN, remote, self->host, self->timeout, self->retries, self->paramver);
+	if (self->param.array_size > 1 && self->param.type != PARAM_TYPE_STRING)
+		return _pycsh_util_get_array(&self->param, remote, self->host, self->timeout, self->retries, self->paramver);
+	return _pycsh_util_get_single(&self->param, INT_MIN, remote, self->host, self->timeout, self->retries, self->paramver);
 }
 
 static int Parameter_setvalue(ParameterObject *self, PyObject *value, int remote) {
@@ -207,9 +241,9 @@ static int Parameter_setvalue(ParameterObject *self, PyObject *value, int remote
         return -1;
     }
 
-	if (self->param->array_size > 1 && self->param->type != PARAM_TYPE_STRING)  // Is array parameter
-		return _pycsh_util_set_array(self->param, value, self->host, self->timeout, self->retries, self->paramver);
-	return _pycsh_util_set_single(self->param, value, INT_MIN, self->host, self->timeout, self->retries, self->paramver, remote);  // Normal parameter
+	if (self->param.array_size > 1 && self->param.type != PARAM_TYPE_STRING)  // Is array parameter
+		return _pycsh_util_set_array(&self->param, value, self->host, self->timeout, self->retries, self->paramver);
+	return _pycsh_util_set_single(&self->param, value, INT_MIN, self->host, self->timeout, self->retries, self->paramver, remote);  // Normal parameter
 }
 
 static PyObject * Parameter_getremote_value(ParameterObject *self, void *closure) {
@@ -228,26 +262,11 @@ static int Parameter_setcached_value(ParameterObject *self, PyObject *value, voi
 	return Parameter_setvalue(self, value, 0);
 }
 
-static PyObject * Parameter_is_array(ParameterObject *self, void *closure) {
-	// I believe this is the most appropriate way to check whether the parameter is an array.
-	PyObject * result = self->param->array_size > 1 ? Py_True : Py_False;
-	Py_INCREF(result);
-	return result;
-}
-
 static PyObject * Parameter_is_vmem(ParameterObject *self, void *closure) {
 	// I believe this is the most appropriate way to check for vmem parameters.
-	PyObject * result = self->param->vmem == NULL ? Py_False : Py_True;
+	PyObject * result = self->param.vmem == NULL ? Py_False : Py_True;
 	Py_INCREF(result);
 	return result;
-}
-
-static PyObject * Parameter_getmask(ParameterObject *self, void *closure) {
-	return Py_BuildValue("I", self->param->mask);
-}
-
-static PyObject * Parameter_gettimestamp(ParameterObject *self, void *closure) {
-	return Py_BuildValue("I", self->param->timestamp);
 }
 
 static PyObject * Parameter_gettimeout(ParameterObject *self, void *closure) {
@@ -314,44 +333,47 @@ static int Parameter_setretries(ParameterObject *self, PyObject *value, void *cl
 	return 0;
 }
 
+static PyMemberDef Parameter_members[] = {
+    {"name", 	  T_STRING, 	offsetof(ParameterObject, param.name), 	 	READONLY, "The name of the wrapped param_t C struct"},
+    {"unit", 	  T_STRING, 	offsetof(ParameterObject, param.unit), 	 	READONLY, "The unit of the wrapped param_t c struct as a string or None"},
+    {"docstr", 	  T_STRING, 	offsetof(ParameterObject, param.docstr), 	READONLY, "The help-text of the wrapped param_t c struct as a string or None"},
+    {"id", 		  T_SHORT, 		offsetof(ParameterObject, param.id), 	 	READONLY, "ID of the parameter"},
+    {"type", 	  T_OBJECT_EX,  offsetof(ParameterObject, type), 		 	READONLY, "type of the parameter"},
+    {"mask", 	  T_UINT, 		offsetof(ParameterObject, param.mask),   	READONLY, "mask of the parameter"},
+    {"timestamp", T_UINT, 		offsetof(ParameterObject, param.timestamp), READONLY, "timestamp of the parameter"},
+    {"node", 	  T_SHORT, 		offsetof(ParameterObject, param.node), 		READONLY, "node of the parameter"},
+    {NULL}  /* Sentinel */
+};
+
 /* 
 The Python binding 'Parameter' class exposes most of its attributes through getters, 
 as only its 'value', 'host' and 'node' are mutable, and even those are through setters.
 */
 static PyGetSetDef Parameter_getsetters[] = {
-    {"name", (getter)Parameter_getname, NULL,
-     "Returns the name of the wrapped param_t C struct.", NULL},
-    {"unit", (getter)Parameter_getunit, NULL,
-     "The unit of the wrapped param_t c struct as a string or None.", NULL},
-	{"docstr", (getter)Parameter_getdocstr, NULL,
-     "The help-text of the wrapped param_t c struct as a string or None.", NULL},
-	{"id", (getter)Parameter_getid, NULL,
-     "id of the parameter", NULL},
+#if 0
 	{"node", (getter)Parameter_getnode, (setter)Parameter_setnode,
      "node of the parameter", NULL},
+#endif
 	{"host", (getter)Parameter_gethost, (setter)Parameter_sethost,
      "host of the parameter", NULL},
-	{"type", (getter)Parameter_gettype, NULL,
-     "type of the parameter", NULL},
 	{"remote_value", (getter)Parameter_getremote_value, (setter)Parameter_setremote_value,
      "get/set the remote (and cached) value of the parameter", NULL},
 	{"cached_value", (getter)Parameter_getcached_value, (setter)Parameter_setcached_value,
      "get/set the cached value of the parameter", NULL},
 	{"value", (getter)Parameter_getoldvalue, (setter)Parameter_setoldvalue,
      "value of the parameter", NULL},
-	{"is_array", (getter)Parameter_is_array, NULL,
-     "whether the parameter is an array", NULL},
 	{"is_vmem", (getter)Parameter_is_vmem, NULL,
      "whether the parameter is a vmem parameter", NULL},
-	{"mask", (getter)Parameter_getmask, NULL,
-     "mask of the parameter", NULL},
-	{"timestamp", (getter)Parameter_gettimestamp, NULL,
-     "timestamp of the parameter", NULL},
 	{"timeout", (getter)Parameter_gettimeout, (setter)Parameter_settimeout,
      "timeout of the parameter", NULL},
 	{"retries", (getter)Parameter_getretries, (setter)Parameter_setretries,
      "available retries of the parameter", NULL},
     {NULL}  /* Sentinel */
+};
+
+static PyMethodDef Parameter_methods[] = {
+    {"list_create_new", (PyCFunction)Parameter_list_create_new, METH_STATIC | METH_VARARGS | METH_KEYWORDS, "Create a new parameter for the global list"},
+    {NULL, NULL, 0, NULL}
 };
 
 PyTypeObject ParameterType = {
@@ -364,6 +386,8 @@ PyTypeObject ParameterType = {
     .tp_new = Parameter_new,
     .tp_dealloc = (destructor)Parameter_dealloc,
 	.tp_getset = Parameter_getsetters,
+	.tp_members = Parameter_members,
+	.tp_methods = Parameter_methods,
 	.tp_str = (reprfunc)Parameter_str,
 	.tp_richcompare = (richcmpfunc)Parameter_richcompare,
 };

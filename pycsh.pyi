@@ -12,7 +12,8 @@ from __future__ import annotations
 from typing import \
     Any as _Any, \
     Iterable as _Iterable, \
-    Literal as _Literal
+    Literal as _Literal, \
+    Callable as _Callable
 
 _param_value_hint = int | float | str
 _param_type_hint = _param_value_hint | bytearray
@@ -26,6 +27,15 @@ class Parameter:
     Wrapper class for Libparam's parameters.
     Provides an interface to their attributes and values.
     """
+
+    name: str  # The name of the wrapped param_t C struct
+    unit: str  # The unit of the wrapped param_t c struct as a string or None
+    docstr: str  # The help-text of the wrapped param_t c struct as a string or None
+    id: int  # ID of the parameter
+    type: type  # type of the parameter
+    mask: int  # mask of the parameter
+    timestamp: int  # timestamp of the parameter
+    node: int  # node of the parameter
 
     def __new__(cls, param_identifier: _param_ident_hint, node: int = None, host: int = None, timeout: int = None, retries: int = None) -> Parameter | ParameterArray:
         """
@@ -41,37 +51,6 @@ class Parameter:
         :raises ValueError: When no parameter can be found from an otherwise valid identifier.
 
         :returns: An instance of a Parameter or ParameterArray, matching the identifier.
-        """
-
-    @property
-    def name(self) -> str:
-        """ Returns the name of the wrapped param_t C struct. """
-
-    @property
-    def unit(self) -> str | None:
-        """ The unit of the wrapped param_t c struct as a string or None. """
-
-    @property
-    def docstr(self) -> str | None:
-        """ The help-text of the wrapped param_t c struct as a string or None. """
-
-    @property
-    def id(self) -> int:
-        """ Returns the id of the wrapped param_t C struct. """
-
-    @property
-    def node(self) -> int:
-        """ Returns the node of the parameter, as in; the one in the wrapped param_t C struct. """
-
-    @node.setter
-    def node(self, value: int) -> None:
-        """
-        Attempts to set the parameter to a matching one, on the specified node.
-
-        :param value: Node on which the other parameter ought to be located.
-
-        :raises TypeError: When attempting to delete or assign the node to an invalid type.
-        :raises ValueError: When a matching parameter cannot be found on the specified node.
         """
 
     @property
@@ -132,13 +111,30 @@ class Parameter:
     def retries(self) -> int:
         """ Returns the number of retries the parameter has for transactions. """
 
-    @timeout.setter
+    @retries.setter
     def retries(self, value: int) -> None:
         """
         Sets the retries the parameter has for transactions.
         Use None to reset default value.
         """
 
+    @staticmethod
+    def list_create_new(id: int, name: str, unit: str = None, docstr: str = None, array_size: int = 0, callback: _Callable[[Parameter, int], None] = None, host: int = None, timeout: int = None, retries: int = 0, paramver: int = 2):
+        """
+        Create a new parameter from the provided options, and add it to the global list.
+
+        :param id: ID of the new parameter.
+        :param name: Name of the new parameter.
+        :param unit: Unit of the new parameter.
+        :param docstr: Docstring of the new parameter.
+        :param array_size: Array size of the new parameter. Creates a ParameterArray when > 1.
+        :param callback: Python function called when the parameter is set, signature: def callback(param: Parameter, offset: int) -> None
+        :param host:
+        :param timeout: Timeout to use when setting remote parameters.
+        :param retries: Amount of retries when setting remote parameters.
+        :param paramver: Parameter version to use for this parameter.
+        :return:
+        """
 
 class ParameterArray(Parameter):
     """
@@ -473,16 +469,10 @@ def csp_add_tun(addr: int, tun_src: int, tun_dst: int, promisc: int = 0, mask: i
     :param dfl: Set as default
     """
 
-def init(csp_version = None, csp_hostname: str = None, csp_model: str = None,
-                use_prometheus: int = None, rtable: str = None, yamlname: str = None, dfl_addr: int = None, quiet: int = None, stdout: int | str = None, stderr: int | str = None) -> None:
+def init(quiet: int = None, stdout: int | str = None, stderr: int | str = None) -> None:
     """
     Initializes the module, with the provided settings.
 
-    :param csp_version: Which CSP version to use in the module.
-    :param csp_hostname: Which CSP hostname to use in the module.
-    :param csp_model: Which CSP model to use in the module.
-    :param yamlname: Name and path to the .yaml file with which the bindings/CSH-session should be configured.
-    :param dfl_addr: Override CSH' own node with the specified number.
     :param quiet: Send output from C to /dev/null. "quiet" argument takes precedence over the "stdout" & "stderr" arguments.
     :param stdout: Redirect CSH stdout to the specified file. Supports subprocess.DEVNULL for quiet operation.
     :param stderr: Redirect CSH stderr to the specified file. Supports subprocess.DEVNULL for quiet operation.
