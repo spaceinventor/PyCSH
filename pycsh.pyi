@@ -119,7 +119,7 @@ class Parameter:
         """
 
     @staticmethod
-    def list_create_new(id: int, name: str, unit: str = None, docstr: str = None, array_size: int = 0, callback: _Callable[[Parameter, int], None] = None, host: int = None, timeout: int = None, retries: int = 0, paramver: int = 2):
+    def create_new(id: int, name: str, unit: str = None, docstr: str = None, array_size: int = 0, callback: _Callable[[Parameter, int], None] = None, host: int = None, timeout: int = None, retries: int = 0, paramver: int = 2) -> Parameter:
         """
         Create a new parameter from the provided options, and add it to the global list.
 
@@ -133,7 +133,41 @@ class Parameter:
         :param timeout: Timeout to use when setting remote parameters.
         :param retries: Amount of retries when setting remote parameters.
         :param paramver: Parameter version to use for this parameter.
-        :return:
+        :return: The created Parameter instance.
+        """
+
+    def remove(self: Parameter | int | str, node: int = None) -> None:
+        """
+        Remove a param_t/ParameterObject from the parameter list.
+
+        :raises ValueError: When no parameter can be found from an otherwise valid identifier.
+        """
+
+    @property
+    def keep_alive(self) -> bool:
+        """
+        Whether the Parameter should remain in the parameter list,
+        when all Python references are lost.
+        This makes it possible to recover the Parameter instance through list()
+        """
+
+    @keep_alive.setter
+    def keep_alive(self, value: bool) -> None:
+        """
+        Change whether the Parameter should remain in the parameter list,
+        when all Python references are lost.
+        """
+
+    @property
+    def callable(self) -> _Callable[[Parameter, int], None] | None:
+        """
+        Callback of the parameter
+        """
+
+    @callable.setter
+    def callable(self, callback: _Callable[[Parameter, int], None] | None) -> None:
+        """
+        Change the callback of the parameter
         """
 
 class ParameterArray(Parameter):

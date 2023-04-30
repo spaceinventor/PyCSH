@@ -153,7 +153,7 @@ static PyTypeObject * _pycsh_misc_param_t_type(param_t * param) {
 
 
 /* Public interface for '_pycsh_misc_param_t_type()'
-   Increments the reference count of the found type before returning. */
+   Does not increment the reference count of the found type before returning. */
 PyObject * pycsh_util_get_type(PyObject * self, PyObject * args) {
 
 	PyObject * param_identifier;
@@ -181,10 +181,7 @@ PyObject * pycsh_util_get_type(PyObject * self, PyObject * args) {
 		return NULL;  // Raises either TypeError or ValueError.
 	}
 
-	PyTypeObject * result = _pycsh_misc_param_t_type(param);
-	Py_INCREF(result);
-
-	return (PyObject *)result;
+	return (PyObject *)_pycsh_misc_param_t_type(param);
 }
 
 
@@ -192,7 +189,7 @@ PyObject * pycsh_util_get_type(PyObject * self, PyObject * args) {
 PyObject * _pycsh_Parameter_from_param(PyTypeObject *type, param_t * param, const PyObject * callback, int host, int timeout, int retries, int paramver) {
 
 	// This parameter is already wrapped by a ParameterObject, which we may return instead.
-	if (param->callback == Parameter_callback)
+	if (Parameter_wraps_param(param))
 		/* TODO Kevin: How should we handle when: host, timeout, retries and paramver are different for the existing parameter? */
 		return Py_NewRef((ParameterObject *)((char *)param - offsetof(ParameterObject, param)));
 
@@ -216,6 +213,16 @@ PyObject * _pycsh_Parameter_from_param(PyTypeObject *type, param_t * param, cons
 	self->timeout = timeout;
 	self->retries = retries;
 	self->paramver = paramver;
+	self->keep_alive = 1;
+
+	/* NULL callback becomes None on a ParameterObject instance */
+	if (callback == NULL)
+		callback = Py_None;
+
+	if (Parameter_set_callback(self, (PyObject *)callback, NULL) == -1) {
+		Py_DECREF(self);
+        return NULL;
+    }
 
 	self->type = (PyTypeObject *)pycsh_util_get_type((PyObject *)self, NULL);
 
@@ -234,6 +241,10 @@ PyObject * pycsh_util_parameter_list(void) {
 		/* CSH does not specify a paramver when listing parameters,
 			so we just use 2 as the default version for the created instances. */
 		PyObject * parameter = _pycsh_Parameter_from_param(&ParameterType, param, NULL, INT_MIN, pycsh_dfl_timeout, 1, 2);
+		if (parameter == NULL) {
+			Py_DECREF(list);
+			return NULL;
+		}
 		PyObject * argtuple = PyTuple_Pack(1, parameter);
 		Py_DECREF(ParameterList_append(list, argtuple));
 		Py_DECREF(argtuple);

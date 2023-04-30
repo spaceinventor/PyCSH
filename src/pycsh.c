@@ -169,8 +169,7 @@ static PyObject * pycsh_init(PyObject * self, PyObject * args, PyObject *kwds) {
 	PyObject *csh_stderr = NULL;
 	
 
-	if (!PyArg_ParseTupleAndKeywords(args, kwds, "|iOO:init", kwlist, &quiet, &csh_stdout, &csh_stderr)
-	)
+	if (!PyArg_ParseTupleAndKeywords(args, kwds, "|iOO:init", kwlist, &quiet, &csh_stdout, &csh_stderr))
 		return NULL;  // TypeError is thrown
 
 	// TODO Kevin: Support reassigning streams through module function or global.

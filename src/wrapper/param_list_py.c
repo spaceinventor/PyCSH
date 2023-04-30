@@ -78,13 +78,18 @@ PyObject * pycsh_param_list_download(PyObject * self, PyObject * args, PyObject 
 		param_t * param = iter_param;  // Free the current parameter after we have used it to iterate.
 		iter_param = param_list_iterate(&i);
 
-		if (param->callback == Parameter_callback)
+		if (Parameter_wraps_param(param))
 			continue;  // This parameter doesn't need reallocation.
 
 		ParameterObject * pyparam = (ParameterObject *)_pycsh_Parameter_from_param(&ParameterType, param, NULL, INT_MIN, pycsh_dfl_timeout, 1, 2);
 
+		if (pyparam == NULL) {
+			PyErr_SetString(PyExc_MemoryError, "Failed to create ParameterObject for downloaded parameter. Parameter list may be corrupted.");
+            return NULL;
+        }
+
 		// Using param_list_remove_specific() means we iterate thrice, but it is simpler.
-		param_list_remove_specific(param, 0);
+		param_list_remove_specific(param, 0, 1);
 
 		param_list_add(&pyparam->param);
 	}

@@ -16,15 +16,32 @@
 #include "../pycsh.h"
 #include "../utils.h"
 
-
+/**
+ * @brief Shared callback for all param_t's wrapped by a Parameter instance.
+ */
 void Parameter_callback(param_t * param, int offset) {
+	assert(Parameter_wraps_param(param));
+
 	ParameterObject *python_param = (ParameterObject *)((char *)param - offsetof(ParameterObject, param));
 	PyObject *python_callback = python_param->callback;
+
+	/* This Parameter has no callback */
+	/* Python_callback should not be NULL here when Parameter_wraps_param(), but we will allow it for now... */
+	if (python_callback == NULL || python_callback == Py_None) {
+		return;
+    }
+
 	PyObject *pyoffset = Py_BuildValue("i", offset);
 	PyObject * args = PyTuple_Pack(2, python_param, pyoffset);
 	PyObject_CallObject(python_callback, args);
+	/* TODO Kevin: What should we do here, if we try to call something which isn't callable? */
 	Py_DECREF(args);
 	Py_DECREF(pyoffset);
+}
+
+int Parameter_wraps_param(param_t *param) {
+	assert(param!= NULL);
+	return param->callback == Parameter_callback;
 }
 
 /* 1 for success. Comapares the wrapped param_t for parameters, otherwise 0. Assumes self to be a ParameterObject. */
@@ -66,6 +83,11 @@ static PyObject * Parameter_str(ParameterObject *self) {
 }
 
 static void Parameter_dealloc(ParameterObject *self) {
+	if (self->callback != NULL && self->callback != Py_None) {
+		Py_XDECREF(self->callback);
+        self->callback = NULL;
+    }
+	param_list_remove_specific(&self->param, 0, 0);
 	Py_XDECREF((PyObject*)self->type);
 	// Get the type of 'self' in case the user has subclassed 'Parameter'.
 	// Not that this makes a lot of sense to do.
@@ -106,9 +128,65 @@ static ParameterObject * Parameter_create_new(uint16_t id, param_type_e type, ch
 		.addr = addr,
 		.array_size = array_size,
 		.array_step = param_typesize(type),
+		.callback = Parameter_callback,
 	};
 	return (ParameterObject *)_pycsh_Parameter_from_param(&ParameterType, &param, callback, host, timeout, retries, paramver);
 }
+
+/**
+ * @brief Instance method to remove a param_t/ParameterObject from the parameter list.
+ * 
+ * @return PyObject* Py_None when the parameter is removed from the parameter list, otherwise raises ValueError.
+ */
+PyObject * Parameter_remove(PyObject *self, PyObject * args, PyObject * kwds) {
+
+	static char *kwlist[] = {"node", NULL};
+
+    int node = pycsh_dfl_node;
+
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "|i", kwlist, &node)) {
+        return NULL;  // TypeError is thrown
+    }
+
+    param_t * param = _pycsh_util_find_param_t(self, node);
+
+	if (param == NULL) {  // Did not find a match.
+		return NULL;
+	}
+
+	param_list_remove_specific(param, 0, 0);
+	
+	Py_RETURN_NONE;
+}
+
+#if 0
+/**
+ * @brief Static method to remove a param_t/ParameterObject from the parameter list.
+ * 
+ * @return PyObject* Py_None when the parameter is removed from the parameter list, otherwise raises ValueError.
+ */
+static PyObject *Parameter_remove_static(PyObject *self, PyObject *args, PyObject *kwargs) {
+
+	static char *kwlist[] = {"param_identifier", "node", NULL};
+
+    PyObject * param_identifier;  // Raw argument object/type passed. Identify its type when needed.
+	int node = pycsh_dfl_node;
+
+	if(!PyArg_ParseTupleAndKeywords(args, kwargs, "O|i", kwlist, &param_identifier, &node)) {
+		return NULL;  // TypeError is thrown
+	}
+
+	param_t * param = _pycsh_util_find_param_t(self, node);
+
+	if (param == NULL) {  // Did not find a match.
+		return NULL;
+	}
+
+	param_list_remove_specific(param, 0, 0);
+	
+	Py_RETURN_NONE;
+}
+#endif
 
 static PyObject * Parameter_list_create_new(PyObject *cls, PyObject * args, PyObject * kwds) {
 
@@ -134,6 +212,9 @@ static PyObject * Parameter_list_create_new(PyObject *cls, PyObject * args, PyOb
 		array_size = 1;
 
 	void * physaddr = calloc(param_typesize(type), array_size);  // physaddr will be freed when the parameter is removed from the list.
+	if (physaddr == NULL) {
+		return PyErr_NoMemory();
+	}
 	ParameterObject * python_param = Parameter_create_new(id, type, name, unit, docstr, physaddr, array_size, callback, host, timeout, retries, paramver);
 
 	Py_INCREF(python_param);  // Parameter list holds a reference to the ParameterObject
@@ -143,54 +224,83 @@ static PyObject * Parameter_list_create_new(PyObject *cls, PyObject * args, PyOb
 	return (PyObject *)python_param;
 }
 
-#if 0
-static PyObject * Parameter_getnode(ParameterObject *self, void *closure) {
-	return Py_BuildValue("H", self->param.node);
+static PyObject * Parameter_get_keep_alive(ParameterObject *self, void *closure) {
+	return self->keep_alive ? Py_True : Py_False;
 }
 
-/* This will change self->param to be one by the same name at the specified node. */
-static int Parameter_setnode(ParameterObject *self, PyObject *value, void *closure) {
+static int Parameter_set_keep_alive(ParameterObject *self, PyObject *value, void *closure) {
 
 	if (value == NULL) {
-        PyErr_SetString(PyExc_TypeError, "Cannot delete the node attribute");
+        PyErr_SetString(PyExc_TypeError, "Cannot delete the keep_alive attribute");
         return -1;
     }
 
-	if(!PyLong_Check(value)) {
-		PyErr_SetString(PyExc_TypeError,
-                        "The node attribute must be set to an int");
+	if (value != Py_True && value != Py_False) {
+		PyErr_SetString(PyExc_TypeError, "keep_alive must be True or False");
         return -1;
-	}
+    }
 
-	uint16_t node;
-
-	// This is pretty stupid, but seems to be the easiest way to convert a long to short using Python.
-	PyObject * value_tuple = PyTuple_Pack(1, value);
-	if (!PyArg_ParseTuple(value_tuple, "H", &node)) {
-		Py_DECREF(value_tuple);
-		return -1;
-	}
-	Py_DECREF(value_tuple);
-
-	param_t * param = param_list_find_id(node, self->param.id);
-
-	if (param == NULL)  // Did not find a match.
-		return -1;  // Raises either TypeError or ValueError.
-
-	self->param = param;
+	if (self->keep_alive && value == Py_False) {
+		self->keep_alive = 0;
+		Py_DECREF(self);
+	} else if (!self->keep_alive && value == Py_True) {
+		self->keep_alive = 1;
+        Py_INCREF(self);
+    }
 
 	return 0;
 }
-#endif
 
-static PyObject * Parameter_gethost(ParameterObject *self, void *closure) {
+static PyObject * Parameter_get_callback(ParameterObject *self, void *closure) {
+	return Py_NewRef(self->callback);
+}
+
+int Parameter_set_callback(ParameterObject *self, PyObject *value, void *closure) {
+
+	if (value == NULL) {
+        PyErr_SetString(PyExc_TypeError, "Cannot delete the callback attribute");
+        return -1;
+    }
+
+	if (value != Py_None && !PyCallable_Check(value)) {
+		PyErr_SetString(PyExc_TypeError, "callback must be None or callable");
+        return -1;
+    }
+
+	if (value == self->callback)
+		return 0;  // No work to do
+
+	/* Changing the callback to None. */
+	if (value == Py_None) {
+		if (self->callback != Py_None) {
+			/* We should not arrive here when the old value is Py_None, 
+				but prevent Py_DECREF() on at all cost. */
+			Py_XDECREF(self->callback);
+		}
+		self->callback = Py_None;
+        return 0;
+    }
+
+	/* We now know that 'value' is a new callable. */
+
+	/* When replacing a previous callable. */
+	if (self->callback != Py_None) {
+		Py_XDECREF(self->callback);
+	}
+
+	Py_INCREF(value);
+	self->callback = value;
+
+	return 0;
+}
+
+static PyObject * Parameter_get_host(ParameterObject *self, void *closure) {
 	if (self->host != INT_MIN)
 		return Py_BuildValue("i", self->host);
 	Py_RETURN_NONE;
 }
 
-/* This will change self->param to be one by the same name at the specified node. */
-static int Parameter_sethost(ParameterObject *self, PyObject *value, void *closure) {
+static int Parameter_set_host(ParameterObject *self, PyObject *value, void *closure) {
 
 	if (value == NULL) {
         PyErr_SetString(PyExc_TypeError, "Cannot delete the host attribute");
@@ -218,23 +328,23 @@ static int Parameter_sethost(ParameterObject *self, PyObject *value, void *closu
 	return 0;
 }
 
-static PyObject * Parameter_getoldvalue(ParameterObject *self, void *closure) {
+static PyObject * Parameter_get_oldvalue(ParameterObject *self, void *closure) {
 	PyErr_SetString(PyExc_AttributeError, "Parameter.value has been changed to .remote_value and .cached_value instead");
 	return NULL;
 }
 
-static int Parameter_setoldvalue(ParameterObject *self, PyObject *value, void *closure) {
+static int Parameter_set_oldvalue(ParameterObject *self, PyObject *value, void *closure) {
 	PyErr_SetString(PyExc_AttributeError, "Parameter.value has been changed to .remote_value and .cached_value instead");
 	return -1;
 }
 
-static PyObject * Parameter_getvalue(ParameterObject *self, int remote) {
+static PyObject * Parameter_get_value(ParameterObject *self, int remote) {
 	if (self->param.array_size > 1 && self->param.type != PARAM_TYPE_STRING)
 		return _pycsh_util_get_array(&self->param, remote, self->host, self->timeout, self->retries, self->paramver);
 	return _pycsh_util_get_single(&self->param, INT_MIN, remote, self->host, self->timeout, self->retries, self->paramver);
 }
 
-static int Parameter_setvalue(ParameterObject *self, PyObject *value, int remote) {
+static int Parameter_set_value(ParameterObject *self, PyObject *value, int remote) {
 
 	if (value == NULL) {
         PyErr_SetString(PyExc_TypeError, "Cannot delete the value attribute");
@@ -246,20 +356,20 @@ static int Parameter_setvalue(ParameterObject *self, PyObject *value, int remote
 	return _pycsh_util_set_single(&self->param, value, INT_MIN, self->host, self->timeout, self->retries, self->paramver, remote);  // Normal parameter
 }
 
-static PyObject * Parameter_getremote_value(ParameterObject *self, void *closure) {
-	return Parameter_getvalue(self, 1);
+static PyObject * Parameter_get_remote_value(ParameterObject *self, void *closure) {
+	return Parameter_get_value(self, 1);
 }
 
-static PyObject * Parameter_getcached_value(ParameterObject *self, void *closure) {
-	return Parameter_getvalue(self, 0);
+static PyObject * Parameter_get_cached_value(ParameterObject *self, void *closure) {
+	return Parameter_get_value(self, 0);
 }
 
-static int Parameter_setremote_value(ParameterObject *self, PyObject *value, void *closure) {
-	return Parameter_setvalue(self, value, 1);
+static int Parameter_set_remote_value(ParameterObject *self, PyObject *value, void *closure) {
+	return Parameter_set_value(self, value, 1);
 }
 
-static int Parameter_setcached_value(ParameterObject *self, PyObject *value, void *closure) {
-	return Parameter_setvalue(self, value, 0);
+static int Parameter_set_cached_value(ParameterObject *self, PyObject *value, void *closure) {
+	return Parameter_set_value(self, value, 0);
 }
 
 static PyObject * Parameter_is_vmem(ParameterObject *self, void *closure) {
@@ -269,11 +379,11 @@ static PyObject * Parameter_is_vmem(ParameterObject *self, void *closure) {
 	return result;
 }
 
-static PyObject * Parameter_gettimeout(ParameterObject *self, void *closure) {
+static PyObject * Parameter_get_timeout(ParameterObject *self, void *closure) {
 	return Py_BuildValue("i", self->timeout);
 }
 
-static int Parameter_settimeout(ParameterObject *self, PyObject *value, void *closure) {
+static int Parameter_set_timeout(ParameterObject *self, PyObject *value, void *closure) {
 
 	if (value == NULL) {
         PyErr_SetString(PyExc_TypeError, "Cannot delete the timeout attribute");
@@ -301,11 +411,11 @@ static int Parameter_settimeout(ParameterObject *self, PyObject *value, void *cl
 	return 0;
 }
 
-static PyObject * Parameter_getretries(ParameterObject *self, void *closure) {
+static PyObject * Parameter_get_retries(ParameterObject *self, void *closure) {
 	return Py_BuildValue("i", self->retries);
 }
 
-static int Parameter_setretries(ParameterObject *self, PyObject *value, void *closure) {
+static int Parameter_set_retries(ParameterObject *self, PyObject *value, void *closure) {
 
 	if (value == NULL) {
         PyErr_SetString(PyExc_TypeError, "Cannot delete the retries attribute");
@@ -351,28 +461,39 @@ as only its 'value', 'host' and 'node' are mutable, and even those are through s
 */
 static PyGetSetDef Parameter_getsetters[] = {
 #if 0
-	{"node", (getter)Parameter_getnode, (setter)Parameter_setnode,
+	{"node", (getter)Parameter_get_node, (setter)Parameter_set_node,
      "node of the parameter", NULL},
 #endif
-	{"host", (getter)Parameter_gethost, (setter)Parameter_sethost,
+	{"keep_alive", (getter)Parameter_get_keep_alive, (setter)Parameter_set_keep_alive,
+     "Whether the Parameter should remain in the parameter list, when all Python references are lost. This makes it possible to recover the Parameter instance through list()", NULL},
+	{"callback", (getter)Parameter_get_callback, (setter)Parameter_set_callback,
+     "callback of the parameter", NULL},
+	{"host", (getter)Parameter_get_host, (setter)Parameter_set_host,
      "host of the parameter", NULL},
-	{"remote_value", (getter)Parameter_getremote_value, (setter)Parameter_setremote_value,
+	{"remote_value", (getter)Parameter_get_remote_value, (setter)Parameter_set_remote_value,
      "get/set the remote (and cached) value of the parameter", NULL},
-	{"cached_value", (getter)Parameter_getcached_value, (setter)Parameter_setcached_value,
+	{"cached_value", (getter)Parameter_get_cached_value, (setter)Parameter_set_cached_value,
      "get/set the cached value of the parameter", NULL},
-	{"value", (getter)Parameter_getoldvalue, (setter)Parameter_setoldvalue,
+	{"value", (getter)Parameter_get_oldvalue, (setter)Parameter_set_oldvalue,
      "value of the parameter", NULL},
 	{"is_vmem", (getter)Parameter_is_vmem, NULL,
      "whether the parameter is a vmem parameter", NULL},
-	{"timeout", (getter)Parameter_gettimeout, (setter)Parameter_settimeout,
+	{"timeout", (getter)Parameter_get_timeout, (setter)Parameter_set_timeout,
      "timeout of the parameter", NULL},
-	{"retries", (getter)Parameter_getretries, (setter)Parameter_setretries,
+	{"retries", (getter)Parameter_get_retries, (setter)Parameter_set_retries,
      "available retries of the parameter", NULL},
     {NULL}  /* Sentinel */
 };
 
 static PyMethodDef Parameter_methods[] = {
-    {"list_create_new", (PyCFunction)Parameter_list_create_new, METH_STATIC | METH_VARARGS | METH_KEYWORDS, "Create a new parameter for the global list"},
+    {"create_new", (PyCFunction)Parameter_list_create_new, METH_STATIC | METH_VARARGS | METH_KEYWORDS, "Create a new parameter for the global list"},
+#if 0
+    {"find_existing", (PyCFunction)Parameter_list_find_existing, METH_STATIC | METH_VARARGS | METH_KEYWORDS, "Find a parameter already in the global list"},
+#endif
+#if 0
+    {"remove", (PyCFunction)Parameter_remove_static, METH_STATIC | METH_VARARGS | METH_KEYWORDS, "Static method to remove a param_t/ParameterObject from the parameter list."},
+#endif
+    {"remove", (PyCFunction)Parameter_remove, METH_VARARGS | METH_KEYWORDS, "Instance method to remove a param_t/ParameterObject from the parameter list."},
     {NULL, NULL, 0, NULL}
 };
 
