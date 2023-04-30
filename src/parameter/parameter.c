@@ -31,6 +31,8 @@ void Parameter_callback(param_t * param, int offset) {
 		return;
     }
 
+
+	assert(PyCallable_Check(python_callback));
 	PyObject *pyoffset = Py_BuildValue("i", offset);
 	PyObject * args = PyTuple_Pack(2, python_param, pyoffset);
 	PyObject_CallObject(python_callback, args);
@@ -128,65 +130,12 @@ static ParameterObject * Parameter_create_new(uint16_t id, param_type_e type, ch
 		.addr = addr,
 		.array_size = array_size,
 		.array_step = param_typesize(type),
-		.callback = Parameter_callback,
 	};
-	return (ParameterObject *)_pycsh_Parameter_from_param(&ParameterType, &param, callback, host, timeout, retries, paramver);
+	ParameterObject * python_param = (ParameterObject *)_pycsh_Parameter_from_param(&ParameterType, &param, callback, host, timeout, retries, paramver);
+	param_list_add(&python_param->param);
+
+	return python_param;
 }
-
-/**
- * @brief Instance method to remove a param_t/ParameterObject from the parameter list.
- * 
- * @return PyObject* Py_None when the parameter is removed from the parameter list, otherwise raises ValueError.
- */
-PyObject * Parameter_remove(PyObject *self, PyObject * args, PyObject * kwds) {
-
-	static char *kwlist[] = {"node", NULL};
-
-    int node = pycsh_dfl_node;
-
-    if (!PyArg_ParseTupleAndKeywords(args, kwds, "|i", kwlist, &node)) {
-        return NULL;  // TypeError is thrown
-    }
-
-    param_t * param = _pycsh_util_find_param_t(self, node);
-
-	if (param == NULL) {  // Did not find a match.
-		return NULL;
-	}
-
-	param_list_remove_specific(param, 0, 0);
-	
-	Py_RETURN_NONE;
-}
-
-#if 0
-/**
- * @brief Static method to remove a param_t/ParameterObject from the parameter list.
- * 
- * @return PyObject* Py_None when the parameter is removed from the parameter list, otherwise raises ValueError.
- */
-static PyObject *Parameter_remove_static(PyObject *self, PyObject *args, PyObject *kwargs) {
-
-	static char *kwlist[] = {"param_identifier", "node", NULL};
-
-    PyObject * param_identifier;  // Raw argument object/type passed. Identify its type when needed.
-	int node = pycsh_dfl_node;
-
-	if(!PyArg_ParseTupleAndKeywords(args, kwargs, "O|i", kwlist, &param_identifier, &node)) {
-		return NULL;  // TypeError is thrown
-	}
-
-	param_t * param = _pycsh_util_find_param_t(self, node);
-
-	if (param == NULL) {  // Did not find a match.
-		return NULL;
-	}
-
-	param_list_remove_specific(param, 0, 0);
-	
-	Py_RETURN_NONE;
-}
-#endif
 
 static PyObject * Parameter_list_create_new(PyObject *cls, PyObject * args, PyObject * kwds) {
 
@@ -211,14 +160,20 @@ static PyObject * Parameter_list_create_new(PyObject *cls, PyObject * args, PyOb
 	if (array_size < 1)
 		array_size = 1;
 
-	void * physaddr = calloc(param_typesize(type), array_size);  // physaddr will be freed when the parameter is removed from the list.
+	/* TODO Kevin: physaddr should probably be allocated in Parameter_create_new() and freed in dealloc */
+	void * physaddr = calloc(param_typesize(type), array_size);
 	if (physaddr == NULL) {
 		return PyErr_NoMemory();
 	}
 	ParameterObject * python_param = Parameter_create_new(id, type, name, unit, docstr, physaddr, array_size, callback, host, timeout, retries, paramver);
+	if (python_param == NULL) {
+		PyErr_SetString(PyExc_MemoryError, "Failed to allocate ParameterObject");
+		free(physaddr);
+		physaddr = NULL;
+        return NULL;
+    }
 
 	Py_INCREF(python_param);  // Parameter list holds a reference to the ParameterObject
-	param_list_add(&python_param->param);
 
 	/* return should steal the reference created by Parameter_create_new() */
 	return (PyObject *)python_param;
@@ -452,7 +407,7 @@ static PyMemberDef Parameter_members[] = {
     {"mask", 	  T_UINT, 		offsetof(ParameterObject, param.mask),   	READONLY, "mask of the parameter"},
     {"timestamp", T_UINT, 		offsetof(ParameterObject, param.timestamp), READONLY, "timestamp of the parameter"},
     {"node", 	  T_SHORT, 		offsetof(ParameterObject, param.node), 		READONLY, "node of the parameter"},
-    {NULL}  /* Sentinel */
+    {NULL, 0, 0, 0, NULL}  /* Sentinel */
 };
 
 /* 
@@ -482,7 +437,7 @@ static PyGetSetDef Parameter_getsetters[] = {
      "timeout of the parameter", NULL},
 	{"retries", (getter)Parameter_get_retries, (setter)Parameter_set_retries,
      "available retries of the parameter", NULL},
-    {NULL}  /* Sentinel */
+    {NULL, NULL, NULL, NULL}  /* Sentinel */
 };
 
 static PyMethodDef Parameter_methods[] = {
@@ -490,10 +445,6 @@ static PyMethodDef Parameter_methods[] = {
 #if 0
     {"find_existing", (PyCFunction)Parameter_list_find_existing, METH_STATIC | METH_VARARGS | METH_KEYWORDS, "Find a parameter already in the global list"},
 #endif
-#if 0
-    {"remove", (PyCFunction)Parameter_remove_static, METH_STATIC | METH_VARARGS | METH_KEYWORDS, "Static method to remove a param_t/ParameterObject from the parameter list."},
-#endif
-    {"remove", (PyCFunction)Parameter_remove, METH_VARARGS | METH_KEYWORDS, "Instance method to remove a param_t/ParameterObject from the parameter list."},
     {NULL, NULL, 0, NULL}
 };
 

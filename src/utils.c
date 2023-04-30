@@ -209,6 +209,8 @@ PyObject * _pycsh_Parameter_from_param(PyTypeObject *type, param_t * param, cons
 
 	/* This new parameter will not function correctly while the copied param_t exists before it in the global list. */
 	memcpy(&self->param, param, sizeof(param_t));
+	/* TODO Kevin: Only new parameters should use our common callback */
+	self->param.callback = Parameter_callback;
 	self->host = host;
 	self->timeout = timeout;
 	self->retries = retries;
