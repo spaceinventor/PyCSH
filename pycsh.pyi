@@ -81,10 +81,6 @@ class Parameter:
         """
 
     @property
-    def is_array(self) -> bool:
-        """ Returns True or False based on whether the parameter is an array (Strings count as arrays)."""
-
-    @property
     def is_vmem(self) -> bool:
         """ Returns True or False based on whether the parameter is a vmem parameter. """
 
@@ -116,58 +112,6 @@ class Parameter:
         """
         Sets the retries the parameter has for transactions.
         Use None to reset default value.
-        """
-
-    @staticmethod
-    def create_new(id: int, name: str, unit: str = None, docstr: str = None, array_size: int = 0, callback: _Callable[[Parameter, int], None] = None, host: int = None, timeout: int = None, retries: int = 0, paramver: int = 2) -> Parameter:
-        """
-        Create a new parameter from the provided options, and add it to the global list.
-
-        :param id: ID of the new parameter.
-        :param name: Name of the new parameter.
-        :param unit: Unit of the new parameter.
-        :param docstr: Docstring of the new parameter.
-        :param array_size: Array size of the new parameter. Creates a ParameterArray when > 1.
-        :param callback: Python function called when the parameter is set, signature: def callback(param: Parameter, offset: int) -> None
-        :param host:
-        :param timeout: Timeout to use when setting remote parameters.
-        :param retries: Amount of retries when setting remote parameters.
-        :param paramver: Parameter version to use for this parameter.
-        :return: The created Parameter instance.
-        """
-
-    def remove(self: Parameter | int | str, node: int = None) -> None:
-        """
-        Remove a param_t/ParameterObject from the parameter list.
-
-        :raises ValueError: When no parameter can be found from an otherwise valid identifier.
-        """
-
-    @property
-    def keep_alive(self) -> bool:
-        """
-        Whether the Parameter should remain in the parameter list,
-        when all Python references are lost.
-        This makes it possible to recover the Parameter instance through list()
-        """
-
-    @keep_alive.setter
-    def keep_alive(self, value: bool) -> None:
-        """
-        Change whether the Parameter should remain in the parameter list,
-        when all Python references are lost.
-        """
-
-    @property
-    def callable(self) -> _Callable[[Parameter, int], None] | None:
-        """
-        Callback of the parameter
-        """
-
-    @callable.setter
-    def callable(self, callback: _Callable[[Parameter, int], None] | None) -> None:
-        """
-        Change the callback of the parameter
         """
 
 class ParameterArray(Parameter):
@@ -223,6 +167,59 @@ class ParameterArray(Parameter):
         :param value: New desired value. Assignments to other parameters, use their value instead, Otherwise uses .__str__().
         """
 
+
+class PythonParameter(Parameter):
+    """ Parameter created in Python. """
+
+    @staticmethod
+    def create_new(id: int, name: str, unit: str = None, docstr: str = None, array_size: int = 0,
+                   callback: _Callable[[Parameter, int], None] = None, host: int = None, timeout: int = None,
+                   retries: int = 0, paramver: int = 2) -> PythonParameter:
+        """
+        Create a new parameter from the provided options, and add it to the global list.
+
+        :param id: ID of the new parameter.
+        :param name: Name of the new parameter.
+        :param unit: Unit of the new parameter.
+        :param docstr: Docstring of the new parameter.
+        :param array_size: Array size of the new parameter. Creates a ParameterArray when > 1.
+        :param callback: Python function called when the parameter is set, signature: def callback(param: Parameter, offset: int) -> None
+        :param host:
+        :param timeout: Timeout to use when setting remote parameters.
+        :param retries: Amount of retries when setting remote parameters.
+        :param paramver: Parameter version to use for this parameter.
+        :return: The created Parameter instance.
+        """
+
+    @property
+    def keep_alive(self) -> bool:
+        """
+        Whether the Parameter should remain in the parameter list,
+        when all Python references are lost.
+        This makes it possible to recover the Parameter instance through list()
+        """
+
+    @keep_alive.setter
+    def keep_alive(self, value: bool) -> None:
+        """
+        Change whether the Parameter should remain in the parameter list,
+        when all Python references are lost.
+        """
+
+    @property
+    def callback(self) -> _Callable[[Parameter, int], None] | None:
+        """
+        Callback of the parameter
+        """
+
+    @callback.setter
+    def callback(self, callback: _Callable[[Parameter, int], None] | None) -> None:
+        """
+        Change the callback of the parameter
+        """
+
+class PythonParameterArray(PythonParameter, ParameterArray):
+    """ ParameterArray created in Python. """
 
 # PyCharm may refuse to acknowledge that a list subclass is iterable, so we explicitly state that it is.
 class ParameterList(_pylist[Parameter | ParameterArray], _Iterable):

@@ -90,7 +90,6 @@ static void Parameter_dealloc(ParameterObject *self) {
         self->callback = NULL;
     }
 	param_list_remove_specific(&self->param, 0, 0);
-	Py_XDECREF((PyObject*)self->type);
 	// Get the type of 'self' in case the user has subclassed 'Parameter'.
 	// Not that this makes a lot of sense to do.
 	Py_TYPE(self)->tp_free((PyObject *) self);
@@ -184,6 +183,13 @@ static PyObject * Parameter_get_keep_alive(ParameterObject *self, void *closure)
 }
 
 static int Parameter_set_keep_alive(ParameterObject *self, PyObject *value, void *closure) {
+
+	if (!Parameter_wraps_param(&self->param)) {
+		/* TODO Kevin: Parameter should probably be subclassed into PythonParameter and CParameter.
+			Then .keep_alive would only exist on PythonParameter. */
+		PyErr_SetString(PyExc_TypeError, "keep_alive can only be set on Python created Parameters");
+        return -1;
+	}
 
 	if (value == NULL) {
         PyErr_SetString(PyExc_TypeError, "Cannot delete the keep_alive attribute");
