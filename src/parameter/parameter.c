@@ -21,6 +21,7 @@
  */
 void Parameter_callback(param_t * param, int offset) {
 	assert(Parameter_wraps_param(param));
+	assert(!PyErr_Occurred());  // Callback may raise an exception. But we don't want to override an existing one.
 
 	ParameterObject *python_param = (ParameterObject *)((char *)param - offsetof(ParameterObject, param));
 	PyObject *python_callback = python_param->callback;
@@ -31,14 +32,23 @@ void Parameter_callback(param_t * param, int offset) {
 		return;
     }
 
-
 	assert(PyCallable_Check(python_callback));
+	/* Create the arguments. */
 	PyObject *pyoffset = Py_BuildValue("i", offset);
 	PyObject * args = PyTuple_Pack(2, python_param, pyoffset);
+	/* Call the user Python callback */
 	PyObject_CallObject(python_callback, args);
-	/* TODO Kevin: What should we do here, if we try to call something which isn't callable? */
+	/* Cleanup */
 	Py_DECREF(args);
 	Py_DECREF(pyoffset);
+
+	if (PyErr_Occurred()) {
+		/* It may not be clear to the user, that the exception came from the callback,
+			we therefore chain unto the existing exception, for better clarity. */
+		/* _PyErr_FormatFromCause() seems simpler than PyException_SetCause() and PyException_SetContext() */
+		// TODO Kevin: We could create a CallbackException class and raise here.
+		_PyErr_FormatFromCause(PyExc_RuntimeError, "Error calling Python callback");
+	}
 }
 
 int Parameter_wraps_param(param_t *param) {

@@ -533,6 +533,12 @@ int _pycsh_util_set_single(param_t *param, PyObject *value, int offset, int host
 		} else {
 			param_set(param, offset, valuebuf);
 		}
+
+		if (PyErr_Occurred()) {
+			/* If the exception came from the callback,we should already have chained unto it. */
+			// TODO Kevin: We could create a CallbackException class here, to be caught by us and in Python.
+			return -3;
+		}
 	}
 
 	return 0;
