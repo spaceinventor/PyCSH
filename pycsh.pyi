@@ -171,8 +171,7 @@ class ParameterArray(Parameter):
 class PythonParameter(Parameter):
     """ Parameter created in Python. """
 
-    @staticmethod
-    def create_new(id: int, name: str, unit: str = None, docstr: str = None, array_size: int = 0,
+    def __new__(cls, id: int, name: str, unit: str = None, docstr: str = None, array_size: int = 0,
                    callback: _Callable[[Parameter, int], None] = None, host: int = None, timeout: int = None,
                    retries: int = 0, paramver: int = 2) -> PythonParameter:
         """

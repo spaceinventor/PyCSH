@@ -46,6 +46,7 @@
 
 #include "parameter/parameter.h"
 #include "parameter/parameterarray.h"
+#include "parameter/pythonparameter.h"
 #include "parameter/parameterlist.h"
 
 #include "wrapper/py_csp.h"
@@ -284,6 +285,9 @@ PyMODINIT_FUNC PyInit_pycsh(void) {
 	if (PyType_Ready(&ParameterArrayType) < 0)
         return NULL;
 
+	if (PyType_Ready(&PythonParameterType) < 0)
+        return NULL;
+
 	ParameterListType.tp_base = &PyList_Type;
 	if (PyType_Ready(&ParameterListType) < 0)
 		return NULL;
@@ -302,6 +306,13 @@ PyMODINIT_FUNC PyInit_pycsh(void) {
 	Py_INCREF(&ParameterArrayType);
 	if (PyModule_AddObject(m, "ParameterArray", (PyObject *) &ParameterArrayType) < 0) {
 		Py_DECREF(&ParameterArrayType);
+        Py_DECREF(m);
+        return NULL;
+	}
+
+	Py_INCREF(&PythonParameterType);
+	if (PyModule_AddObject(m, "PythonParameter", (PyObject *) &PythonParameterType) < 0) {
+		Py_DECREF(&PythonParameterType);
         Py_DECREF(m);
         return NULL;
 	}

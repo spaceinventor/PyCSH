@@ -34,6 +34,7 @@ pycsh_sources = [
 	# Classes
 	'src/parameter/parameter.c',
 	'src/parameter/parameterarray.c',
+	'src/parameter/pythonparameter.c',
 	'src/parameter/parameterlist.c',
 
 	# Wrapper functions

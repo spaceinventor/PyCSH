@@ -165,7 +165,7 @@ static PyMethodDef ParameterList_methods[] = {
      PyDoc_STR("Pulls all Parameters in the list as a single request.")},
 	{"push", (PyCFunction)ParameterList_push, METH_VARARGS | METH_KEYWORDS,
      PyDoc_STR("Pushes all Parameters in the list as a single request.")},
-    {NULL},
+    {NULL, NULL, 0, NULL}
 };
 
 static int ParameterList_init(ParameterListObject *self, PyObject *args, PyObject *kwds) {

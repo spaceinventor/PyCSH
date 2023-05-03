@@ -16,6 +16,7 @@
 #include "pycsh.h"
 #include "parameter/parameter.h"
 #include "parameter/parameterarray.h"
+#include "parameter/pythonparameter.h"
 #include "parameter/parameterlist.h"
 
 /* Source: https://pythonextensionpatterns.readthedocs.io/en/latest/super_call.html */
@@ -209,22 +210,10 @@ PyObject * _pycsh_Parameter_from_param(PyTypeObject *type, param_t * param, cons
 
 	/* This new parameter will not function correctly while the copied param_t exists before it in the global list. */
 	memcpy(&self->param, param, sizeof(param_t));
-	/* TODO Kevin: Only new parameters should use our common callback */
-	self->param.callback = Parameter_callback;
 	self->host = host;
 	self->timeout = timeout;
 	self->retries = retries;
 	self->paramver = paramver;
-	self->keep_alive = 1;
-
-	/* NULL callback becomes None on a ParameterObject instance */
-	if (callback == NULL)
-		callback = Py_None;
-
-	if (Parameter_set_callback(self, (PyObject *)callback, NULL) == -1) {
-		Py_DECREF(self);
-        return NULL;
-    }
 
 	self->type = (PyTypeObject *)pycsh_util_get_type((PyObject *)self, NULL);
 

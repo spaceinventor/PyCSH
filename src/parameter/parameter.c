@@ -16,46 +16,6 @@
 #include "../pycsh.h"
 #include "../utils.h"
 
-/**
- * @brief Shared callback for all param_t's wrapped by a Parameter instance.
- */
-void Parameter_callback(param_t * param, int offset) {
-	assert(Parameter_wraps_param(param));
-	assert(!PyErr_Occurred());  // Callback may raise an exception. But we don't want to override an existing one.
-
-	ParameterObject *python_param = (ParameterObject *)((char *)param - offsetof(ParameterObject, param));
-	PyObject *python_callback = python_param->callback;
-
-	/* This Parameter has no callback */
-	/* Python_callback should not be NULL here when Parameter_wraps_param(), but we will allow it for now... */
-	if (python_callback == NULL || python_callback == Py_None) {
-		return;
-    }
-
-	assert(PyCallable_Check(python_callback));
-	/* Create the arguments. */
-	PyObject *pyoffset = Py_BuildValue("i", offset);
-	PyObject * args = PyTuple_Pack(2, python_param, pyoffset);
-	/* Call the user Python callback */
-	PyObject_CallObject(python_callback, args);
-	/* Cleanup */
-	Py_DECREF(args);
-	Py_DECREF(pyoffset);
-
-	if (PyErr_Occurred()) {
-		/* It may not be clear to the user, that the exception came from the callback,
-			we therefore chain unto the existing exception, for better clarity. */
-		/* _PyErr_FormatFromCause() seems simpler than PyException_SetCause() and PyException_SetContext() */
-		// TODO Kevin: We could create a CallbackException class and raise here.
-		_PyErr_FormatFromCause(PyExc_RuntimeError, "Error calling Python callback");
-	}
-}
-
-int Parameter_wraps_param(param_t *param) {
-	assert(param!= NULL);
-	return param->callback == Parameter_callback;
-}
-
 /* 1 for success. Comapares the wrapped param_t for parameters, otherwise 0. Assumes self to be a ParameterObject. */
 static int Parameter_equal(PyObject *self, PyObject *other) {
 	if (PyObject_TypeCheck(other, &ParameterType) && (memcmp(&(((ParameterObject *)other)->param), &(((ParameterObject *)self)->param), sizeof(param_t)) == 0))
@@ -95,13 +55,7 @@ static PyObject * Parameter_str(ParameterObject *self) {
 }
 
 static void Parameter_dealloc(ParameterObject *self) {
-	if (self->callback != NULL && self->callback != Py_None) {
-		Py_XDECREF(self->callback);
-        self->callback = NULL;
-    }
-	param_list_remove_specific(&self->param, 0, 0);
 	// Get the type of 'self' in case the user has subclassed 'Parameter'.
-	// Not that this makes a lot of sense to do.
 	Py_TYPE(self)->tp_free((PyObject *) self);
 }
 
@@ -127,142 +81,6 @@ static PyObject * Parameter_new(PyTypeObject *type, PyObject *args, PyObject *kw
 		return NULL;  // Raises TypeError or ValueError.
 
     return _pycsh_Parameter_from_param(type, param, NULL, host, timeout, retries, paramver);
-}
-
-static ParameterObject * Parameter_create_new(uint16_t id, param_type_e type, char * name, char * unit, char * docstr, void * addr, int array_size, const PyObject * callback, int host, int timeout, int retries, int paramver) {
-	param_t param = {
-		.id = id,
-		.type = type,
-		.name = name,
-		.unit = unit,
-		.docstr = docstr,
-		.addr = addr,
-		.array_size = array_size,
-		.array_step = param_typesize(type),
-	};
-	ParameterObject * python_param = (ParameterObject *)_pycsh_Parameter_from_param(&ParameterType, &param, callback, host, timeout, retries, paramver);
-	param_list_add(&python_param->param);
-
-	return python_param;
-}
-
-static PyObject * Parameter_list_create_new(PyObject *cls, PyObject * args, PyObject * kwds) {
-
-	uint16_t id;
-	param_type_e type = PARAM_TYPE_INT32;
-	char * name;
-	char * unit = "";
-	char * docstr = "";
-	int array_size = 0;
-	PyObject * callback = NULL;
-	int host = INT_MIN;
-	// TODO Kevin: What are these 2 doing here?
-	int timeout = pycsh_dfl_timeout;
-	int retries = 0;
-	int paramver = 2;
-
-	static char *kwlist[] = {"id", "name", "unit", "docstr", "array_size", "callback", "host", "timeout", "retries", "paramver", NULL};
-
-	if (!PyArg_ParseTupleAndKeywords(args, kwds, "Hs|ssiOiiii", kwlist, &id, &name, &unit, &docstr, &array_size, &callback, &host, &timeout, &retries, &paramver))
-		return NULL;  // TypeError is thrown
-
-	if (array_size < 1)
-		array_size = 1;
-
-	/* TODO Kevin: physaddr should probably be allocated in Parameter_create_new() and freed in dealloc */
-	void * physaddr = calloc(param_typesize(type), array_size);
-	if (physaddr == NULL) {
-		return PyErr_NoMemory();
-	}
-	ParameterObject * python_param = Parameter_create_new(id, type, name, unit, docstr, physaddr, array_size, callback, host, timeout, retries, paramver);
-	if (python_param == NULL) {
-		PyErr_SetString(PyExc_MemoryError, "Failed to allocate ParameterObject");
-		free(physaddr);
-		physaddr = NULL;
-        return NULL;
-    }
-
-	Py_INCREF(python_param);  // Parameter list holds a reference to the ParameterObject
-
-	/* return should steal the reference created by Parameter_create_new() */
-	return (PyObject *)python_param;
-}
-
-static PyObject * Parameter_get_keep_alive(ParameterObject *self, void *closure) {
-	return self->keep_alive ? Py_True : Py_False;
-}
-
-static int Parameter_set_keep_alive(ParameterObject *self, PyObject *value, void *closure) {
-
-	if (!Parameter_wraps_param(&self->param)) {
-		/* TODO Kevin: Parameter should probably be subclassed into PythonParameter and CParameter.
-			Then .keep_alive would only exist on PythonParameter. */
-		PyErr_SetString(PyExc_TypeError, "keep_alive can only be set on Python created Parameters");
-        return -1;
-	}
-
-	if (value == NULL) {
-        PyErr_SetString(PyExc_TypeError, "Cannot delete the keep_alive attribute");
-        return -1;
-    }
-
-	if (value != Py_True && value != Py_False) {
-		PyErr_SetString(PyExc_TypeError, "keep_alive must be True or False");
-        return -1;
-    }
-
-	if (self->keep_alive && value == Py_False) {
-		self->keep_alive = 0;
-		Py_DECREF(self);
-	} else if (!self->keep_alive && value == Py_True) {
-		self->keep_alive = 1;
-        Py_INCREF(self);
-    }
-
-	return 0;
-}
-
-static PyObject * Parameter_get_callback(ParameterObject *self, void *closure) {
-	return Py_NewRef(self->callback);
-}
-
-int Parameter_set_callback(ParameterObject *self, PyObject *value, void *closure) {
-
-	if (value == NULL) {
-        PyErr_SetString(PyExc_TypeError, "Cannot delete the callback attribute");
-        return -1;
-    }
-
-	if (value != Py_None && !PyCallable_Check(value)) {
-		PyErr_SetString(PyExc_TypeError, "callback must be None or callable");
-        return -1;
-    }
-
-	if (value == self->callback)
-		return 0;  // No work to do
-
-	/* Changing the callback to None. */
-	if (value == Py_None) {
-		if (self->callback != Py_None) {
-			/* We should not arrive here when the old value is Py_None, 
-				but prevent Py_DECREF() on at all cost. */
-			Py_XDECREF(self->callback);
-		}
-		self->callback = Py_None;
-        return 0;
-    }
-
-	/* We now know that 'value' is a new callable. */
-
-	/* When replacing a previous callable. */
-	if (self->callback != Py_None) {
-		Py_XDECREF(self->callback);
-	}
-
-	Py_INCREF(value);
-	self->callback = value;
-
-	return 0;
 }
 
 static PyObject * Parameter_get_host(ParameterObject *self, void *closure) {
@@ -435,10 +253,6 @@ static PyGetSetDef Parameter_getsetters[] = {
 	{"node", (getter)Parameter_get_node, (setter)Parameter_set_node,
      "node of the parameter", NULL},
 #endif
-	{"keep_alive", (getter)Parameter_get_keep_alive, (setter)Parameter_set_keep_alive,
-     "Whether the Parameter should remain in the parameter list, when all Python references are lost. This makes it possible to recover the Parameter instance through list()", NULL},
-	{"callback", (getter)Parameter_get_callback, (setter)Parameter_set_callback,
-     "callback of the parameter", NULL},
 	{"host", (getter)Parameter_get_host, (setter)Parameter_set_host,
      "host of the parameter", NULL},
 	{"remote_value", (getter)Parameter_get_remote_value, (setter)Parameter_set_remote_value,
@@ -456,14 +270,6 @@ static PyGetSetDef Parameter_getsetters[] = {
     {NULL, NULL, NULL, NULL}  /* Sentinel */
 };
 
-static PyMethodDef Parameter_methods[] = {
-    {"create_new", (PyCFunction)Parameter_list_create_new, METH_STATIC | METH_VARARGS | METH_KEYWORDS, "Create a new parameter for the global list"},
-#if 0
-    {"find_existing", (PyCFunction)Parameter_list_find_existing, METH_STATIC | METH_VARARGS | METH_KEYWORDS, "Find a parameter already in the global list"},
-#endif
-    {NULL, NULL, 0, NULL}
-};
-
 PyTypeObject ParameterType = {
     PyVarObject_HEAD_INIT(NULL, 0)
     .tp_name = "pycsh.Parameter",
@@ -475,7 +281,7 @@ PyTypeObject ParameterType = {
     .tp_dealloc = (destructor)Parameter_dealloc,
 	.tp_getset = Parameter_getsetters,
 	.tp_members = Parameter_members,
-	.tp_methods = Parameter_methods,
+	// .tp_methods = Parameter_methods,
 	.tp_str = (reprfunc)Parameter_str,
 	.tp_richcompare = (richcmpfunc)Parameter_richcompare,
 };
