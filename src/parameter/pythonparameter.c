@@ -18,6 +18,7 @@
  * @brief Shared callback for all param_t's wrapped by a Parameter instance.
  */
 void Parameter_callback(param_t * param, int offset) {
+	PyGILState_STATE gstate = PyGILState_Ensure();
 	assert(Parameter_wraps_param(param));
 	assert(!PyErr_Occurred());  // Callback may raise an exception. But we don't want to override an existing one.
 
@@ -27,6 +28,7 @@ void Parameter_callback(param_t * param, int offset) {
 	/* This Parameter has no callback */
 	/* Python_callback should not be NULL here when Parameter_wraps_param(), but we will allow it for now... */
 	if (python_callback == NULL || python_callback == Py_None) {
+		PyGILState_Release(gstate);
 		return;
     }
 
@@ -47,6 +49,7 @@ void Parameter_callback(param_t * param, int offset) {
 		// TODO Kevin: We could create a CallbackException class and raise here.
 		_PyErr_FormatFromCause(PyExc_RuntimeError, "Error calling Python callback");
 	}
+	PyGILState_Release(gstate);
 }
 
 int Parameter_wraps_param(param_t *param) {

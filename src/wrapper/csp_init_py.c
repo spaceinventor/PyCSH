@@ -27,12 +27,15 @@
 #include <csp/csp_rtable.h>
 
 void * router_task(void * param) {
+    Py_Initialize();  // We need to initialize the Python interpreter before CSP may call any PythonParameter callbacks.
 	while(1) {
 		csp_route_work();
 	}
+    Py_Finalize();
 }
 
 void * vmem_server_task(void * param) {
+    // TODO Kevin: If vmem_server ever needs to access Python objects, we should call Py_Initialize() here.
 	vmem_server_loop(param);
 	return NULL;
 }
