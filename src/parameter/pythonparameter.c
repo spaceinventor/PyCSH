@@ -50,26 +50,51 @@ void Parameter_callback(param_t * param, int offset) {
 }
 
 int Parameter_wraps_param(param_t *param) {
-	assert(param!= NULL);
+	assert(param != NULL);
 	return param->callback == Parameter_callback;
 }
 
-static PythonParameterObject * Parameter_create_new(PyTypeObject *type, uint16_t id, param_type_e param_type, char * name, char * unit, char * docstr, void * addr, int array_size, const PyObject * callback, int host, int timeout, int retries, int paramver) {
+/* Internal API for creating a new PythonParameterObject. */
+static PythonParameterObject * Parameter_create_new(PyTypeObject *type, uint16_t id, param_type_e param_type, uint32_t mask, char * name, char * unit, char * docstr, void * addr, int array_size, const PyObject * callback, int host, int timeout, int retries, int paramver) {
 	param_t param = {
 		.id = id,
 		.type = param_type,
-		.name = name,
-		.unit = unit,
-		.docstr = docstr,
+		.mask = mask,
+		// .name = name,
+		// .unit = unit,
+		// .docstr = docstr,
 		.addr = addr,
 		.array_size = array_size,
 		.array_step = param_typesize(param_type),
 	};
 	PythonParameterObject * self = (PythonParameterObject *)_pycsh_Parameter_from_param(type, &param, callback, host, timeout, retries, paramver);
+	if (self == NULL) {
+		/* This is likely a memory allocation error, in which case we expect .tp_alloc() to have raised an exception. */
+		return NULL;
+	}
+
+
+	// printf("dfgoijdfiojgdfgiojp %s\n", docstr);
+	strncpy(self->name, name, sizeof(self->name) - 1);
+	strncpy(self->unit, unit, sizeof(self->unit) - 1);
+	/* TODO Kevin: For some messed up reason, 
+		copying the entire docstr into self->help will cause a segfault when attempting to create a duplicate Parameter.
+		Could this be caused by a failed assumption about field offsets? */
+	strncpy(self->help, docstr, sizeof(self->help) - 37);
+	
+	self->parameter_object.param.name = self->name;
+	self->parameter_object.param.unit = self->unit;
+	self->parameter_object.param.docstr = self->help;
+
+	/* We should already have checked that this ID isn't used, before allocating memory for this object. */
+	/* TODO Kevin: If libparam receives mutexes, we should likely have one here'ish */
+	assert(param_list_find_id(0, id) == NULL);
 	param_list_add(&((ParameterObject *)self)->param);
 
     ((ParameterObject *)self)->param.callback = Parameter_callback;
     self->keep_alive = 1;
+	Py_INCREF(self);  // Parameter list holds a reference to the ParameterObject
+	/* NOTE: Unless .keep_alive defaults to False, then we should remove this Py_INCREF() */
 
     /* NULL callback becomes None on a ParameterObject instance */
 	if (callback == NULL)
@@ -93,6 +118,7 @@ static void PythonParameter_dealloc(PythonParameterObject *self) {
     /* ... But it is still our responsibility to free the .addr memory.
         It should also have been allocated in our __new__() method. */
     free((((ParameterObject*)self)->param.addr));
+	memset(&((ParameterObject *)self)->param, 0, sizeof(param_t));
 	// Get the type of 'self' in case the user has subclassed 'Parameter'.
 	Py_TYPE(self)->tp_free((PyObject *) self);
 }
@@ -100,7 +126,9 @@ static void PythonParameter_dealloc(PythonParameterObject *self) {
 static PyObject * PythonParameter_new(PyTypeObject *type, PyObject * args, PyObject * kwds) {
 
 	uint16_t id;
-	param_type_e param_type = PARAM_TYPE_INT32;  // TODO Kevin: type should not be hard coded here.
+	// TODO Kevin: neither flags nor type should not be hard coded here.
+	param_type_e param_type = PARAM_TYPE_INT32;
+	uint32_t mask = PM_TELEM;
 	char * name;
 	char * unit = "";
 	char * docstr = "";
@@ -117,6 +145,12 @@ static PyObject * PythonParameter_new(PyTypeObject *type, PyObject * args, PyObj
 	if (!PyArg_ParseTupleAndKeywords(args, kwds, "Hs|ssiOiiii", kwlist, &id, &name, &unit, &docstr, &array_size, &callback, &host, &timeout, &retries, &paramver))
 		return NULL;  // TypeError is thrown
 
+	if (param_list_find_id(0, id) != NULL) {
+		/* Run away as quickly as possible if this ID is already in use, we would otherwise get a segfault, which is driving me insane. */
+		PyErr_Format(PyExc_ValueError, "Parameter with id %d already exists", id);
+        return NULL;
+    }
+
 	if (array_size < 1)
 		array_size = 1;
 
@@ -124,16 +158,18 @@ static PyObject * PythonParameter_new(PyTypeObject *type, PyObject * args, PyObj
 	if (physaddr == NULL) {
 		return PyErr_NoMemory();
 	}
-	PythonParameterObject * python_param = Parameter_create_new(type, id, param_type, name, unit, docstr, physaddr, array_size, callback, host, timeout, retries, paramver);
+	PythonParameterObject * python_param = Parameter_create_new(type, id, param_type, mask, name, unit, docstr, physaddr, array_size, callback, host, timeout, retries, paramver);
+#if 0  // TODO Kevin: If this #if is included, then python_param != NULL, otherwise it is NULL !?
+	if (param_list_find_id(0, id) != NULL) {
+		PyErr_SetString(PyExc_RuntimeError, "Fuck me");
+		return NULL;
+	}
+#endif
 	if (python_param == NULL) {
-		PyErr_SetString(PyExc_MemoryError, "Failed to allocate ParameterObject");
-		free(physaddr);
-		physaddr = NULL;
+		// PyErr_SetString(PyExc_MemoryError, "Failed to allocate ParameterObject");
+		/* physaddr should be freed in dealloc() */
         return NULL;
     }
-
-	Py_INCREF(python_param);  // Parameter list holds a reference to the ParameterObject
-	/* NOTE: Unless .keep_alive defaults to False, then we should remove this Py_INCREF() */
 
 	/* return should steal the reference created by Parameter_create_new() */
 	return (PyObject *)python_param;

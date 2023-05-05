@@ -177,7 +177,7 @@ PyObject * pycsh_param_cmd_new(PyObject * self, PyObject * args, PyObject * kwds
 	}
 
 	/* Command name */
-	strncpy(param_queue.name, name, sizeof(param_queue.name));
+	strncpy(param_queue.name, name, sizeof(param_queue.name) - 1);
 
 	param_queue.used = 0;
 	param_queue.version = paramver;

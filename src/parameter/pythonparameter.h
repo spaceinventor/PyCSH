@@ -18,6 +18,12 @@ typedef struct {
     ParameterObject parameter_object;
     PyObject *callback;
 	int keep_alive: 1;  // For the sake of reference counting, keep_alive should only be changed by Parameter_setkeep_alive()
+
+    /* We need somewhere to store the strings the param_t fields point to. */
+    /* These lengths are sat from libparam/src/param/list/param_list.h */
+    char name[36];
+    char unit[10];
+    char help[150];
 } PythonParameterObject;
 
 extern PyTypeObject PythonParameterType;
