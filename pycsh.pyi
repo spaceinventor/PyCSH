@@ -437,7 +437,7 @@ def csp_init(host: str = None, model: str = None, revision: str = None, version:
     :param dedup: CSP dedup 0=off 1=forward 2=incoming 3=all (default)
     """
 
-def csp_add_zmq(addr: int, server: str, promisc: int = 0, mask: int = 8, dfl: int = 0) -> None:
+def csp_add_zmq(addr: int, server: str, promisc: int = 0, mask: int = 8, default: int = 0) -> None:
     """
     Add a new ZMQ interface
 
@@ -445,38 +445,38 @@ def csp_add_zmq(addr: int, server: str, promisc: int = 0, mask: int = 8, dfl: in
     :param server: ZMQProxy hostname/IP
     :param promisc: Promiscuous Mode
     :param mask: Netmask (defaults to 8)
-    :param dfl: Set as default
+    :param default: Set as default
     """
 
-def csp_add_kiss(addr: int, promisc: int = 0, mask: int = 8, dfl: int = 0, baud: int = 1000000, uart: str = "ttyUSB0") -> None:
+def csp_add_kiss(addr: int, promisc: int = 0, mask: int = 8, default: int = 0, baud: int = 1000000, uart: str = "ttyUSB0") -> None:
     """
     Add a new KISS/UART interface
 
     :param addr: Node of the interface
     :param promisc: Promiscuous Mode
     :param mask: Netmask (defaults to 8)
-    :param dfl: Set as default
+    :param default: Set as default
     :param baud: Baudrate
     :param uart: UART device name (defaults to ttyUSB0)
 
     :raises SystemError: When failing to add interface
     """
 
-def csp_add_can(addr: int, promisc: int = 0, mask: int = 8, dfl: int = 0, baud: int = 1000000, can: str = "can0") -> None:
+def csp_add_can(addr: int, promisc: int = 0, mask: int = 8, default: int = 0, baud: int = 1000000, can: str = "can0") -> None:
     """
     Add a new CAN interface
 
     :param addr: Node of the interface
     :param promisc: Promiscuous Mode
     :param mask: Netmask (defaults to 8)
-    :param dfl: Set as default
+    :param default: Set as default
     :param baud: Baudrate
     :param can: UART device name (defaults to ttyUSB0)
 
     :raises SystemError: When failing to add interface
     """
 
-def csp_add_udp(addr: int, server: str, promisc: int = 0, mask: int = 8, dfl: int = 0, listen_port: int = 9220, remote_port: int = 9220) -> None:
+def csp_add_udp(addr: int, server: str, promisc: int = 0, mask: int = 8, default: int = 0, listen_port: int = 9220, remote_port: int = 9220) -> None:
     """
     Add a new UDP interface
 
@@ -484,19 +484,19 @@ def csp_add_udp(addr: int, server: str, promisc: int = 0, mask: int = 8, dfl: in
     :param server: Parameter server
     :param promisc: Promiscuous Mode
     :param mask: Netmask (defaults to 8)
-    :param dfl: Set as default
+    :param default: Set as default
     :param listen_port: Port to listen on
     :param remote_port: Port to send to
     """
 
-def csp_add_tun(addr: int, tun_src: int, tun_dst: int, promisc: int = 0, mask: int = 8, dfl: int = 0) -> None:
+def csp_add_tun(addr: int, tun_src: int, tun_dst: int, promisc: int = 0, mask: int = 8, default: int = 0) -> None:
     """
     Add a new TUN interface
 
     :param addr: Node of the interface
     :param promisc: Promiscuous Mode
     :param mask: Netmask (defaults to 8)
-    :param dfl: Set as default
+    :param default: Set as default
     """
 
 def init(quiet: int = None, stdout: int | str = None, stderr: int | str = None) -> None:

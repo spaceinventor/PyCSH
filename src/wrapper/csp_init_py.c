@@ -47,7 +47,7 @@ PyObject * pycsh_csh_csp_init(PyObject * self, PyObject * args, PyObject * kwds)
 
 	static char *kwlist[] = {"host", "model", "revision", "version", "dedup", NULL};
 
-	if (!PyArg_ParseTupleAndKeywords(args, kwds, "sssii", kwlist, &hostname, &model, &revision, &version, &dedup))
+	if (!PyArg_ParseTupleAndKeywords(args, kwds, "|sssii", kwlist, &hostname, &model, &revision, &version, &dedup))
 		return NULL;  // TypeError is thrown
 
 	static struct utsname info;
