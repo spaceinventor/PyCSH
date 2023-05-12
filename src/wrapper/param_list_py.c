@@ -89,6 +89,8 @@ PyObject * pycsh_param_list_download(PyObject * self, PyObject * args, PyObject 
             return NULL;
         }
 
+		// TODO Kevin: Infinite loop here ?
+
 		// Using param_list_remove_specific() means we iterate thrice, but it is simpler.
 		param_list_remove_specific(param, 0, 1);
 

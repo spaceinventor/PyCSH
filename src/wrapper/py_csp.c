@@ -23,13 +23,13 @@ PyObject * pycsh_slash_ping(PyObject * self, PyObject * args, PyObject * kwds) {
 		return NULL;
 	}
 
-	unsigned int node;
+	unsigned int node = pycsh_dfl_node;
 	unsigned int timeout = pycsh_dfl_timeout;
 	unsigned int size = 1;
 
 	static char *kwlist[] = {"node", "timeout", "size", NULL};
 
-	if (!PyArg_ParseTupleAndKeywords(args, kwds, "I|II", kwlist, &node, &timeout, &size)) {
+	if (!PyArg_ParseTupleAndKeywords(args, kwds, "|III", kwlist, &node, &timeout, &size)) {
 		return NULL;  // TypeError is thrown
 	}
 
@@ -55,12 +55,12 @@ PyObject * pycsh_slash_ident(PyObject * self, PyObject * args, PyObject * kwds) 
 		return NULL;
 	}
 
-	unsigned int node;
+	unsigned int node = pycsh_dfl_node;
 	unsigned int timeout = pycsh_dfl_timeout;
 
 	static char *kwlist[] = {"node", "timeout", NULL};
 
-	if (!PyArg_ParseTupleAndKeywords(args, kwds, "I|I", kwlist, &node, &timeout)) {
+	if (!PyArg_ParseTupleAndKeywords(args, kwds, "|II", kwlist, &node, &timeout)) {
 		return NULL;  // TypeError is thrown
 	}
 
@@ -107,9 +107,9 @@ PyObject * pycsh_slash_ident(PyObject * self, PyObject * args, PyObject * kwds) 
 
 PyObject * pycsh_slash_reboot(PyObject * self, PyObject * args) {
 
-	unsigned int node;
+	unsigned int node = pycsh_dfl_node;
 
-	if (!PyArg_ParseTuple(args, "I", &node))
+	if (!PyArg_ParseTuple(args, "|I", &node))
 		return NULL;  // Raises TypeError.
 
 	csp_reboot(node);

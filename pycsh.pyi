@@ -372,7 +372,7 @@ def list_forget(node: int = None, verbose: int = None) -> int:
 
 
 # Commands from CSP
-def ping(node: int, timeout: int = None, size: int = None) -> int:
+def ping(node: int = None, timeout: int = None, size: int = None) -> int:
     """
     Ping the specified node.
 
@@ -385,7 +385,7 @@ def ping(node: int, timeout: int = None, size: int = None) -> int:
     :return: >0 = echo time in mS on success, otherwise -1 for error.
     """
 
-def ident(node: int, timeout: int = None) -> str:
+def ident(node: int = None, timeout: int = None) -> str:
     """
     Print the identity of the specified node.
 
@@ -396,7 +396,7 @@ def ident(node: int, timeout: int = None) -> str:
     :raises ConnectionError: When no response is received.
     """
 
-def reboot(node: int) -> None:
+def reboot(node: int = None) -> None:
     """ Reboot the specified node. """
 
 
