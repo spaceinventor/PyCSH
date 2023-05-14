@@ -126,18 +126,21 @@ PyObject * pycsh_param_pull(PyObject * self, PyObject * args, PyObject * kwds) {
 		return NULL;
 	}
 
-	unsigned int server = pycsh_dfl_node;
+	unsigned int node = pycsh_dfl_node;
 	unsigned int timeout = pycsh_dfl_timeout;
 	char * include_mask_str = NULL;
 	char * exclude_mask_str = NULL;
 	int paramver = 2;
 
-	static char *kwlist[] = {"server", "timeout", "imask", "emask", "paramver", NULL};
+	static char *kwlist[] = {"node", "timeout", "imask", "emask", "paramver", NULL};
 
-	if (!PyArg_ParseTupleAndKeywords(args, kwds, "|IIssi", kwlist, &server, &timeout, &include_mask_str, &exclude_mask_str, &paramver)) {
+	if (!PyArg_ParseTupleAndKeywords(args, kwds, "|IIssi", kwlist, &node, &timeout, &include_mask_str, &exclude_mask_str, &paramver)) {
 		return NULL;
 	}
 
+
+	int param_pull_res;
+	Py_BEGIN_ALLOW_THREADS;
 	uint32_t include_mask = 0xFFFFFFFF;
 	uint32_t exclude_mask = PM_REMOTE | PM_HWREG;
 
@@ -146,7 +149,9 @@ PyObject * pycsh_param_pull(PyObject * self, PyObject * args, PyObject * kwds) {
 	if (exclude_mask_str != NULL)
 		exclude_mask = param_maskstr_to_mask(exclude_mask_str);
 
-	if (param_pull_all(1, server, include_mask, exclude_mask, timeout, paramver)) {
+	param_pull_res = param_pull_all(1, node, include_mask, exclude_mask, timeout, paramver);
+	Py_END_ALLOW_THREADS;
+	if (param_pull_res) {
 		PyErr_SetString(PyExc_ConnectionError, "No response.");
 		return NULL;
 	}

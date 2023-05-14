@@ -25,7 +25,7 @@ typedef struct {
 	int host;
 	char valuebuf[128] __attribute__((aligned(16)));
 	int timeout;
-	int retries;
+	int retries;  // TODO Kevin: The 'retries' code was implemented rather hastily, consider refactoring of removing it. 
 	int paramver;
 } ParameterObject;
 

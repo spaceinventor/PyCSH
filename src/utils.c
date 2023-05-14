@@ -272,12 +272,17 @@ PyObject * _pycsh_util_get_single(param_t *param, int offset, int autopull, int 
 
 	if (autopull && (param->node != 0)) {
 
-		for (size_t i = 0; i < (retries > 0 ? retries : 1); i++)
-			if (param_pull_single(param, offset, 1, (host != INT_MIN ? host : param->node), timeout, paramver))
+		for (size_t i = 0; i < (retries > 0 ? retries : 1); i++) {
+			int param_pull_res;
+			Py_BEGIN_ALLOW_THREADS;
+			param_pull_res = param_pull_single(param, offset, 1, (host != INT_MIN ? host : param->node), timeout, paramver);
+			Py_END_ALLOW_THREADS;
+			if (param_pull_res)
 				if (i >= retries-1) {
 					PyErr_SetString(PyExc_ConnectionError, "No response");
 					return NULL;
 				}
+		}	
 	}
 
 	param_print(param, -1, NULL, 0, 0);
@@ -505,12 +510,17 @@ int _pycsh_util_set_single(param_t *param, PyObject *value, int offset, int host
 	//	confirm that it still behaves like the original (especially for remote host parameters).
 	if (remote && (dest != 0)) {  // When allowed, set remote parameter immediately.
 
-		for (size_t i = 0; i < (retries > 0 ? retries : 1); i++)
-			if (param_push_single(param, offset, valuebuf, 1, dest, timeout, paramver) < 0)
+		for (size_t i = 0; i < (retries > 0 ? retries : 1); i++) {
+			int param_push_res;
+			Py_BEGIN_ALLOW_THREADS;  // Only allow threads for remote parameters, as local ones could have Python callbacks.
+			param_push_res = param_push_single(param, offset, valuebuf, 1, dest, timeout, paramver);
+			Py_END_ALLOW_THREADS;
+			if (param_push_res < 0)
 				if (i >= retries-1) {
 					PyErr_SetString(PyExc_ConnectionError, "No response");
 					return -2;
 				}
+		}
 
 		param_print(param, offset, NULL, 0, 2);
 
@@ -524,7 +534,7 @@ int _pycsh_util_set_single(param_t *param, PyObject *value, int offset, int host
 		}
 
 		if (PyErr_Occurred()) {
-			/* If the exception came from the callback,we should already have chained unto it. */
+			/* If the exception came from the callback, we should already have chained unto it. */
 			// TODO Kevin: We could create a CallbackException class here, to be caught by us and in Python.
 			return -3;
 		}

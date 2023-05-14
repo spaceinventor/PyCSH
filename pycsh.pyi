@@ -308,7 +308,7 @@ def push(node: int, timeout: int = None, hwid: int = None, retries: int = None) 
     :raises ConnectionError: when no response is received.
     """
 
-def pull(host: int, include_mask: str = None, exclude_mask: str = None, timeout: int = None, retries: int = None) -> None:
+def pull(host: int = None, include_mask: str = None, exclude_mask: str = None, timeout: int = None, retries: int = None) -> None:
     """ Pull all or a specific set of parameters. """
 
 def cmd_new(type: _Literal['get', 'set'], name: str = None, paramver: int = 2) -> None:
@@ -351,7 +351,7 @@ def list(node: int = None, verbose: int =None, mask: str = None, globstr: str = 
     :param mask: Mask on which to filter the list.
     """
 
-def list_download(node: int, timeout: int = None, version: int = None) -> ParameterList:
+def list_download(node: int = None, timeout: int = None, version: int = None) -> ParameterList:
     """
     Download all parameters on the specified node.
 

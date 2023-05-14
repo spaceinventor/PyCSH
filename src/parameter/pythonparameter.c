@@ -97,7 +97,7 @@ static PythonParameterObject * Parameter_create_new(PyTypeObject *type, uint16_t
     ((ParameterObject *)self)->param.callback = Parameter_callback;
     self->keep_alive = 1;
 	Py_INCREF(self);  // Parameter list holds a reference to the ParameterObject
-	/* NOTE: Unless .keep_alive defaults to False, then we should remove this Py_INCREF() */
+    /* NOTE: If .keep_alive defaults to False, then we should remove this Py_INCREF() */
 
     /* NULL callback becomes None on a ParameterObject instance */
 	if (callback == NULL)
