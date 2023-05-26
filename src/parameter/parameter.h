@@ -14,16 +14,32 @@
 
 #include <param/param.h>
 
+// #define _WRAPPER_MAGIC 0xABADBEEF
+
+/* TODO Kevin: This is quite a hack, we ought not to dig around in the libparam internals */
+/* NOTE: Should match lib/param/src/param/list/param_list.c param_heap_t */
+typedef struct{
+	param_t param;
+	union {
+		uint64_t alignme;
+		uint8_t *buffer;
+	};
+	uint32_t timestamp;
+	char name[36];
+	char unit[10];
+	char help[150];
+} parameter_heap_t;
+
 typedef struct {
     PyObject_HEAD
     /* Type-specific fields go here. */
 	PyTypeObject *type;  // Best Python representation of the parameter type, i.e 'int' for uint32.
-	//uint32_t mask;
 
-
-	param_t param;
+	union {
+		param_t param;
+		parameter_heap_t heap;
+	};
 	int host;
-	char valuebuf[128] __attribute__((aligned(16)));
 	int timeout;
 	int retries;  // TODO Kevin: The 'retries' code was implemented rather hastily, consider refactoring of removing it. 
 	int paramver;

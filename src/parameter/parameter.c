@@ -55,6 +55,7 @@ static PyObject * Parameter_str(ParameterObject *self) {
 }
 
 static void Parameter_dealloc(ParameterObject *self) {
+	free(self->param.addr);
 	// Get the type of 'self' in case the user has subclassed 'Parameter'.
 	Py_TYPE(self)->tp_free((PyObject *) self);
 }

@@ -142,8 +142,8 @@ static PyObject * ParameterList_push(ParameterListObject *self, PyObject *args, 
         }
 
 		if (PyObject_TypeCheck(item, &ParameterType)) {  // Sanity check
-			if (strlen(((ParameterObject *)item)->valuebuf) != 0)  // Empty value buffers, seem to cause errors.
-				param_queue_add(&queue, &((ParameterObject *)item)->param, -1, ((ParameterObject *)item)->valuebuf);
+			// TODO Kevin: Naively adding the buffer may not work.
+			param_queue_add(&queue, &((ParameterObject *)item)->param, -1, ((ParameterObject *)item)->heap.buffer);
 		} else
 			fprintf(stderr, "Skipping non-parameter object (of type: %s) in Parameter list.", item->ob_type->tp_name);
 	}

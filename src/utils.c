@@ -185,6 +185,22 @@ PyObject * pycsh_util_get_type(PyObject * self, PyObject * args) {
 	return (PyObject *)_pycsh_misc_param_t_type(param);
 }
 
+/* This is our magic number, used to check if a param_t is wrapped by a ParameterObject */
+static void _Parameter_wraps_param_callback_magic(param_t * param, int offset) {
+	/* Ain't nobody here but us chickens */
+}
+
+int Parameter_wraps_param(param_t *param) {
+    // PyGILState_STATE gstate = PyGILState_Ensure();
+    assert(param != NULL);
+    // ParameterObject *python_param = (ParameterObject *)((char *)param - offsetof(ParameterObject, param));
+    // uint32_t magic = _WRAPPER_MAGIC;
+    // int res = memcmp(&python_param->_wrapper_magic, &magic, sizeof(uint32_t)) != 0;
+    // int res = python_param->_wrapper_magic == _WRAPPER_MAGIC;
+    // PyGILState_Release(gstate);
+	void Parameter_callback(param_t * param, int offset);
+    return param->callback == Parameter_callback || param->callback == _Parameter_wraps_param_callback_magic;
+}
 
 /* Create a Python Parameter object from a param_t pointer directly. */
 PyObject * _pycsh_Parameter_from_param(PyTypeObject *type, param_t * param, const PyObject * callback, int host, int timeout, int retries, int paramver) {
@@ -209,11 +225,21 @@ PyObject * _pycsh_Parameter_from_param(PyTypeObject *type, param_t * param, cons
 		return NULL;
 
 	/* This new parameter will not function correctly while the copied param_t exists before it in the global list. */
-	memcpy(&self->param, param, sizeof(param_t));
+	memcpy(&self->heap, param, sizeof(parameter_heap_t));
+	self->heap.buffer = calloc(param_typesize(self->param.type), self->param.array_size);
+	self->param.vmem = NULL;
+	self->param.name = self->heap.name;
+	self->param.addr = self->heap.buffer;
+	self->param.timestamp = &self->heap.timestamp;
+	self->param.unit = self->heap.unit;
+	self->param.docstr = self->heap.help;
+
 	self->host = host;
 	self->timeout = timeout;
 	self->retries = retries;
 	self->paramver = paramver;
+
+	self->param.callback = _Parameter_wraps_param_callback_magic;  // TODO Kevin: This is nasty, but it currently needs to be done to prevent freeing() parameters we have created.
 
 	self->type = (PyTypeObject *)pycsh_util_get_type((PyObject *)self, NULL);
 

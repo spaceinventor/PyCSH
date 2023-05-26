@@ -53,3 +53,10 @@ int _pycsh_util_set_single(param_t *param, PyObject *value, int offset, int host
 
 /* Private interface for setting the value of an array parameter. */
 int _pycsh_util_set_array(param_t *param, PyObject *value, int host, int timeout, int retries, int paramver);
+
+/**
+ * @brief Check if this param_t is wrapped by a ParameterObject.
+ * 
+ * @return int 1 for wrapped, 0 for not wrapped.
+ */
+int Parameter_wraps_param(param_t *param);

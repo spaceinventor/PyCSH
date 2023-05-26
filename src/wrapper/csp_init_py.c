@@ -195,7 +195,7 @@ PyObject * pycsh_csh_csp_ifadd_can(PyObject * self, PyObject * args, PyObject * 
 
    csp_iface_t * iface;
     
-    int error = csp_can_socketcan_open_and_add_interface(device, name, baud, promisc, &iface);
+    int error = csp_can_socketcan_open_and_add_interface(device, name, addr, baud, promisc, &iface);
     if (error != CSP_ERR_NONE) {
         char errbuf[100];
         snprintf(errbuf, 100, "failed to add CAN interface [%s], error: %d", device, error);
