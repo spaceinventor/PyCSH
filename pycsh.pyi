@@ -308,8 +308,8 @@ def push(node: int, timeout: int = None, hwid: int = None, retries: int = None) 
     :raises ConnectionError: when no response is received.
     """
 
-def pull(host: int = None, include_mask: str = None, exclude_mask: str = None, timeout: int = None, retries: int = None) -> None:
-    """ Pull all or a specific set of parameters. """
+def pull(node: int = None, timeout: int = None, include_mask: str = None, exclude_mask: str = None, paramver: int = None) -> None:
+    """ Pull all or a specific mask of parameters. """
 
 def cmd_new(type: _Literal['get', 'set'], name: str = None, paramver: int = 2) -> None:
     """
@@ -317,7 +317,7 @@ def cmd_new(type: _Literal['get', 'set'], name: str = None, paramver: int = 2) -
 
     :param type: Whether to create a 'get' or 'set' queue.
     :param name: Name of the new queue.
-    :param paramver: parameter system verison (default = 2)
+    :param paramver: parameter system version (default = 2)
 
     :raises ValueError: When an incorrect type of queue is specified.
     """
@@ -425,6 +425,47 @@ def vmem(node: int = None, timeout: int = None, version: int = None) -> str:
     :return: The string of the vmem at the specfied node.
     """
 
+def switch(slot: int, node: int = None, times: int = None) -> None:
+    """
+    Reboot into the specified firmware slot.
+
+    :param slot: Flash slot to boot into.
+    :param node: Node to reboot.
+    :param times: number of times to boot into this slot (default = 1).
+
+    :raises ConnectionError: When the system cannot be pinged after reboot.
+    """
+
+def program(slot: int, filename: str, node: int = None, window: int = None, conn_timeout: int = None, packet_timeout: int = None, ack_timeout: int = None, ack_count: int = None) -> None:
+    """
+    Upload new firmware to a module.
+
+    :param slot: Flash slot to upload to, cannot be the currently booted one.
+    :param filename: firmware .bin file to upload.
+    :param node: Node of the module to upload to.
+    :param window: rdp window (default = 3 packets)
+    :param conn_timeout: rdp connection timeout (default = 10 seconds)
+    :param packet_timeout: rdp packet timeout (default = 5 seconds)
+    :param ack_timeout: rdp max acknowledgement interval (default = 2 seconds)
+    :param ack_count: rdp ack for each (default = 2 packets)
+
+    :raises ConnectionError: When no connection to the specified node can be established.
+    """
+
+def sps(from: int, to: int, filename: str, node: int = None, window: int = None, conn_timeout: int = None, packet_timeout: int = None, ack_timeout: int = None, ack_count: int = None) -> None:
+    """
+    Switch -> Program -> Switch
+
+    :param from: Flash slot to program from.
+    :param to: Flash slot to program.
+    :param filename: firmware .bin file to upload.
+    :param node: Node of the module to upload to.
+    :param window: rdp window (default = 3 packets)
+    :param conn_timeout: rdp connection timeout (default = 10 seconds)
+    :param packet_timeout: rdp packet timeout (default = 5 seconds)
+    :param ack_timeout: rdp max acknowledgement interval (default = 2 seconds)
+    :param ack_count: rdp ack for each (default = 2 packets)
+    """
 
 def csp_init(host: str = None, model: str = None, revision: str = None, version: int = 2, dedup: int = 3) -> None:
     """

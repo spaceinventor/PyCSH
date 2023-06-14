@@ -132,7 +132,7 @@ PyObject * pycsh_param_pull(PyObject * self, PyObject * args, PyObject * kwds) {
 	char * exclude_mask_str = NULL;
 	int paramver = 2;
 
-	static char *kwlist[] = {"node", "timeout", "imask", "emask", "paramver", NULL};
+	static char *kwlist[] = {"node", "timeout", "include_mask", "exclude_mask", "paramver", NULL};
 
 	if (!PyArg_ParseTupleAndKeywords(args, kwds, "|IIssi", kwlist, &node, &timeout, &include_mask_str, &exclude_mask_str, &paramver)) {
 		return NULL;

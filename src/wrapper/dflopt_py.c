@@ -10,6 +10,8 @@
 
 #include "../pycsh.h"
 
+#include "dflopt_py.h"
+
 // TODO Kevin: These differ from the newest version of slash/csh
 
 PyObject * pycsh_slash_node(PyObject * self, PyObject * args) {

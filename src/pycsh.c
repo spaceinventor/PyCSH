@@ -52,6 +52,7 @@
 #include "wrapper/py_csp.h"
 #include "wrapper/param_py.h"
 #include "wrapper/dflopt_py.h"
+#include "wrapper/spaceboot_py.h"
 #include "wrapper/csp_init_py.h"
 #include "wrapper/param_list_py.h"
 #include "wrapper/vmem_client_py.h"
@@ -249,6 +250,11 @@ static PyMethodDef methods[] = {
 
 	/* Converted vmem commands from libparam/src/vmem/vmem_client_slash.c */
 	{"vmem", 	(PyCFunction)pycsh_param_vmem,   METH_VARARGS | METH_KEYWORDS, "Builds a string of the vmem at the specified node."},
+
+	/* Converted program/reboot commands from csh/src/spaceboot_slash.c */
+	{"switch", 	(PyCFunction)slash_csp_switch,   METH_VARARGS | METH_KEYWORDS, "Reboot into the specified firmware slot."},
+	{"program", (PyCFunction)pycsh_csh_program,  METH_VARARGS | METH_KEYWORDS, "Upload new firmware to a module."},
+	{"sps", 	(PyCFunction)slash_sps,   		 METH_VARARGS | METH_KEYWORDS, "Switch -> Program -> Switch"},
 
 	/* Wrappers for src/csp_init_cmd.c */
 	{"csp_init", 	(PyCFunction)pycsh_csh_csp_init,   METH_VARARGS | METH_KEYWORDS, "Initialize CSP"},
