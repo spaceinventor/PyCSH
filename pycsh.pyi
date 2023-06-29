@@ -168,14 +168,14 @@ class ParameterArray(Parameter):
         """
 
     @property
-    def cached_value(self) -> int | float:
+    def cached_value(self) -> str | tuple[int | float]:
         """
         Returns the local cached value of the parameter from its specified node in the Python representation of its type.
         Array parameters return a tuple of values, whereas normal parameters return only a single value.
         """
 
     @cached_value.setter
-    def cached_value(self, value: int | float) -> None:
+    def cached_value(self, value: str | _Iterable[int | float]) -> None:
         """
         Sets the local cached value of the parameter.
 
@@ -183,14 +183,14 @@ class ParameterArray(Parameter):
         """
 
     @property
-    def remote_value(self) -> int | float:
+    def remote_value(self) -> str | tuple[int | float]:
         """
         Returns the remote value of the parameter from its specified node in the Python representation of its type.
         Array parameters return a tuple of values, whereas normal parameters return only a single value.
         """
 
     @remote_value.setter
-    def remote_value(self, value: int | float) -> None:
+    def remote_value(self, value: str | _Iterable[int | float]) -> None:
         """
         Sets the remote value of the parameter.
 
