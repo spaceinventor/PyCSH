@@ -66,16 +66,31 @@ class Parameter:
         """ Returns the best Python representation type object of the param_t c struct type. i.e int for uint32. """
 
     @property
-    def value(self) -> int | float:
+    def cached_value(self) -> int | float:
         """
-        Returns the value of the parameter from its specified node in the Python representation of its type.
+        Returns the local cached value of the parameter from its specified node in the Python representation of its type.
         Array parameters return a tuple of values, whereas normal parameters return only a single value.
         """
 
-    @value.setter
-    def value(self, value: int | float) -> None:
+    @cached_value.setter
+    def cached_value(self, value: int | float) -> None:
         """
-        Sets the value of the parameter.
+        Sets the local cached value of the parameter.
+
+        :param value: New desired value. Assignments to other parameters, use their value instead, Otherwise uses .__str__().
+        """
+
+    @property
+    def remote_value(self) -> int | float:
+        """
+        Returns the remote value of the parameter from its specified node in the Python representation of its type.
+        Array parameters return a tuple of values, whereas normal parameters return only a single value.
+        """
+
+    @remote_value.setter
+    def remote_value(self, value: int | float) -> None:
+        """
+        Sets the remote value of the parameter.
 
         :param value: New desired value. Assignments to other parameters, use their value instead, Otherwise uses .__str__().
         """
@@ -153,16 +168,31 @@ class ParameterArray(Parameter):
         """
 
     @property
-    def value(self) -> str | tuple[int | float]:
+    def cached_value(self) -> int | float:
         """
-        Returns the value of the parameter from its specified node in the Python representation of its type.
+        Returns the local cached value of the parameter from its specified node in the Python representation of its type.
         Array parameters return a tuple of values, whereas normal parameters return only a single value.
         """
 
-    @value.setter
-    def value(self, value: str | _Iterable[int | float]) -> None:
+    @cached_value.setter
+    def cached_value(self, value: int | float) -> None:
         """
-        Sets the value of the parameter.
+        Sets the local cached value of the parameter.
+
+        :param value: New desired value. Assignments to other parameters, use their value instead, Otherwise uses .__str__().
+        """
+
+    @property
+    def remote_value(self) -> int | float:
+        """
+        Returns the remote value of the parameter from its specified node in the Python representation of its type.
+        Array parameters return a tuple of values, whereas normal parameters return only a single value.
+        """
+
+    @remote_value.setter
+    def remote_value(self, value: int | float) -> None:
+        """
+        Sets the remote value of the parameter.
 
         :param value: New desired value. Assignments to other parameters, use their value instead, Otherwise uses .__str__().
         """
