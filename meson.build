@@ -55,6 +55,8 @@ pycsh_sources = [
 	'src/csh/param_sniffer.c',
 ]
 
+pycsh_sources += vcs_tag(input: files('src/version.c.in'), output: 'version.c', command: ['git', 'describe', '--long', '--always', '--dirty=+'])
+
 # Compile PyCSH for the versions specified in 'python3_versions'.
 # It may only be imported for these versions.
 foreach python_version : get_option('python3_versions')

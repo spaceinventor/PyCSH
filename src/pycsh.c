@@ -57,6 +57,7 @@
 #include "wrapper/param_list_py.h"
 #include "wrapper/vmem_client_py.h"
 
+extern const char *version_string;
 
 VMEM_DEFINE_FILE(col, "col", "colcnf.vmem", 120);
 #ifdef PARAM_HAVE_COMMANDS
@@ -329,6 +330,10 @@ PyMODINIT_FUNC PyInit_pycsh(void) {
 		Py_DECREF(m);
 		return NULL;
 	}
+
+	/* Constants */
+	PyModule_AddObject(m, "VERSION", PyUnicode_FromString(version_string));
+	PyModule_AddObject(m, "COMPILE_DATE", PyUnicode_FromString(__DATE__));
 
 	return m;
 }

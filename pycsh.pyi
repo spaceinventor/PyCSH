@@ -22,6 +22,9 @@ _param_type_hint = _param_value_hint | bytearray
 # So let's make sure we can still retrieve the original class.
 _pylist = type([])
 
+VERSION: str  # Git tag and commit SHA. Format example: 'V1.0-0-gceb4ed4+'
+COMPILE_DATE: str # Date of compilation. Format example: 'Jul 21 2023'
+
 class Parameter:
     """
     Wrapper class for Libparam's parameters.
