@@ -331,9 +331,48 @@ PyMODINIT_FUNC PyInit_pycsh(void) {
 		return NULL;
 	}
 
-	/* Constants */
-	PyModule_AddObject(m, "VERSION", PyUnicode_FromString(version_string));
-	PyModule_AddObject(m, "COMPILE_DATE", PyUnicode_FromString(__DATE__));
+	{ /* Constants */
+		/* Version Control */
+		PyModule_AddObject(m, "VERSION", PyUnicode_FromString(version_string));
+		PyModule_AddObject(m, "COMPILE_DATE", PyUnicode_FromString(__DATE__));
+
+		/* Param Type Enums */
+		PyModule_AddObject(m, "PARAM_TYPE_UINT8", PyLong_FromLong(PARAM_TYPE_UINT8));
+		PyModule_AddObject(m, "PARAM_TYPE_UINT16", PyLong_FromLong(PARAM_TYPE_UINT16));
+		PyModule_AddObject(m, "PARAM_TYPE_UINT32", PyLong_FromLong(PARAM_TYPE_UINT32));
+		PyModule_AddObject(m, "PARAM_TYPE_UINT64", PyLong_FromLong(PARAM_TYPE_UINT64));
+		PyModule_AddObject(m, "PARAM_TYPE_INT8", PyLong_FromLong(PARAM_TYPE_INT8));
+		PyModule_AddObject(m, "PARAM_TYPE_INT16", PyLong_FromLong(PARAM_TYPE_INT16));
+		PyModule_AddObject(m, "PARAM_TYPE_INT32", PyLong_FromLong(PARAM_TYPE_INT32));
+		PyModule_AddObject(m, "PARAM_TYPE_INT64", PyLong_FromLong(PARAM_TYPE_INT64));
+		PyModule_AddObject(m, "PARAM_TYPE_XINT8", PyLong_FromLong(PARAM_TYPE_XINT8));
+		PyModule_AddObject(m, "PARAM_TYPE_XINT16", PyLong_FromLong(PARAM_TYPE_XINT16));
+		PyModule_AddObject(m, "PARAM_TYPE_XINT32", PyLong_FromLong(PARAM_TYPE_XINT32));
+		PyModule_AddObject(m, "PARAM_TYPE_XINT64", PyLong_FromLong(PARAM_TYPE_XINT64));
+		PyModule_AddObject(m, "PARAM_TYPE_FLOAT", PyLong_FromLong(PARAM_TYPE_FLOAT));
+		PyModule_AddObject(m, "PARAM_TYPE_DOUBLE", PyLong_FromLong(PARAM_TYPE_DOUBLE));
+		PyModule_AddObject(m, "PARAM_TYPE_STRING", PyLong_FromLong(PARAM_TYPE_STRING));
+		PyModule_AddObject(m, "PARAM_TYPE_DATA", PyLong_FromLong(PARAM_TYPE_DATA));
+		PyModule_AddObject(m, "PARAM_TYPE_INVALID", PyLong_FromLong(PARAM_TYPE_INVALID));
+
+		/* Param Mask Enums */
+		PyModule_AddObject(m, "PM_READONLY", PyLong_FromLong(PM_READONLY));
+		PyModule_AddObject(m, "PM_REMOTE", PyLong_FromLong(PM_REMOTE));
+		PyModule_AddObject(m, "PM_CONF", PyLong_FromLong(PM_CONF));
+		PyModule_AddObject(m, "PM_TELEM", PyLong_FromLong(PM_TELEM));
+		PyModule_AddObject(m, "PM_HWREG", PyLong_FromLong(PM_HWREG));
+		PyModule_AddObject(m, "PM_ERRCNT", PyLong_FromLong(PM_ERRCNT));
+		PyModule_AddObject(m, "PM_SYSINFO", PyLong_FromLong(PM_SYSINFO));
+		PyModule_AddObject(m, "PM_SYSCONF", PyLong_FromLong(PM_SYSCONF));
+		PyModule_AddObject(m, "PM_WDT", PyLong_FromLong(PM_WDT));
+		PyModule_AddObject(m, "PM_DEBUG", PyLong_FromLong(PM_DEBUG));
+		PyModule_AddObject(m, "PM_CALIB", PyLong_FromLong(PM_CALIB));
+		PyModule_AddObject(m, "PM_ATOMIC_WRITE", PyLong_FromLong(PM_ATOMIC_WRITE));
+		PyModule_AddObject(m, "PM_PRIO1", PyLong_FromLong(PM_PRIO1));
+		PyModule_AddObject(m, "PM_PRIO2", PyLong_FromLong(PM_PRIO2));
+		PyModule_AddObject(m, "PM_PRIO3", PyLong_FromLong(PM_PRIO3));
+		PyModule_AddObject(m, "PM_PRIO_MASK", PyLong_FromLong(PM_PRIO_MASK));
+	}
 
 	return m;
 }

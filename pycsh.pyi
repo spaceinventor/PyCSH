@@ -25,6 +25,43 @@ _pylist = type([])
 VERSION: str  # Git tag and commit SHA. Format example: 'V1.0-0-gceb4ed4+'
 COMPILE_DATE: str # Date of compilation. Format example: 'Jul 21 2023'
 
+# Parameter type translated directly from the C enum, these may receive their own Python enum in future versions.
+PARAM_TYPE_UINT8: int
+PARAM_TYPE_UINT16: int
+PARAM_TYPE_UINT32: int
+PARAM_TYPE_UINT64: int
+PARAM_TYPE_INT8: int
+PARAM_TYPE_INT16: int
+PARAM_TYPE_INT32: int
+PARAM_TYPE_INT64: int
+PARAM_TYPE_XINT8: int
+PARAM_TYPE_XINT16: int
+PARAM_TYPE_XINT32: int
+PARAM_TYPE_XINT64: int
+PARAM_TYPE_FLOAT: int
+PARAM_TYPE_DOUBLE: int
+PARAM_TYPE_STRING: int
+PARAM_TYPE_DATA: int
+PARAM_TYPE_INVALID: int
+
+# Parameter mask translated directly from the C #defines, these may receive their own Python enum in future versions.
+PM_READONLY: int
+PM_REMOTE: int
+PM_CONF: int
+PM_TELEM: int
+PM_HWREG: int
+PM_ERRCNT: int
+PM_SYSINFO: int
+PM_SYSCONF: int
+PM_WDT: int
+PM_DEBUG: int
+PM_CALIB: int
+PM_ATOMIC_WRITE: int
+PM_PRIO1: int
+PM_PRIO2: int
+PM_PRIO3: int
+PM_PRIO_MASK: int
+
 class Parameter:
     """
     Wrapper class for Libparam's parameters.
