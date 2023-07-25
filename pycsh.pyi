@@ -378,7 +378,7 @@ def push(node: int, timeout: int = None, hwid: int = None, retries: int = None) 
     :raises ConnectionError: when no response is received.
     """
 
-def pull(node: int = None, timeout: int = None, include_mask: str = None, exclude_mask: str = None, paramver: int = None) -> None:
+def pull(node: int = None, timeout: int = None, include_mask: str | int = None, exclude_mask: str | int = None, paramver: int = None) -> None:
     """ Pull all or a specific mask of parameters. """
 
 def cmd_new(type: _Literal['get', 'set'], name: str = None, paramver: int = 2) -> None:

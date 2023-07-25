@@ -128,26 +128,47 @@ PyObject * pycsh_param_pull(PyObject * self, PyObject * args, PyObject * kwds) {
 
 	unsigned int node = pycsh_dfl_node;
 	unsigned int timeout = pycsh_dfl_timeout;
-	char * include_mask_str = NULL;
-	char * exclude_mask_str = NULL;
+	PyObject * include_mask_obj = NULL;
+	PyObject * exclude_mask_obj = NULL;
 	int paramver = 2;
 
 	static char *kwlist[] = {"node", "timeout", "include_mask", "exclude_mask", "paramver", NULL};
 
-	if (!PyArg_ParseTupleAndKeywords(args, kwds, "|IIssi", kwlist, &node, &timeout, &include_mask_str, &exclude_mask_str, &paramver)) {
+	if (!PyArg_ParseTupleAndKeywords(args, kwds, "|IIOOi", kwlist, &node, &timeout, &include_mask_obj, &exclude_mask_obj, &paramver)) {
 		return NULL;
 	}
 
-
-	int param_pull_res;
-	Py_BEGIN_ALLOW_THREADS;
 	uint32_t include_mask = 0xFFFFFFFF;
 	uint32_t exclude_mask = PM_REMOTE | PM_HWREG;
 
-	if (include_mask_str != NULL)
-		include_mask = param_maskstr_to_mask(include_mask_str);
-	if (exclude_mask_str != NULL)
-		exclude_mask = param_maskstr_to_mask(exclude_mask_str);
+	if (include_mask_obj != NULL) {
+		if (PyUnicode_Check(include_mask_obj)) {
+			const char * include_mask_str = NULL;
+			include_mask_str = PyUnicode_AsUTF8(include_mask_obj);
+			include_mask = param_maskstr_to_mask((char *)include_mask_str);
+		} else if (PyLong_Check(include_mask_obj)) {
+			include_mask = PyLong_AsUnsignedLong(include_mask_obj);
+		} else {
+			PyErr_SetString(PyExc_TypeError, "include_mask must be either str or int");
+			return NULL;
+		}
+	}
+
+	if (exclude_mask_obj != NULL) {
+		if (PyUnicode_Check(exclude_mask_obj)) {
+			const char * exclude_mask_str = NULL;
+			exclude_mask_str = PyUnicode_AsUTF8(exclude_mask_obj);
+			exclude_mask = param_maskstr_to_mask((char *)exclude_mask_str);
+		} else if (PyLong_Check(exclude_mask_obj)) {
+			exclude_mask = PyLong_AsUnsignedLong(exclude_mask_obj);
+		} else {
+			PyErr_SetString(PyExc_TypeError, "exclude_mask must be either str or int");
+			return NULL;
+		}
+	}
+
+	int param_pull_res;
+	Py_BEGIN_ALLOW_THREADS;
 
 	param_pull_res = param_pull_all(1, node, include_mask, exclude_mask, timeout, paramver);
 	Py_END_ALLOW_THREADS;
