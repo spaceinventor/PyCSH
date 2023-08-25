@@ -233,6 +233,12 @@ static int Parameter_set_retries(ParameterObject *self, PyObject *value, void *c
 	return 0;
 }
 
+static long Parameter_hash(ParameterObject *self) {
+	/* Use the ID of the parameter as the hash, as it is assumed unique. */
+    return self->param.id;
+}
+
+
 static PyMemberDef Parameter_members[] = {
     {"name", 	  T_STRING, 	offsetof(ParameterObject, param.name), 	 	READONLY, "The name of the wrapped param_t C struct"},
     {"unit", 	  T_STRING, 	offsetof(ParameterObject, param.unit), 	 	READONLY, "The unit of the wrapped param_t c struct as a string or None"},
@@ -285,4 +291,5 @@ PyTypeObject ParameterType = {
 	// .tp_methods = Parameter_methods,
 	.tp_str = (reprfunc)Parameter_str,
 	.tp_richcompare = (richcmpfunc)Parameter_richcompare,
+	.tp_hash = (hashfunc)Parameter_hash,
 };
