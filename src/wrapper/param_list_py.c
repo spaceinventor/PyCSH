@@ -8,6 +8,8 @@
 #define PY_SSIZE_T_CLEAN
 #include <Python.h>
 
+#include <param/param_string.h>
+
 #include "../pycsh.h"
 #include "../utils.h"
 #include "../parameter/parameter.h"
@@ -120,4 +122,142 @@ PyObject * pycsh_param_list_forget(PyObject * self, PyObject * args, PyObject * 
     int res = param_list_remove(node, verbose);
     printf("Removed %i parameters\n", res);
     return Py_BuildValue("i", res);;
+}
+
+PyObject * pycsh_param_list_save(PyObject * self, PyObject * args, PyObject * kwds) {
+
+    char * filename = NULL;
+    int node = pycsh_dfl_node;
+
+    static char *kwlist[] = {"filename", "node", NULL};
+
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "|si", kwlist, &filename, &node))
+        return NULL;  // TypeError is thrown
+
+    FILE * out = stdout;
+
+    if (filename) {
+	    FILE * fd = fopen(filename, "w");
+        if (fd) {
+            out = fd;
+            printf("Writing to file %s\n", filename);
+        }
+    }
+
+    // TODO Kevin: Ideally we would extract most of this to a separate function in libparam,
+    //  so we can keep it more DRY.
+    param_t * param;
+	param_list_iterator i = {};
+	while ((param = param_list_iterate(&i)) != NULL) {
+
+        if ((node >= 0) && (param->node != node)) {
+			continue;
+		}
+
+        fprintf(out, "list add ");
+        if (param->array_size > 1) {
+            fprintf(out, "-a %u ", param->array_size);
+        }
+        if ((param->docstr != NULL) && (strlen(param->docstr) > 0)) {
+            fprintf(out, "-c \"%s\" ", param->docstr);
+        }
+        if ((param->unit != NULL) && (strlen(param->unit) > 0)) {
+            fprintf(out, "-u \"%s\" ", param->unit);
+        }
+        if (param->node != 0) {
+            fprintf(out, "-n %u ", param->node);
+        }
+        
+		if (param->mask > 0) {
+			unsigned int mask = param->mask;
+
+			fprintf(out, "-m \"");
+
+			if (mask & PM_READONLY) {
+				mask &= ~ PM_READONLY;
+				fprintf(out, "r");
+			}
+
+			if (mask & PM_REMOTE) {
+				mask &= ~ PM_REMOTE;
+				fprintf(out, "R");
+			}
+
+			if (mask & PM_CONF) {
+				mask &= ~ PM_CONF;
+				fprintf(out, "c");
+			}
+
+			if (mask & PM_TELEM) {
+				mask &= ~ PM_TELEM;
+				fprintf(out, "t");
+			}
+
+			if (mask & PM_HWREG) {
+				mask &= ~ PM_HWREG;
+				fprintf(out, "h");
+			}
+
+			if (mask & PM_ERRCNT) {
+				mask &= ~ PM_ERRCNT;
+				fprintf(out, "e");
+			}
+
+			if (mask & PM_SYSINFO) {
+				mask &= ~ PM_SYSINFO;
+				fprintf(out, "i");
+			}
+
+			if (mask & PM_SYSCONF) {
+				mask &= ~ PM_SYSCONF;
+				fprintf(out, "C");
+			}
+
+			if (mask & PM_WDT) {
+				mask &= ~ PM_WDT;
+				fprintf(out, "w");
+			}
+
+			if (mask & PM_DEBUG) {
+				mask &= ~ PM_DEBUG;
+				fprintf(out, "d");
+			}
+
+			if (mask & PM_ATOMIC_WRITE) {
+				mask &= ~ PM_ATOMIC_WRITE;
+				fprintf(out, "o");
+			}
+
+			if (mask & PM_CALIB) {
+				mask &= ~ PM_CALIB;
+				fprintf(out, "q");
+			}
+
+            switch(mask & PM_PRIO_MASK) {
+                case PM_PRIO1: fprintf(out, "1"); mask &= ~ PM_PRIO_MASK; break;
+                case PM_PRIO2: fprintf(out, "2"); mask &= ~ PM_PRIO_MASK; break;
+                case PM_PRIO3: fprintf(out, "3"); mask &= ~ PM_PRIO_MASK; break;				
+			}
+
+			//if (mask)
+			//	fprintf(out, "+%x", mask);
+
+            fprintf(out, "\" ");
+
+		}
+		
+        fprintf(out, "%s %u ", param->name, param->id);
+
+        char typestr[10];
+        param_type_str(param->type, typestr, 10);
+        fprintf(out, "%s\n", typestr);
+
+	}
+
+    if (out != stdout) {
+        fflush(out);
+        fclose(out);
+    }
+
+    Py_RETURN_NONE;
 }

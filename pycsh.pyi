@@ -440,6 +440,14 @@ def list_forget(node: int = None, verbose: int = None) -> int:
     :returns: Count of parameters affected.
     """
 
+def list_save(filename: str = None, node: int = None) -> None:
+    """
+    Save a list of parameters to a file
+
+    :param filename: Name of file to save "list add" commands to, defaults to stdout.
+    :param node: Save parameters on the specified node, use <1 for all nodes.
+    :returns: Currently returns None, may return string of "list add" commands in future versions.
+    """
 
 # Commands from CSP
 def ping(node: int = None, timeout: int = None, size: int = None) -> int:
