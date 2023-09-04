@@ -128,10 +128,12 @@ PyObject * pycsh_param_list_save(PyObject * self, PyObject * args, PyObject * kw
 
     char * filename = NULL;
     int node = pycsh_dfl_node;
+    int include_node = 1;  // Make node optional, as to support adding to env node
 
-    static char *kwlist[] = {"filename", "node", NULL};
 
-    if (!PyArg_ParseTupleAndKeywords(args, kwds, "|si", kwlist, &filename, &node))
+    static char *kwlist[] = {"filename", "node", "include_node", NULL};
+
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "|sip", kwlist, &filename, &node, &include_node))
         return NULL;  // TypeError is thrown
 
     FILE * out = stdout;
@@ -164,7 +166,7 @@ PyObject * pycsh_param_list_save(PyObject * self, PyObject * args, PyObject * kw
         if ((param->unit != NULL) && (strlen(param->unit) > 0)) {
             fprintf(out, "-u \"%s\" ", param->unit);
         }
-        if (param->node != 0) {
+        if (param->node != 0 && include_node) {
             fprintf(out, "-n %u ", param->node);
         }
         

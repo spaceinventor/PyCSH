@@ -440,12 +440,13 @@ def list_forget(node: int = None, verbose: int = None) -> int:
     :returns: Count of parameters affected.
     """
 
-def list_save(filename: str = None, node: int = None) -> None:
+def list_save(filename: str = None, node: int = None, include_node: bool = True) -> None:
     """
     Save a list of parameters to a file
 
     :param filename: Name of file to save "list add" commands to, defaults to stdout.
     :param node: Save parameters on the specified node, use <1 for all nodes.
+    :param include_node: Whether to include the node of the parameter in the "last add" command.
     :returns: Currently returns None, may return string of "list add" commands in future versions.
     """
 
