@@ -121,7 +121,7 @@ PyObject * pycsh_csh_csp_ifadd_zmq(PyObject * self, PyObject * args, PyObject * 
 		return NULL;  // TypeError is thrown
 
     csp_iface_t * iface;
-    csp_zmqhub_init_filter2((const char *) name, server, addr, mask, promisc, &iface);
+    csp_zmqhub_init_filter2((const char *) name, server, addr, mask, promisc, &iface, NULL);
     iface->is_default = dfl;
     iface->addr = addr;
 	iface->netmask = mask;
