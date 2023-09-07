@@ -305,6 +305,17 @@ PyMODINIT_FUNC PyInit_pycsh(void) {
 	if (m == NULL)
 		return NULL;
 
+	{  /* Exceptions */
+		PyExc_ProgramDiffError = PyErr_NewExceptionWithDoc("pycsh.ProgramDiffError", 
+			"Raised when a difference is detected between uploaded/downloaded data after programming.\n"
+			"Must be caught before ConnectionError() baseclass.",
+			PyExc_ConnectionError, NULL);
+		Py_IncRef(PyExc_ProgramDiffError);
+
+		/* Adding exception objects to module */
+		PyModule_AddObject(m, "ProgramDiffError", PyExc_ProgramDiffError);
+	}
+
 	Py_INCREF(&ParameterType);
 	if (PyModule_AddObject(m, "Parameter", (PyObject *) &ParameterType) < 0) {
 		Py_DECREF(&ParameterType);

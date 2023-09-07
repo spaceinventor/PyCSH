@@ -30,6 +30,9 @@
 #include <csp/csp.h>
 #include <csp/csp_cmp.h>
 
+/* Custom exceptions */
+PyObject * PyExc_ProgramDiffError;
+
 static int ping(int node) {
 
 	struct csp_cmp_message message = {};
@@ -294,6 +297,13 @@ PyObject * pycsh_csh_program(PyObject * self, PyObject * args, PyObject * kwds) 
 
 	char * path = bin_info.entries[0];
 
+	char * data;
+	int len;
+	if (image_get(path, &data, &len) < 0) {
+        PyErr_SetString(PyExc_IOError, "Failed to open file");
+		return NULL;
+	}
+
     printf("\033[31m\n");
     printf("ABOUT TO PROGRAM: %s\n", path);
     printf("\033[0m\n");
@@ -303,15 +313,8 @@ PyObject * pycsh_csh_program(PyObject * self, PyObject * args, PyObject * kwds) 
 	}
     printf("\n");
 
-	char * data;
-	int len;
-	if (image_get(path, &data, &len) < 0) {
-        PyErr_SetString(PyExc_IOError, "Failed to open file");
-		return NULL;
-	}
-
     if (upload_and_verify(node, vmem.vaddr, data, len) != 0) {
-        PyErr_SetString(PyExc_Exception, "Diff during download (upload/download mismatch)");
+        PyErr_SetString(PyExc_ProgramDiffError, "Diff during download (upload/download mismatch)");
         return NULL;
     }
 

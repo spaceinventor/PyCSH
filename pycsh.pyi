@@ -62,6 +62,13 @@ PM_PRIO2: int
 PM_PRIO3: int
 PM_PRIO_MASK: int
 
+# Custom Exceptions
+class ProgramDiffError(ConnectionError):
+    """
+    Raised when a difference is detected between uploaded/downloaded data after programming.
+    Must be caught before ConnectionError() baseclass.
+    """
+
 class Parameter:
     """
     Wrapper class for Libparam's parameters.
@@ -528,6 +535,8 @@ def program(slot: int, filename: str, node: int = None, window: int = None, conn
     :param ack_timeout: rdp max acknowledgement interval (default = 2 seconds)
     :param ack_count: rdp ack for each (default = 2 packets)
 
+    :raises IOError: When in invalid filename is specified.
+    :raises ProgramDiffError: See class docstring.
     :raises ConnectionError: When no connection to the specified node can be established.
     """
 
