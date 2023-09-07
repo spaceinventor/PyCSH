@@ -188,7 +188,7 @@ static void upload(int node, int address, char * data, int len) {
 
 
 #define BIN_PATH_MAX_ENTRIES 10
-#define BIN_PATH_MAX_SIZE 100
+#define BIN_PATH_MAX_SIZE 256
 
 struct bin_info_t {
 	uint32_t addr_min;
@@ -290,7 +290,7 @@ PyObject * pycsh_csh_program(PyObject * self, PyObject * args, PyObject * kwds) 
 	}
 
     assert(filename != NULL);
-    strncpy(bin_info.entries[0], filename, BIN_PATH_MAX_SIZE);
+    strncpy(bin_info.entries[0], filename, BIN_PATH_MAX_SIZE-1);
     bin_info.count = 0;
 
 	printf("node 2 %d\n", pycsh_dfl_node);
