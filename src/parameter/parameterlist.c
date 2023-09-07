@@ -53,11 +53,7 @@ PyObject * ParameterList_append(PyObject * self, PyObject * args) {
 /* Pulls all Parameters in the list as a single request. */
 static PyObject * ParameterList_pull(ParameterListObject *self, PyObject *args, PyObject *kwds) {
 	
-	if (!csp_initialized()) {
-		PyErr_SetString(PyExc_RuntimeError,
-			"Cannot perform operations before .init() has been called.");
-		return NULL;
-	}
+	CSP_INIT_CHECK()
 
 	unsigned int host = 0;
 	unsigned int timeout = pycsh_dfl_timeout;
@@ -105,11 +101,7 @@ static PyObject * ParameterList_pull(ParameterListObject *self, PyObject *args, 
 /* Pushes all Parameters in the list as a single request. */
 static PyObject * ParameterList_push(ParameterListObject *self, PyObject *args, PyObject *kwds) {
 
-	if (!csp_initialized()) {
-		PyErr_SetString(PyExc_RuntimeError,
-			"Cannot perform operations before .init() has been called.");
-		return NULL;
-	}
+	CSP_INIT_CHECK()
 	
 	unsigned int node = 0;
 	unsigned int timeout = pycsh_dfl_timeout;

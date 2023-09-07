@@ -23,11 +23,7 @@ param_queue_t param_queue = { .buffer = queue_buf, .buffer_size = PARAM_SERVER_M
 
 PyObject * pycsh_param_get(PyObject * self, PyObject * args, PyObject * kwds) {
 
-	if (!csp_initialized()) {
-		PyErr_SetString(PyExc_RuntimeError,
-			"Cannot perform operations before .init() has been called.");
-		return NULL;
-	}
+	CSP_INIT_CHECK()
 
 	PyObject * param_identifier;  // Raw argument object/type passed. Identify its type when needed.
 	int node = pycsh_dfl_node;
@@ -60,11 +56,7 @@ PyObject * pycsh_param_get(PyObject * self, PyObject * args, PyObject * kwds) {
 
 PyObject * pycsh_param_set(PyObject * self, PyObject * args, PyObject * kwds) {
 
-	if (!csp_initialized()) {
-		PyErr_SetString(PyExc_RuntimeError,
-			"Cannot perform operations before .init() has been called.");
-		return NULL;
-	}
+	CSP_INIT_CHECK()
 
 	PyObject * param_identifier;  // Raw argument object/type passed. Identify its type when needed.
 	PyObject * value;
@@ -120,11 +112,7 @@ PyObject * pycsh_param_cmd(PyObject * self, PyObject * args) {
 
 PyObject * pycsh_param_pull(PyObject * self, PyObject * args, PyObject * kwds) {
 
-	if (!csp_initialized()) {
-		PyErr_SetString(PyExc_RuntimeError,
-			"Cannot perform operations before .init() has been called.");
-		return NULL;
-	}
+	CSP_INIT_CHECK()
 
 	unsigned int node = pycsh_dfl_node;
 	unsigned int timeout = pycsh_dfl_timeout;

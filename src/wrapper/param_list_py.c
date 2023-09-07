@@ -43,11 +43,7 @@ PyObject * pycsh_param_list(PyObject * self, PyObject * args, PyObject * kwds) {
 
 PyObject * pycsh_param_list_download(PyObject * self, PyObject * args, PyObject * kwds) {
 
-    if (!csp_initialized()) {
-        PyErr_SetString(PyExc_RuntimeError,
-            "Cannot perform operations before .init() has been called.");
-        return NULL;
-    }
+    CSP_INIT_CHECK()
 
     unsigned int node = pycsh_dfl_node;
     unsigned int timeout = pycsh_dfl_timeout;

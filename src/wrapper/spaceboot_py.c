@@ -87,6 +87,7 @@ static int reset_to_flash(int node, int flash, int times, int type) {
 
 PyObject * slash_csp_switch(PyObject * self, PyObject * args, PyObject * kwds) {
 
+	CSP_INIT_CHECK()
 
     unsigned int slot;
 	unsigned int node = pycsh_dfl_node;
@@ -247,6 +248,8 @@ static int upload_and_verify(int node, int address, char * data, int len) {
 
 PyObject * pycsh_csh_program(PyObject * self, PyObject * args, PyObject * kwds) {
 
+	CSP_INIT_CHECK()
+
     unsigned int slot;
 	unsigned int node = pycsh_dfl_node;
 	char * filename = NULL;
@@ -316,6 +319,8 @@ PyObject * pycsh_csh_program(PyObject * self, PyObject * args, PyObject * kwds) 
 }
 
 PyObject * slash_sps(PyObject * self, PyObject * args, PyObject * kwds) {
+
+	CSP_INIT_CHECK()
 
     unsigned int from;
     unsigned int to;

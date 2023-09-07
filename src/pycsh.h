@@ -9,7 +9,18 @@
 
 #pragma once
 
+// It is recommended to always define PY_SSIZE_T_CLEAN before including Python.h
+#define PY_SSIZE_T_CLEAN
+#include <Python.h>
+
 #include <param/param_queue.h>
+
+#define CSP_INIT_CHECK() \
+	if (!csp_initialized()) {\
+		PyErr_SetString(PyExc_RuntimeError,\
+			"Cannot perform operations before .init() has been called.");\
+		return NULL;\
+	}
 
 uint8_t csp_initialized();
 

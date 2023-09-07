@@ -12,6 +12,8 @@
 #include <Python.h>
 #include "structmember.h"
 
+#include "pycsh.h"
+
 #include <fcntl.h>
 #include <stdio.h>
 #include <sys/utsname.h>

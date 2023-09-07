@@ -16,11 +16,7 @@
 
 PyObject * pycsh_param_vmem(PyObject * self, PyObject * args, PyObject * kwds) {
 
-	if (!csp_initialized()) {
-		PyErr_SetString(PyExc_RuntimeError,
-			"Cannot perform operations before .init() has been called.");
-		return NULL;
-	}
+	CSP_INIT_CHECK()
 
 	unsigned int node = pycsh_dfl_node;
 	unsigned int timeout = pycsh_dfl_timeout;
