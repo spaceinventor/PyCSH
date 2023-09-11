@@ -22,9 +22,12 @@
 #include <csp/interfaces/csp_if_lo.h>
 #include <csp/interfaces/csp_if_tun.h>
 #include <csp/interfaces/csp_if_udp.h>
+#include <csp/interfaces/csp_if_eth.h>
 #include <csp/drivers/can_socketcan.h>
+#include <csp/drivers/eth_linux.h>
 #include <csp/drivers/usart.h>
 #include <csp/csp_rtable.h>
+#include <ifaddrs.h>
 
 void * router_task(void * param) {
     Py_Initialize();  // We need to initialize the Python interpreter before CSP may call any PythonParameter callbacks.
@@ -211,6 +214,74 @@ PyObject * pycsh_csh_csp_ifadd_can(PyObject * self, PyObject * args, PyObject * 
 }
 
 #endif
+
+static void eth_select_interface(const char ** device) {
+
+    static char selected[20];
+    selected[0] = 0;
+
+    // Create link of interface adresses
+    struct ifaddrs *addresses;
+    if (getifaddrs(&addresses) == -1)  {
+        printf("eth_select_interface: getifaddrs call failed\n");
+    } else {
+        // Search for match
+        struct ifaddrs * address = addresses;
+
+        for( ; address && (selected[0] == 0); address = address->ifa_next) {
+            if (address->ifa_addr && strcmp("lo", address->ifa_name) != 0) {
+                if (strncmp(*device, address->ifa_name, strlen(*device)) == 0) {
+                    strncpy(selected, address->ifa_name, sizeof(selected)-1);
+                }
+            }
+        }
+        freeifaddrs(addresses);
+    }
+
+    if (selected[0] == 0) {
+        printf("  Device prefix '%s' not found.\n", *device);
+    }
+    *device = selected;
+}
+
+PyObject * pycsh_csh_csp_ifadd_eth(PyObject * self, PyObject * args, PyObject * kwds) {
+
+    static int ifidx = 0;
+    char name[CSP_IFLIST_NAME_MAX + 1];
+    sprintf(name, "ETH%u", ifidx++);
+    const char * device = "e";
+
+    unsigned int addr;
+    int promisc = 0;
+    int mask = 8;
+    int dfl = 0;
+    int mtu = 1200;
+
+    static char *kwlist[] = {"addr", "device", "promisc", "mask", "default", "mtu", NULL};
+
+	if (!PyArg_ParseTupleAndKeywords(args, kwds, "I|siiii", kwlist, &addr, &device, &promisc, &mask, &dfl, &mtu))
+		return NULL;  // TypeError is thrown
+
+    eth_select_interface(&device);
+    if (strlen(device) == 0) {
+        unsigned int len = strlen("The specified ethernet interface () could not be found") + strlen(device) + 1;
+        char buf[len];
+        sprintf(buf, "The specified ethernet interface (%s) could not be found", device);
+        PyErr_SetString(PyExc_ValueError, buf);
+        return NULL;
+    }
+
+    csp_iface_t * iface = NULL;
+
+    // const char * device, const char * ifname, int mtu, unsigned int node_id, csp_iface_t ** iface, bool promisc
+    csp_eth_init(device, name, mtu, addr, promisc == 1, &iface);
+
+    iface->is_default = dfl;
+    iface->addr = addr;
+	iface->netmask = mask;
+
+    Py_RETURN_NONE;
+}
 
 PyObject * pycsh_csh_csp_ifadd_udp(PyObject * self, PyObject * args, PyObject * kwds) {
 

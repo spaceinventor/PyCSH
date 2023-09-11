@@ -620,6 +620,18 @@ def csp_add_udp(addr: int, server: str, promisc: int = 0, mask: int = 8, default
     :param remote_port: Port to send to
     """
 
+def csp_add_eth(addr: int, device: str, promisc: int = 0, mask: int = 8, default: int = 0, mtu: int = 1200) -> None:
+    """
+    Add a new UDP interface
+
+    :param addr: Node of the interface
+    :param device: Ethernet device
+    :param promisc: Promiscuous Mode
+    :param mask: Netmask (defaults to 8)
+    :param default: Set as default
+    :param mtu: Maximum Transmission Unit
+    """
+
 def csp_add_tun(addr: int, tun_src: int, tun_dst: int, promisc: int = 0, mask: int = 8, default: int = 0) -> None:
     """
     Add a new TUN interface
