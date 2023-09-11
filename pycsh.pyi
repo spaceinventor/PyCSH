@@ -553,6 +553,8 @@ def sps(from: int, to: int, filename: str, node: int = None, window: int = None,
     :param packet_timeout: rdp packet timeout (default = 5 seconds)
     :param ack_timeout: rdp max acknowledgement interval (default = 2 seconds)
     :param ack_count: rdp ack for each (default = 2 packets)
+
+    :raises ProgramDiffError: See class docstring.
     """
 
 def csp_init(host: str = None, model: str = None, revision: str = None, version: int = 2, dedup: int = 3) -> None:

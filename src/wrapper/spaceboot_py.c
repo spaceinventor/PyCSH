@@ -391,7 +391,7 @@ PyObject * slash_sps(PyObject * self, PyObject * args, PyObject * kwds) {
 	
 	int result = upload_and_verify(node, vmem.vaddr, data, len);
 	if (result != 0) {
-        PyErr_SetString(PyExc_Exception, "Diff during download (upload/download mismatch)");
+        PyErr_SetString(PyExc_ProgramDiffError, "Diff during download (upload/download mismatch)");
         return NULL;
 	}
 
