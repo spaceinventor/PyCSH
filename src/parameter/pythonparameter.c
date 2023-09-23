@@ -22,7 +22,19 @@ void Parameter_callback(param_t * param, int offset) {
     assert(Parameter_wraps_param(param));
     assert(!PyErr_Occurred());  // Callback may raise an exception. But we don't want to override an existing one.
 
-    PythonParameterObject *python_param = (PythonParameterObject *)((char *)param - offsetof(PythonParameterObject, parameter_object.param));
+    PyObject *key = PyLong_FromVoidPtr(param);
+    PythonParameterObject *python_param = (PythonParameterObject*)PyDict_GetItem((PyObject*)param_callback_dict, key);
+    Py_DECREF(key);
+
+    /* This param_t uses the Python Parameter callback, but doesn't actually point to a Parameter.
+        Perhaps it was deleted? Or perhaps it was never set correctly. */
+    if (python_param == NULL) {
+        assert(false);  // TODO Kevin: Is this situation worthy of an assert(), or should we just ignore it?
+        PyGILState_Release(gstate);
+        return;
+    }
+
+    // PythonParameterObject *python_param = (PythonParameterObject *)((char *)param - offsetof(PythonParameterObject, parameter_object.param));
     PyObject *python_callback = python_param->callback;
 
     /* This Parameter has no callback */
@@ -54,41 +66,34 @@ void Parameter_callback(param_t * param, int offset) {
 
 /* Internal API for creating a new PythonParameterObject. */
 static PythonParameterObject * Parameter_create_new(PyTypeObject *type, uint16_t id, param_type_e param_type, uint32_t mask, char * name, char * unit, char * docstr, void * addr, int array_size, const PyObject * callback, int host, int timeout, int retries, int paramver) {
-    param_t param = {
-        .id = id,
-        .type = param_type,
-        .mask = mask,
-        // .name = name,
-        // .unit = unit,
-        // .docstr = docstr,
-        .addr = addr,
-        .array_size = array_size,
-        .array_step = param_typesize(param_type),
-    };
-    PythonParameterObject * self = (PythonParameterObject *)_pycsh_Parameter_from_param(type, &param, callback, host, timeout, retries, paramver);
+
+    param_t * new_param = param_list_create_remote(id, 0, param_type, mask, array_size, name, unit, docstr, -1);
+    if (new_param == NULL) {
+        return (PythonParameterObject*)PyErr_NoMemory();
+    }
+
+    PythonParameterObject * self = (PythonParameterObject *)_pycsh_Parameter_from_param(type, new_param, callback, host, timeout, retries, paramver);
     if (self == NULL) {
         /* This is likely a memory allocation error, in which case we expect .tp_alloc() to have raised an exception. */
         return NULL;
     }
 
+    switch (param_list_add(new_param)) {
+        case 0:
+            break;  // All good
+        case 1: {
+            PyErr_SetString(PyExc_KeyError, "Local parameter with the specifed ID already exists");
+            Py_DECREF(self);
+            return NULL;
+        }
+        default: {
+            Py_DECREF(self);
+            assert(false);  // list_dynamic=false ?
+            break;
+        }
+    }
 
-    strncpy(self->parameter_object.heap.name, name, sizeof(self->parameter_object.heap.name) - 1);
-    strncpy(self->parameter_object.heap.unit, unit, sizeof(self->parameter_object.heap.unit) - 1);
-    /* TODO Kevin: For some messed up reason, 
-        copying the entire docstr into self->help will cause a segfault when attempting to create a duplicate Parameter.
-        Could this be caused by a failed assumption about field offsets? */
-    strncpy(self->parameter_object.heap.help, docstr, sizeof(self->parameter_object.heap.help) - 37);
-    
-    self->parameter_object.param.name = self->parameter_object.heap.name;
-    self->parameter_object.param.unit = self->parameter_object.heap.unit;
-    self->parameter_object.param.docstr = self->parameter_object.heap.help;
-
-    /* We should already have checked that this ID isn't used, before allocating memory for this object. */
-    /* TODO Kevin: If libparam receives mutexes, we should likely have one here'ish */
-    assert(param_list_find_id(0, id) == NULL);
-    param_list_add(&((ParameterObject *)self)->param);
-
-    ((ParameterObject *)self)->param.callback = Parameter_callback;
+    // ((ParameterObject *)self)->param->callback = Parameter_callback;  // NOTE: This assignment is performed in _pycsh_Parameter_from_param()
     self->keep_alive = 1;
     Py_INCREF(self);  // Parameter list holds a reference to the ParameterObject
     /* NOTE: If .keep_alive defaults to False, then we should remove this Py_INCREF() */
@@ -102,6 +107,8 @@ static PythonParameterObject * Parameter_create_new(PyTypeObject *type, uint16_t
         return NULL;
     }
 
+    ((ParameterObject*)self)->param->callback = Parameter_callback;
+
     return self;
 }
 
@@ -110,12 +117,7 @@ static void PythonParameter_dealloc(PythonParameterObject *self) {
         Py_XDECREF(self->callback);
         self->callback = NULL;
     }
-    /* We can't let param_list_remove_specific() free() the parameter, as it should be done by Python. */
-    param_list_remove_specific(&((ParameterObject*)self)->param, 0, 0);
-    /* ... But it is still our responsibility to free the .addr memory.
-        It should also have been allocated in our __new__() method. */
-    free((((ParameterObject*)self)->param.addr));
-    memset(&((ParameterObject *)self)->param, 0, sizeof(param_t));
+    param_list_remove_specific(((ParameterObject*)self)->param, 0, 1);
     // Get the type of 'self' in case the user has subclassed 'Parameter'.
     Py_TYPE(self)->tp_free((PyObject *) self);
 }

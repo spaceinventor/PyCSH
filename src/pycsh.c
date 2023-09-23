@@ -388,5 +388,7 @@ PyMODINIT_FUNC PyInit_pycsh(void) {
 		PyModule_AddObject(m, "PM_PRIO_MASK", PyLong_FromLong(PM_PRIO_MASK));
 	}
 
+	param_callback_dict = (PyDictObject *)PyDict_New();
+
 	return m;
 }

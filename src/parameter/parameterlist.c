@@ -82,7 +82,7 @@ static PyObject * ParameterList_pull(ParameterListObject *self, PyObject *args, 
         }
 
 		if (PyObject_TypeCheck(item, &ParameterType))  // Sanity check
-			param_queue_add(&queue, &((ParameterObject *)item)->param, -1, NULL);
+			param_queue_add(&queue, ((ParameterObject *)item)->param, -1, NULL);
 		else
 			fprintf(stderr, "Skipping non-parameter object (of type: %s) in Parameter list.", item->ob_type->tp_name);
 
@@ -135,7 +135,7 @@ static PyObject * ParameterList_push(ParameterListObject *self, PyObject *args, 
 
 		if (PyObject_TypeCheck(item, &ParameterType)) {  // Sanity check
 			// TODO Kevin: Naively adding the buffer may not work.
-			param_queue_add(&queue, &((ParameterObject *)item)->param, -1, ((ParameterObject *)item)->heap.buffer);
+			param_queue_add(&queue, ((ParameterObject *)item)->param, -1, ((ParameterObject *)item)->param->addr);
 		} else
 			fprintf(stderr, "Skipping non-parameter object (of type: %s) in Parameter list.", item->ob_type->tp_name);
 	}

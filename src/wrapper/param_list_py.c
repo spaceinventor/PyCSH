@@ -68,6 +68,7 @@ PyObject * pycsh_param_list_download(PyObject * self, PyObject * args, PyObject 
         }
     }
 
+#if 0
     /* Despite the nastiness, we reallocate the downloaded parameters, such that they become embedded in a ParameterObject.
         Embedding the parameters allows us to create new parameters from Python, without the need for a lookup table for Python callbacks. */
     param_list_iterator i = {};
@@ -100,6 +101,7 @@ PyObject * pycsh_param_list_download(PyObject * self, PyObject * args, PyObject 
 
         param_list_add(&pyparam->param);
     }
+#endif
 
     return pycsh_util_parameter_list();
 

@@ -16,6 +16,8 @@
 
 // #define _WRAPPER_MAGIC 0xABADBEEF
 
+extern PyDictObject * param_callback_dict;
+
 /* TODO Kevin: This is quite a hack, we ought not to dig around in the libparam internals */
 /* NOTE: Should match lib/param/src/param/list/param_list.c param_heap_t */
 typedef struct{
@@ -35,10 +37,8 @@ typedef struct {
     /* Type-specific fields go here. */
 	PyTypeObject *type;  // Best Python representation of the parameter type, i.e 'int' for uint32.
 
-	union {
-		param_t param;
-		parameter_heap_t heap;
-	};
+	param_t * param;
+
 	int host;
 	int timeout;
 	int retries;  // TODO Kevin: The 'retries' code was implemented rather hastily, consider refactoring of removing it. 

@@ -29,7 +29,7 @@ static PyObject * ParameterArray_GetItem(ParameterObject *self, PyObject *item) 
 		return NULL;  // 'Reraise' the current exception.
 
 	/* TODO Kevin: How should we handle remote/cached when using indexed access? */
-	return _pycsh_util_get_single(&self->param, index, 1, self->host, self->timeout, self->retries, self->paramver);
+	return _pycsh_util_get_single(self->param, index, 1, self->host, self->timeout, self->retries, self->paramver);
 }
 
 static int ParameterArray_SetItem(ParameterObject *self, PyObject* item, PyObject* value) {
@@ -57,17 +57,17 @@ static int ParameterArray_SetItem(ParameterObject *self, PyObject* item, PyObjec
 #if 0  /* TODO Kevin: When should we use queues with the new cmd system? */
 	param_queue_t *usequeue = autosend ? NULL : &param_queue_set;
 #endif
-	return _pycsh_util_set_single(&self->param, value, index, self->host, self->timeout, self->retries, self->paramver, 1);
+	return _pycsh_util_set_single(self->param, value, index, self->host, self->timeout, self->retries, self->paramver, 1);
 }
 
 static Py_ssize_t ParameterArray_length(ParameterObject *self) {
 	// We currently raise an exception when getting len() of non-array type parameters.
 	// This stops PyCharm (Perhaps other IDE's) from showing their length as 0. ¯\_(ツ)_/¯
-	if (self->param.array_size <= 1) {
+	if (self->param->array_size <= 1) {
 		PyErr_SetString(PyExc_AttributeError, "Non-array type parameter is not subscriptable");
 		return -1;
 	}
-	return self->param.array_size;
+	return self->param->array_size;
 }
 
 static PyMappingMethods ParameterArray_as_mapping = {

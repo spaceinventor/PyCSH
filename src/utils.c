@@ -94,7 +94,7 @@ param_t * _pycsh_util_find_param_t(PyObject * param_identifier, int node) {
 	else if (PyLong_Check(param_identifier))  // is_int
 		param = param_list_find_id(node, (int)PyLong_AsLong(param_identifier));
 	else if (PyObject_TypeCheck(param_identifier, &ParameterType))
-		param = &((ParameterObject *)param_identifier)->param;
+		param = ((ParameterObject *)param_identifier)->param;
 	else {  // Invalid type passed.
 		PyErr_SetString(PyExc_TypeError,
 			"Parameter identifier must be either an integer or string of the parameter ID or name respectively.");
@@ -167,8 +167,8 @@ PyObject * pycsh_util_get_type(PyObject * self, PyObject * args) {
 	if (self && PyObject_TypeCheck(self, &ParameterType)) {
 		ParameterObject *_self = (ParameterObject *)self;
 
-		node = _self->param.node;
-		param = &_self->param;
+		node = _self->param->node;
+		param = _self->param;
 
 	} else {
 		if (!PyArg_ParseTuple(args, "O|i", &param_identifier, &node)) {
@@ -182,33 +182,50 @@ PyObject * pycsh_util_get_type(PyObject * self, PyObject * args) {
 		return NULL;  // Raises either TypeError or ValueError.
 	}
 
+
 	return (PyObject *)_pycsh_misc_param_t_type(param);
 }
 
+#if 0  // TODO Kevin: Let's see if we can remove this at some point
 /* This is our magic number, used to check if a param_t is wrapped by a ParameterObject */
 static void _Parameter_wraps_param_callback_magic(param_t * param, int offset) {
 	/* Ain't nobody here but us chickens */
 }
+#endif
 
 int Parameter_wraps_param(param_t *param) {
-    // PyGILState_STATE gstate = PyGILState_Ensure();
+    PyGILState_STATE gstate = PyGILState_Ensure();
     assert(param != NULL);
     // ParameterObject *python_param = (ParameterObject *)((char *)param - offsetof(ParameterObject, param));
     // uint32_t magic = _WRAPPER_MAGIC;
     // int res = memcmp(&python_param->_wrapper_magic, &magic, sizeof(uint32_t)) != 0;
     // int res = python_param->_wrapper_magic == _WRAPPER_MAGIC;
-    // PyGILState_Release(gstate);
+	PyObject *key = PyLong_FromVoidPtr(param);
+    PythonParameterObject *python_param = (PythonParameterObject*)PyDict_GetItem((PyObject*)param_callback_dict, key);
+    Py_DECREF(key);
+
+    PyGILState_Release(gstate);
+	return python_param != NULL;
+
+#if 0
+    PyGILState_Release(gstate);
 	void Parameter_callback(param_t * param, int offset);
-    return param->callback == Parameter_callback || param->callback == _Parameter_wraps_param_callback_magic;
+    return param->callback == Parameter_callback;// || param->callback == _Parameter_wraps_param_callback_magic;
+#endif
 }
 
 /* Create a Python Parameter object from a param_t pointer directly. */
 PyObject * _pycsh_Parameter_from_param(PyTypeObject *type, param_t * param, const PyObject * callback, int host, int timeout, int retries, int paramver) {
 
 	// This parameter is already wrapped by a ParameterObject, which we may return instead.
-	if (Parameter_wraps_param(param))
+	if (Parameter_wraps_param(param)) {
+		PyObject *key = PyLong_FromVoidPtr(param);
+		PythonParameterObject *python_param = (PythonParameterObject*)Py_NewRef((PythonParameterObject*)PyDict_GetItem((PyObject*)param_callback_dict, key));
+		Py_DECREF(key);
 		/* TODO Kevin: How should we handle when: host, timeout, retries and paramver are different for the existing parameter? */
-		return Py_NewRef((ParameterObject *)((char *)param - offsetof(ParameterObject, param)));
+		return (PyObject*)python_param;
+		// return Py_NewRef((ParameterObject *)((char *)param - offsetof(ParameterObject, param)));
+	}
 
 	if (param->array_size <= 1 && type == &ParameterArrayType) {
 		PyErr_SetString(PyExc_TypeError, 
@@ -220,27 +237,22 @@ PyObject * _pycsh_Parameter_from_param(PyTypeObject *type, param_t * param, cons
 		// On a more serious note, I'm amazed that this even works at all.
 
 	ParameterObject *self = (ParameterObject *)type->tp_alloc(type, 0);
+	self->param = param;
 
 	if (self == NULL)
 		return NULL;
 
-	/* This new parameter will not function correctly while the copied param_t exists before it in the global list. */
-	memcpy(&self->heap, param, sizeof(parameter_heap_t));
-	self->heap.buffer = calloc(param_typesize(self->param.type), self->param.array_size);
-	self->param.vmem = NULL;
-	self->param.name = self->heap.name;
-	self->param.addr = self->heap.buffer;
-	self->param.timestamp = &self->heap.timestamp;
-	self->param.unit = self->heap.unit;
-	self->param.docstr = self->heap.help;
+	PyObject *key = PyLong_FromVoidPtr(param);
+	PyDict_SetItem((PyObject*)param_callback_dict, key, (PyObject*)self);  // Allows the param_t callback to find the corresponding PythonParameterObject.
+    Py_DECREF(key);
 
 	self->host = host;
 	self->timeout = timeout;
 	self->retries = retries;
 	self->paramver = paramver;
 
-	self->param.callback = _Parameter_wraps_param_callback_magic;  // TODO Kevin: This is nasty, but it currently needs to be done to prevent freeing() parameters we have created.
-
+	// self->param->callback = _Parameter_wraps_param_callback_magic;  // TODO Kevin: This is nasty, but it currently needs to be done to prevent freeing() parameters we have created.
+	// TODO Kevin: Actually, this might not be necessary anymore.
 	self->type = (PyTypeObject *)pycsh_util_get_type((PyObject *)self, NULL);
 
     return (PyObject *) self;
@@ -439,7 +451,7 @@ static PyObject * _pycsh_get_str_value(PyObject * obj) {
 
 		ParameterObject *paramobj = ((ParameterObject *)obj);
 
-		param_t * param = &paramobj->param;
+		param_t * param = paramobj->param;
 		int host = paramobj->host;
 		int timeout = paramobj->timeout;
 		int retries = paramobj->retries;
