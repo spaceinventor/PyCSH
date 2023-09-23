@@ -14,6 +14,7 @@
 
 #include <param/param.h>
 #include <param/param_queue.h>
+#include "parameter/pythonparameter.h"
 
 
 /* Source: https://pythonextensionpatterns.readthedocs.io/en/latest/super_call.html */
@@ -57,6 +58,6 @@ int _pycsh_util_set_array(param_t *param, PyObject *value, int host, int timeout
 /**
  * @brief Check if this param_t is wrapped by a ParameterObject.
  * 
- * @return int 1 for wrapped, 0 for not wrapped.
+ * @return borrowed reference to the wrapping PythonParameterObject if wrapped, otherwise NULL.
  */
-int Parameter_wraps_param(param_t *param);
+PythonParameterObject * Parameter_wraps_param(param_t *param);

@@ -186,45 +186,27 @@ PyObject * pycsh_util_get_type(PyObject * self, PyObject * args) {
 	return (PyObject *)_pycsh_misc_param_t_type(param);
 }
 
-#if 0  // TODO Kevin: Let's see if we can remove this at some point
-/* This is our magic number, used to check if a param_t is wrapped by a ParameterObject */
-static void _Parameter_wraps_param_callback_magic(param_t * param, int offset) {
-	/* Ain't nobody here but us chickens */
-}
-#endif
-
-int Parameter_wraps_param(param_t *param) {
-    PyGILState_STATE gstate = PyGILState_Ensure();
+PythonParameterObject * Parameter_wraps_param(param_t *param) {
+	/* TODO Kevin: If it ever becomes possible to assert() the held state of the GIL,
+		we would definitely want to do it here. We don't want to use PyGILState_Ensure()
+		because the GIL should still be held after returning. */
     assert(param != NULL);
-    // ParameterObject *python_param = (ParameterObject *)((char *)param - offsetof(ParameterObject, param));
-    // uint32_t magic = _WRAPPER_MAGIC;
-    // int res = memcmp(&python_param->_wrapper_magic, &magic, sizeof(uint32_t)) != 0;
-    // int res = python_param->_wrapper_magic == _WRAPPER_MAGIC;
+
 	PyObject *key = PyLong_FromVoidPtr(param);
     PythonParameterObject *python_param = (PythonParameterObject*)PyDict_GetItem((PyObject*)param_callback_dict, key);
     Py_DECREF(key);
 
-    PyGILState_Release(gstate);
-	return python_param != NULL;
-
-#if 0
-    PyGILState_Release(gstate);
-	void Parameter_callback(param_t * param, int offset);
-    return param->callback == Parameter_callback;// || param->callback == _Parameter_wraps_param_callback_magic;
-#endif
+	return python_param;
 }
 
 /* Create a Python Parameter object from a param_t pointer directly. */
 PyObject * _pycsh_Parameter_from_param(PyTypeObject *type, param_t * param, const PyObject * callback, int host, int timeout, int retries, int paramver) {
 
 	// This parameter is already wrapped by a ParameterObject, which we may return instead.
-	if (Parameter_wraps_param(param)) {
-		PyObject *key = PyLong_FromVoidPtr(param);
-		PythonParameterObject *python_param = (PythonParameterObject*)Py_NewRef((PythonParameterObject*)PyDict_GetItem((PyObject*)param_callback_dict, key));
-		Py_DECREF(key);
+	PythonParameterObject * existing_parameter;
+	if ((existing_parameter = Parameter_wraps_param(param)) != NULL) {
 		/* TODO Kevin: How should we handle when: host, timeout, retries and paramver are different for the existing parameter? */
-		return (PyObject*)python_param;
-		// return Py_NewRef((ParameterObject *)((char *)param - offsetof(ParameterObject, param)));
+		return (PyObject*)Py_NewRef(existing_parameter);
 	}
 
 	if (param->array_size <= 1 && type == &ParameterArrayType) {
