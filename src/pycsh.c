@@ -312,9 +312,14 @@ PyMODINIT_FUNC PyInit_pycsh(void) {
 			"Must be caught before ConnectionError() baseclass.",
 			PyExc_ConnectionError, NULL);
 		Py_IncRef(PyExc_ProgramDiffError);
-
-		/* Adding exception objects to module */
 		PyModule_AddObject(m, "ProgramDiffError", PyExc_ProgramDiffError);
+
+		PyExc_ParamCallbackError = PyErr_NewExceptionWithDoc("pycsh.ParamCallbackError", 
+			"Raised and chains unto exceptions raised in the callbacks of PythonParameters.\n"
+			"Must be caught before RuntimeError() baseclass.",
+			PyExc_RuntimeError, NULL);
+		Py_IncRef(PyExc_ParamCallbackError);
+		PyModule_AddObject(m, "ParamCallbackError", PyExc_ParamCallbackError);
 	}
 
 	Py_INCREF(&ParameterType);

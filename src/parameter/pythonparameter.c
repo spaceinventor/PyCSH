@@ -14,6 +14,8 @@
 #include "../pycsh.h"
 #include "../utils.h"
 
+PyObject * PyExc_ParamCallbackError;
+
 /**
  * @brief Shared callback for all param_t's wrapped by a Parameter instance.
  */
@@ -58,8 +60,8 @@ void Parameter_callback(param_t * param, int offset) {
         /* It may not be clear to the user, that the exception came from the callback,
             we therefore chain unto the existing exception, for better clarity. */
         /* _PyErr_FormatFromCause() seems simpler than PyException_SetCause() and PyException_SetContext() */
-        // TODO Kevin: We could create a CallbackException class and raise here.
-        _PyErr_FormatFromCause(PyExc_RuntimeError, "Error calling Python callback");
+        // TODO Kevin: It seems exceptions raised in the CSP thread are ignored.
+        _PyErr_FormatFromCause(PyExc_ParamCallbackError, "Error calling Python callback");
     }
     PyGILState_Release(gstate);
 }

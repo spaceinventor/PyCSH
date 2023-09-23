@@ -14,6 +14,8 @@
 
 #include "parameter.h"
 
+extern PyObject * PyExc_ParamCallbackError;
+
 typedef struct {
     ParameterObject parameter_object;
     PyObject *callback;

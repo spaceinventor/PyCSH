@@ -69,6 +69,13 @@ class ProgramDiffError(ConnectionError):
     Must be caught before ConnectionError() baseclass.
     """
 
+class ParamCallbackError(RuntimeError):
+    """
+    Raised and chains unto exceptions raised in the callbacks of PythonParameters.
+    Must be caught before RuntimeError() baseclass.
+    """
+
+
 class Parameter:
     """
     Wrapper class for Libparam's parameters.
