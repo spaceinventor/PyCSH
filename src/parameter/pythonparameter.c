@@ -158,14 +158,8 @@ static PyObject * PythonParameter_new(PyTypeObject *type, PyObject * args, PyObj
         return PyErr_NoMemory();
     }
     PythonParameterObject * python_param = Parameter_create_new(type, id, param_type, mask, name, unit, docstr, physaddr, array_size, callback, host, timeout, retries, paramver);
-#if 0  // TODO Kevin: If this #if is included, then python_param != NULL, otherwise it is NULL !?
-    if (param_list_find_id(0, id) != NULL) {
-        PyErr_SetString(PyExc_RuntimeError, "Fuck me");
-        return NULL;
-    }
-#endif
     if (python_param == NULL) {
-        // PyErr_SetString(PyExc_MemoryError, "Failed to allocate ParameterObject");
+        // Assume exception message to be set by Parameter_create_new()
         /* physaddr should be freed in dealloc() */
         return NULL;
     }

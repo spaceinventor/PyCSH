@@ -14,8 +14,6 @@
 
 #include <param/param.h>
 
-// #define _WRAPPER_MAGIC 0xABADBEEF
-
 extern PyDictObject * param_callback_dict;
 
 /* TODO Kevin: This is quite a hack, we ought not to dig around in the libparam internals */

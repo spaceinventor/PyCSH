@@ -68,41 +68,6 @@ PyObject * pycsh_param_list_download(PyObject * self, PyObject * args, PyObject 
         }
     }
 
-#if 0
-    /* Despite the nastiness, we reallocate the downloaded parameters, such that they become embedded in a ParameterObject.
-        Embedding the parameters allows us to create new parameters from Python, without the need for a lookup table for Python callbacks. */
-    param_list_iterator i = {};
-    param_t * iter_param = param_list_iterate(&i);
-
-    while (iter_param) {
-
-        if (i.phase == 0) {
-            iter_param = param_list_iterate(&i);
-            continue;  // We cannot reallocate static parameters.
-            /* TODO Kevin: We could, however, consider reusing their .addr for our new parameter.
-                But not here in .list_download() */
-        }
-
-        param_t * param = iter_param;  // Free the current parameter after we have used it to iterate.
-        iter_param = param_list_iterate(&i);
-
-        if (Parameter_wraps_param(param))
-            continue;  // This parameter doesn't need reallocation.
-
-        ParameterObject * pyparam = (ParameterObject *)_pycsh_Parameter_from_param(&ParameterType, param, NULL, INT_MIN, pycsh_dfl_timeout, 1, 2);
-
-        if (pyparam == NULL) {
-            PyErr_SetString(PyExc_MemoryError, "Failed to create ParameterObject for downloaded parameter. Parameter list may be corrupted.");
-            return NULL;
-        }
-
-        // Using param_list_remove_specific() means we iterate thrice, but it is simpler.
-        param_list_remove_specific(param, 0, 1);
-
-        param_list_add(&pyparam->param);
-    }
-#endif
-
     return pycsh_util_parameter_list();
 
 }

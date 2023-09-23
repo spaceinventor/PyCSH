@@ -233,8 +233,6 @@ PyObject * _pycsh_Parameter_from_param(PyTypeObject *type, param_t * param, cons
 	self->retries = retries;
 	self->paramver = paramver;
 
-	// self->param->callback = _Parameter_wraps_param_callback_magic;  // TODO Kevin: This is nasty, but it currently needs to be done to prevent freeing() parameters we have created.
-	// TODO Kevin: Actually, this might not be necessary anymore.
 	self->type = (PyTypeObject *)pycsh_util_get_type((PyObject *)self, NULL);
 
     return (PyObject *) self;
