@@ -73,6 +73,8 @@ VMEM_DEFINE_FILE(dummy, "dummy", "dummy.txt", 1000000);
 // #define PARAMID_CSP_RTABLE					 12
 // PARAM_DEFINE_STATIC_VMEM(PARAMID_CSP_RTABLE,      csp_rtable,        PARAM_TYPE_STRING, 64, 0, PM_SYSCONF, NULL, "", csp, 0, NULL);
 
+/* Assertions used when parsing Python arguments, i.e int -> uint32_t */
+static_assert(sizeof(unsigned int) == sizeof(uint32_t));
 
 // We include this parameter when testing the behavior of arrays, as none would exist otherwise.
 uint8_t _test_array[] = {1,2,3,4,5,6,7,8};
@@ -307,6 +309,7 @@ PyMODINIT_FUNC PyInit_pycsh(void) {
 		return NULL;
 
 	{  /* Exceptions */
+		// TODO Kevin: I think Py_IncRef() and PyModule_AddObject() should be replaced with PyModule_AddObjectRef()
 		PyExc_ProgramDiffError = PyErr_NewExceptionWithDoc("pycsh.ProgramDiffError", 
 			"Raised when a difference is detected between uploaded/downloaded data after programming.\n"
 			"Must be caught before ConnectionError() baseclass.",
@@ -320,6 +323,13 @@ PyMODINIT_FUNC PyInit_pycsh(void) {
 			PyExc_RuntimeError, NULL);
 		Py_IncRef(PyExc_ParamCallbackError);
 		PyModule_AddObject(m, "ParamCallbackError", PyExc_ParamCallbackError);
+
+		PyExc_InvalidParameterTypeError = PyErr_NewExceptionWithDoc("pycsh.InvalidParameterTypeError", 
+			"Raised when attempting to create a new PythonParameter() with an invalid type.\n"
+			"Must be caught before ValueError() baseclass.",
+			PyExc_ValueError, NULL);
+		Py_IncRef(PyExc_InvalidParameterTypeError);
+		PyModule_AddObject(m, "ParamCallbackError", PyExc_InvalidParameterTypeError);
 	}
 
 	Py_INCREF(&ParameterType);

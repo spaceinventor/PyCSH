@@ -16,6 +16,7 @@
 
 // Instantiated in our PyMODINIT_FUNC
 PyObject * PyExc_ParamCallbackError;
+PyObject * PyExc_InvalidParameterTypeError;
 
 /**
  * @brief Shared callback for all param_t's wrapped by a Parameter instance.
@@ -68,7 +69,37 @@ void Parameter_callback(param_t * param, int offset) {
 }
 
 /* Internal API for creating a new PythonParameterObject. */
-static PythonParameterObject * Parameter_create_new(PyTypeObject *type, uint16_t id, param_type_e param_type, uint32_t mask, char * name, char * unit, char * docstr, void * addr, int array_size, const PyObject * callback, int host, int timeout, int retries, int paramver) {
+static PythonParameterObject * Parameter_create_new(PyTypeObject *type, uint16_t id, param_type_e param_type, uint32_t mask, char * name, char * unit, char * docstr, int array_size, const PyObject * callback, int host, int timeout, int retries, int paramver) {
+
+    /* Check for valid parameter type. param_list_create_remote() should always return NULL for errors,
+        but this allows us to raise a specific exception. */
+    /* I'm not sure whether we can use (param_type > PARAM_TYPE_INVALID) to check for invalid parameters,
+        so for now we will use a switch. This should also make GCC warn us when new types are added. */
+    switch (param_type) {
+
+        case PARAM_TYPE_UINT8:
+        case PARAM_TYPE_UINT16:
+        case PARAM_TYPE_UINT32:
+        case PARAM_TYPE_UINT64:
+        case PARAM_TYPE_INT8:
+        case PARAM_TYPE_INT16:
+        case PARAM_TYPE_INT32:
+        case PARAM_TYPE_INT64:
+        case PARAM_TYPE_XINT8:
+        case PARAM_TYPE_XINT16:
+        case PARAM_TYPE_XINT32:
+        case PARAM_TYPE_XINT64:
+        case PARAM_TYPE_FLOAT:
+        case PARAM_TYPE_DOUBLE:
+        case PARAM_TYPE_STRING:
+        case PARAM_TYPE_DATA:
+        case PARAM_TYPE_INVALID:
+            break;
+        
+        default:
+            PyErr_SetString(PyExc_InvalidParameterTypeError, "An invalid parameter type was specified during creation of a new parameter");
+            return NULL;
+    }
 
     param_t * new_param = param_list_create_remote(id, 0, param_type, mask, array_size, name, unit, docstr, -1);
     if (new_param == NULL) {
@@ -128,10 +159,10 @@ static void PythonParameter_dealloc(PythonParameterObject *self) {
 static PyObject * PythonParameter_new(PyTypeObject *type, PyObject * args, PyObject * kwds) {
 
     uint16_t id;
-    // TODO Kevin: neither flags nor type should not be hard coded here.
-    param_type_e param_type = PARAM_TYPE_INT32;
-    uint32_t mask = PM_TELEM;
+    // TODO Kevin: Flags should not be hard coded here.
     char * name;
+    param_type_e param_type;
+    uint32_t mask;
     char * unit = "";
     char * docstr = "";
     int array_size = 0;
@@ -142,9 +173,9 @@ static PyObject * PythonParameter_new(PyTypeObject *type, PyObject * args, PyObj
     int retries = 0;
     int paramver = 2;
 
-    static char *kwlist[] = {"id", "name", "unit", "docstr", "array_size", "callback", "host", "timeout", "retries", "paramver", NULL};
+    static char *kwlist[] = {"id", "name", "type", "mask", "unit", "docstr", "array_size", "callback", "host", "timeout", "retries", "paramver", NULL};
 
-    if (!PyArg_ParseTupleAndKeywords(args, kwds, "Hs|ssiOiiii", kwlist, &id, &name, &unit, &docstr, &array_size, &callback, &host, &timeout, &retries, &paramver))
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "HsiI|ssiOiiii", kwlist, &id, &name, &param_type, &mask, &unit, &docstr, &array_size, &callback, &host, &timeout, &retries, &paramver))
         return NULL;  // TypeError is thrown
 
     if (param_list_find_id(0, id) != NULL) {
@@ -156,11 +187,7 @@ static PyObject * PythonParameter_new(PyTypeObject *type, PyObject * args, PyObj
     if (array_size < 1)
         array_size = 1;
 
-    void * physaddr = calloc(param_typesize(param_type), array_size);
-    if (physaddr == NULL) {
-        return PyErr_NoMemory();
-    }
-    PythonParameterObject * python_param = Parameter_create_new(type, id, param_type, mask, name, unit, docstr, physaddr, array_size, callback, host, timeout, retries, paramver);
+    PythonParameterObject * python_param = Parameter_create_new(type, id, param_type, mask, name, unit, docstr, array_size, callback, host, timeout, retries, paramver);
     if (python_param == NULL) {
         // Assume exception message to be set by Parameter_create_new()
         /* physaddr should be freed in dealloc() */

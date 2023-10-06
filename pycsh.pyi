@@ -75,6 +75,12 @@ class ParamCallbackError(RuntimeError):
     Must be caught before RuntimeError() baseclass.
     """
 
+class InvalidParameterTypeError(ValueError):
+    """
+    Raised when attempting to create a new PythonParameter() with an invalid type.
+    Must be caught before ValueError() baseclass.
+    """
+
 
 class Parameter:
     """
@@ -255,7 +261,7 @@ class ParameterArray(Parameter):
 class PythonParameter(Parameter):
     """ Parameter created in Python. """
 
-    def __new__(cls, id: int, name: str, unit: str = None, docstr: str = None, array_size: int = 0,
+    def __new__(cls, id: int, name: str, type: int, mask: int, unit: str = None, docstr: str = None, array_size: int = 0,
                    callback: _Callable[[Parameter, int], None] = None, host: int = None, timeout: int = None,
                    retries: int = 0, paramver: int = 2) -> PythonParameter:
         """
@@ -263,6 +269,8 @@ class PythonParameter(Parameter):
 
         :param id: ID of the new parameter.
         :param name: Name of the new parameter.
+        :param type: Type of the parameter i.e PARAM_TYPE_UINT8.
+        :param mask: Parameter flags, i.e PM_CONF. Multiple flags may be ORed together.
         :param unit: Unit of the new parameter.
         :param docstr: Docstring of the new parameter.
         :param array_size: Array size of the new parameter. Creates a ParameterArray when > 1.
