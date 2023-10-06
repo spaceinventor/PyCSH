@@ -19,7 +19,7 @@
 /* Maps param_t to its corresponding PythonParameter for use by C callbacks. */
 PyDictObject * param_callback_dict = NULL;
 
-/* 1 for success. Comapares the wrapped param_t for parameters, otherwise 0. Assumes self to be a ParameterObject. */
+/* 1 for success. Compares the wrapped param_t for parameters, otherwise 0. Assumes self to be a ParameterObject. */
 static int Parameter_equal(PyObject *self, PyObject *other) {
 	if (PyObject_TypeCheck(other, &ParameterType) && (memcmp(&(((ParameterObject *)other)->param), &(((ParameterObject *)self)->param), sizeof(param_t)) == 0))
 		return 1;

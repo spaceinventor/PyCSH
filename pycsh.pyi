@@ -629,7 +629,7 @@ def csp_add_udp(addr: int, server: str, promisc: int = 0, mask: int = 8, default
 
 def csp_add_eth(addr: int, device: str, promisc: int = 0, mask: int = 8, default: int = 0, mtu: int = 1200) -> None:
     """
-    Add a new UDP interface
+    Add a new ethernet interface
 
     :param addr: Node of the interface
     :param device: Ethernet device

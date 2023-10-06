@@ -14,6 +14,7 @@
 #include "../pycsh.h"
 #include "../utils.h"
 
+// Instantiated in our PyMODINIT_FUNC
 PyObject * PyExc_ParamCallbackError;
 
 /**
