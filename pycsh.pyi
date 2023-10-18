@@ -471,7 +471,20 @@ def list_save(filename: str = None, node: int = None, include_node: bool = True)
     :param include_node: Whether to include the node of the parameter in the "last add" command.
     :returns: Currently returns None, may return string of "list add" commands in future versions.
     """
+def list_add(node: int, length: int, id: int = None, name: str = None, type: int = None, mask: int = None,  comment: str = None, unit: str = None) -> None:
+    """
+    Add a parameter to the global list
 
+    :param node: Node ID for the parameter.
+    :param length: Length of the parameter.
+    :param id: ID for the parameter.
+    :param name: Name of the parameter.
+    :param type: Type of the parameter.
+    :param mask: Mask for the parameter.
+    :param comment: Additional comment for the parameter.
+    :param unit: Unit of measurement for the parameter.
+    :returns: Returns the created parameter.
+    """
 # Commands from CSP
 def ping(node: int = None, timeout: int = None, size: int = None) -> int:
     """

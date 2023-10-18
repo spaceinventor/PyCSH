@@ -201,7 +201,9 @@ PythonParameterObject * Parameter_wraps_param(param_t *param) {
 
 /* Create a Python Parameter object from a param_t pointer directly. */
 PyObject * _pycsh_Parameter_from_param(PyTypeObject *type, param_t * param, const PyObject * callback, int host, int timeout, int retries, int paramver) {
-
+	if (param == NULL) {
+ 		return NULL;
+	}
 	// This parameter is already wrapped by a ParameterObject, which we may return instead.
 	PythonParameterObject * existing_parameter;
 	if ((existing_parameter = Parameter_wraps_param(param)) != NULL) {

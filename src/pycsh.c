@@ -243,6 +243,8 @@ static PyMethodDef methods[] = {
 	{"list_download", (PyCFunction)pycsh_param_list_download, METH_VARARGS | METH_KEYWORDS, "Download all parameters on the specified node."},
 	{"list_forget", (PyCFunction)pycsh_param_list_forget, 	  METH_VARARGS | METH_KEYWORDS, "Remove remote parameters, matching the provided arguments, from the global list."},
 	{"list_save", 	(PyCFunction)pycsh_param_list_save, 	  METH_VARARGS | METH_KEYWORDS, "Save a list of parameters to a file."},
+	{"list_add", 	(PyCFunction)pycsh_param_list_add, 	      METH_VARARGS | METH_KEYWORDS, "Add a paramter to the global list."},
+
 	// {"list_load", 	pycsh_param_list_load, 		  	METH_VARARGS, 				  "Load a list of parameters from a file."},
 
 	/* Converted CSH commands from csh/src/slash_csp.c */

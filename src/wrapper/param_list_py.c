@@ -72,6 +72,65 @@ PyObject * pycsh_param_list_download(PyObject * self, PyObject * args, PyObject 
 
 }
 
+PyObject * pycsh_param_list_add(PyObject * self, PyObject * args, PyObject * kwds) {
+    unsigned int node;
+    unsigned int length;
+    unsigned int id;
+    char * name;
+    unsigned int type; 
+    unsigned int mask = NULL;
+    char * helpstr = NULL;
+    char * unitstr = NULL;
+
+    static char *kwlist[] = {"node", "length", "id", "name", "type", "mask", "comment", "unit", NULL};
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "IIIsI|Iss", kwlist, &node, &length, &id, &name, &type, &mask, &helpstr, &unitstr)) {
+        return NULL;
+    }
+    switch (type) {
+        case PARAM_TYPE_UINT8:
+        case PARAM_TYPE_UINT16:
+        case PARAM_TYPE_UINT32:
+        case PARAM_TYPE_UINT64:
+        case PARAM_TYPE_INT8:
+        case PARAM_TYPE_INT16:
+        case PARAM_TYPE_INT32:
+        case PARAM_TYPE_INT64:
+        case PARAM_TYPE_XINT8:
+        case PARAM_TYPE_XINT16:
+        case PARAM_TYPE_XINT32:
+        case PARAM_TYPE_XINT64:
+        case PARAM_TYPE_FLOAT:
+        case PARAM_TYPE_DOUBLE:
+        case PARAM_TYPE_STRING:
+        case PARAM_TYPE_DATA:
+        case PARAM_TYPE_INVALID:
+            break;
+        
+        default:
+            PyErr_SetString(PyExc_InvalidParameterTypeError, "An invalid parameter type was specified during creation of a new parameter");
+            return NULL;
+    }
+    
+    param_t * param = param_list_create_remote(id, node, type, mask, length, name, unitstr, helpstr, -1);
+    
+
+    PyObject * param_instance = _pycsh_Parameter_from_param(&ParameterType, param, NULL, INT_MIN, pycsh_dfl_timeout, 1, 2);
+
+    if (param_instance == NULL) {
+        PyErr_SetString(PyExc_ValueError, "Unable to create param");
+        return NULL;
+    }
+    if (param_list_add(param) != 0) {
+        param_list_destroy(param);
+        Py_DECREF(param_instance);
+        PyErr_SetString(&PyExc_ValueError, "Failed to add parameter to list");
+        return NULL;
+    }   
+
+    return param_instance;
+}
+
+
 PyObject * pycsh_param_list_forget(PyObject * self, PyObject * args, PyObject * kwds) {
 
     int node = pycsh_dfl_node;
