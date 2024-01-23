@@ -539,6 +539,37 @@ def vmem(node: int = None, timeout: int = None, version: int = None) -> str:
     :return: The string of the vmem at the specfied node.
     """
 
+def vmem_download(address: int = None, length: int = None, node: int = None, window: int = None, timeout: int = None, version: int = None) -> bytes:
+    """
+    Downloads a VMEM memory area specified by the argunment, and puts it in data_out
+
+    :param address: The VMEM address to download from
+    :param length: Number of bytes to download
+    :param node: Node from which the vmem should be listed.
+    :param window: RDP Window.
+    :param timeout: Timeout in ms when connecting to the node.
+
+    :raises RuntimeError: When called before .init().
+    :raises ConnectionError: When the timeout is exceeded attempting to connect to the specified node.
+    :raises MemoryError: When allocation for a CSP buffer fails.
+
+    :return: A series of bytes downloaded from the VMEM area
+    """
+
+def vmem_upload(address: int = None, data_in: bytes = None, node: int = None, timeout: int = None, version: int = None) -> None:
+    """
+    Uploads data from data_in to a VMEM memory area specified by the argunment, and puts it in data_out
+
+    :param address: The VMEM address to upload to
+    :param data_in: The bytes to upload
+    :param node: Node from which the vmem should be listed.
+    :param timeout: Timeout in ms when connecting to the node.
+
+    :raises RuntimeError: When called before .init().
+    :raises ConnectionError: When the timeout is exceeded attempting to connect to the specified node.
+    :raises MemoryError: When allocation for a CSP buffer fails.
+    """
+
 def switch(slot: int, node: int = None, times: int = None) -> None:
     """
     Reboot into the specified firmware slot.
