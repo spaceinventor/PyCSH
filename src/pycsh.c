@@ -258,6 +258,10 @@ static PyMethodDef methods[] = {
 	/* Converted vmem commands from libparam/src/vmem/vmem_client_slash.c */
 	{"vmem", 	(PyCFunction)pycsh_param_vmem,   METH_VARARGS | METH_KEYWORDS, "Builds a string of the vmem at the specified node."},
 
+	/* Converted vmem commands from libparam/src/vmem/vmem_client.c */
+	{"vmem_download", (PyCFunction)pycsh_vmem_download,   METH_VARARGS | METH_KEYWORDS, "Download a vmem area."},
+	{"vmem_upload", (PyCFunction)pycsh_vmem_upload,   METH_VARARGS | METH_KEYWORDS, "Upload data to a vmem area."},
+
 	/* Converted program/reboot commands from csh/src/spaceboot_slash.c */
 	{"switch", 	(PyCFunction)slash_csp_switch,   METH_VARARGS | METH_KEYWORDS, "Reboot into the specified firmware slot."},
 	{"program", (PyCFunction)pycsh_csh_program,  METH_VARARGS | METH_KEYWORDS, "Upload new firmware to a module."},
