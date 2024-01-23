@@ -520,7 +520,33 @@ int _pycsh_util_set_single(param_t *param, PyObject *value, int offset, int host
 		offset = -1;
 
 	char valuebuf[128] __attribute__((aligned(16))) = { };
+	// Stringify the value object
 	PyObject * strvalue = _pycsh_get_str_value(value);
+	switch (param->type) {
+		case PARAM_TYPE_XINT8:
+		case PARAM_TYPE_XINT16:
+		case PARAM_TYPE_XINT32:
+		case PARAM_TYPE_XINT64:
+			// If the destination parameter is expecting a hexadecimal value
+			// and the Python object value is of Long type (int), then we need
+			// to do a conversion here. Otherwise if the Python value is a string
+			// type, then we must expect hexadecimal digits only (including 0x)
+			if (Py_IS_TYPE(value, &PyLong_Type)) {
+				// Convert the integer value to hexadecimal digits
+				char tmp[64];
+				snprintf(tmp,64,"0x%lX", PyLong_AsUnsignedLong(value));
+				// Convert the hexadecimal C-string into a Python string object
+				PyObject *py_long_str = PyUnicode_FromString(tmp);
+				// De-reference the original strvalue before assigning a new
+				Py_DECREF(strvalue);
+				strvalue = py_long_str;
+			}
+			break;
+
+		default:
+			break;
+	}
+
 	param_str_to_value(param->type, (char*)PyUnicode_AsUTF8(strvalue), valuebuf);
 	Py_DECREF(strvalue);
 
