@@ -88,7 +88,7 @@ static PyObject * ParameterList_pull(ParameterListObject *self, PyObject *args, 
 
 	}
 
-	if (param_pull_queue(&queue, 0, host, timeout)) {
+	if (param_pull_queue(&queue, CSP_PRIO_NORM, 0, host, timeout)) {
 		PyErr_SetString(PyExc_ConnectionError, "No response.");
 		free(queuebuffer);
 		return 0;
@@ -140,7 +140,7 @@ static PyObject * ParameterList_push(ParameterListObject *self, PyObject *args, 
 			fprintf(stderr, "Skipping non-parameter object (of type: %s) in Parameter list.", item->ob_type->tp_name);
 	}
 
-	if (param_push_queue(&queue, 1, node, timeout, hwid) < 0) {
+	if (param_push_queue(&queue, 1, node, timeout, hwid, false) < 0) {
 		PyErr_SetString(PyExc_ConnectionError, "No response.");
 		free(queuebuffer);
 		return NULL;
