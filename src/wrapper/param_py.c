@@ -91,7 +91,7 @@ PyObject * pycsh_param_set(PyObject * self, PyObject * args, PyObject * kwds) {
 #endif
 		if (_pycsh_util_set_single(param, value, offset, dest, timeout, retries, paramver, 1))
 			return NULL;  // Raises one of many possible exceptions.
-		param_print(param, -1, NULL, 0, 2);
+		param_print(param, -1, NULL, 0, 2, 0);
 	}
 
 	Py_RETURN_NONE;
@@ -158,7 +158,7 @@ PyObject * pycsh_param_pull(PyObject * self, PyObject * args, PyObject * kwds) {
 	int param_pull_res;
 	Py_BEGIN_ALLOW_THREADS;
 
-	param_pull_res = param_pull_all(1, node, include_mask, exclude_mask, timeout, paramver);
+	param_pull_res = param_pull_all(CSP_PRIO_NORM, 1, node, include_mask, exclude_mask, timeout, paramver);
 	Py_END_ALLOW_THREADS;
 	if (param_pull_res) {
 		PyErr_SetString(PyExc_ConnectionError, "No response.");

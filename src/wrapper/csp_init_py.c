@@ -117,14 +117,17 @@ PyObject * pycsh_csh_csp_ifadd_zmq(PyObject * self, PyObject * args, PyObject * 
     int promisc = 0;
     int mask = 8;
     int dfl = 0;
+    int pub_port = 6000;
+    int sub_port = 7000;
 
-    static char *kwlist[] = {"addr", "server", "promisc", "mask", "default", NULL};
+    static char *kwlist[] = {"addr", "server", "promisc", "mask", "default", "pub_port", "sub_port", NULL};
 
-	if (!PyArg_ParseTupleAndKeywords(args, kwds, "Is|iii", kwlist, &addr, &server, &promisc, &mask, &dfl))
+	if (!PyArg_ParseTupleAndKeywords(args, kwds, "Is|iiiii", kwlist, &addr, &server, &promisc, &mask, &dfl, &pub_port, &sub_port))
 		return NULL;  // TypeError is thrown
 
     csp_iface_t * iface;
-    csp_zmqhub_init_filter2((const char *) name, server, addr, mask, promisc, &iface, NULL);
+    // TODO: We need to figure out how to correctly align the interface with respect to pub and sub ports. They are swapped
+    csp_zmqhub_init_filter2((const char *) name, server, addr, mask, promisc, &iface, NULL, pub_port, sub_port);
     iface->is_default = dfl;
     iface->addr = addr;
 	iface->netmask = mask;
