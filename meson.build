@@ -65,9 +65,14 @@ foreach python_version : get_option('python3_versions')
 	# py.dependency() doesn't work with version constraint. Use plain
 	# dependency() instead
 	pydep = dependency('python3', version : '>=3.5', required : true)
-	py.extension_module('pycsh', pycsh_sources,
+	pycsh = py.extension_module('pycsh', pycsh_sources,
 						dependencies : [param_dep, pydep, csp_dep],
 						install : true)
+	wheel = custom_target('wheel',
+		input: pycsh,
+		output : 'wheel',
+		command : ['python3', '-mpip', 'wheel', '..'],
+	)
 
 endforeach
 

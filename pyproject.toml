@@ -8,7 +8,7 @@ authors = []
 
 [build-system]
 build-backend = 'mesonpy'
-requires = ['meson-python']
+requires = ['meson-python', "meson>=0.63.2"]
 
 [tool.meson-python.args]
 # setup = ['-Dcsp:b_ndbebug=false']
