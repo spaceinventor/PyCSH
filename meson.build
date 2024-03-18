@@ -61,18 +61,11 @@ pycsh_sources += vcs_tag(input: files('src/version.c.in'), output: 'version.c', 
 # It may only be imported for these versions.
 foreach python_version : get_option('python3_versions')
 
-	py = import('python').find_installation(python_version)
-	# py.dependency() doesn't work with version constraint. Use plain
-	# dependency() instead
-	pydep = dependency('python3', version : '>=3.5', required : true)
-	pycsh = py.extension_module('pycsh', pycsh_sources,
-						dependencies : [param_dep, pydep, csp_dep],
+	py = import('python').find_installation(python_version, pure: false)
+
+	py.extension_module('PyCSH', pycsh_sources,
+						dependencies : [param_dep, csp_dep],
 						install : true)
-	wheel = custom_target('wheel',
-		input: pycsh,
-		output : 'wheel',
-		command : ['python3', '-mpip', 'wheel', '..'],
-	)
 
 endforeach
 

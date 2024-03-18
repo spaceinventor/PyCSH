@@ -61,7 +61,7 @@ sudo ln -s <FULL/PATH/TO/PyCSH/REPO>/PyCSH /usr/lib/python3/dist-packages/PyCSH
 
 ## Build a pip installable binary wheel package
 
-The `install` method above is not very friendly to using PyCSH in a virtual environment (why should we not do that ?), the following method allows PyCSH to be more Python-scosystem friendly.
+The `install` method above is not very friendly to using PyCSH in a virtual environment (why should we not do that ?), the following method allows PyCSH to be more Python-ecosystem friendly.
 
 ```
 jbl@jbl-ThinkPad-T15-Gen-1:~/workspace/PyCSH$ python3 -m pip wheel .
