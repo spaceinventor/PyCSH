@@ -78,7 +78,7 @@ PyObject * pycsh_param_list_add(PyObject * self, PyObject * args, PyObject * kwd
     unsigned int id;
     char * name;
     unsigned int type; 
-    unsigned int mask = NULL;
+    unsigned int mask = 0;
     char * helpstr = NULL;
     char * unitstr = NULL;
 
@@ -123,7 +123,7 @@ PyObject * pycsh_param_list_add(PyObject * self, PyObject * args, PyObject * kwd
     if (param_list_add(param) != 0) {
         param_list_destroy(param);
         Py_DECREF(param_instance);
-        PyErr_SetString(&PyExc_ValueError, "Failed to add parameter to list");
+        PyErr_SetString(PyExc_ValueError, "Failed to add parameter to list");
         return NULL;
     }   
 
