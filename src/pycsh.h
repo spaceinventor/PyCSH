@@ -14,6 +14,7 @@
 #include <Python.h>
 
 #include <param/param_queue.h>
+#include <slash/dflopt.h>
 
 #define CSP_INIT_CHECK() \
 	if (!csp_initialized()) {\
@@ -24,5 +25,7 @@
 
 uint8_t csp_initialized();
 
-extern unsigned int pycsh_dfl_node;
-extern unsigned int pycsh_dfl_timeout;  // In milliseconds
+//extern unsigned int pycsh_dfl_node;
+//extern unsigned int pycsh_dfl_timeout;  // In milliseconds
+#define pycsh_dfl_node slash_dfl_node
+#define pycsh_dfl_timeout slash_dfl_timeout  // In milliseconds
