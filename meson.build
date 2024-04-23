@@ -23,6 +23,7 @@ project('csh_bindings', 'c', subproject_dir: 'lib', default_options: [
 add_global_arguments('-I../include', language: 'c')
 
 csp_dep = dependency('csp', fallback: ['csp', 'csp_dep'], required: true)
+slash_dep = dependency('slash', fallback: ['slash', 'slash_dep'], required: true).as_link_whole()
 param_dep = dependency('param', fallback: ['param', 'param_dep'], required: true).as_link_whole()
 
 
@@ -39,6 +40,7 @@ pycsh_sources = [
 
 	# Wrapper functions
 	'src/wrapper/py_csp.c',
+	'src/wrapper/slash_py.c',
 	'src/wrapper/param_py.c',
 	'src/wrapper/dflopt_py.c',
 	'src/wrapper/csp_init_py.c',
@@ -66,7 +68,7 @@ foreach python_version : get_option('python3_versions')
 	# dependency() instead
 	pydep = dependency('python3', version : '>=3.5', required : true)
 	py.extension_module('pycsh', pycsh_sources,
-						dependencies : [param_dep, pydep, csp_dep],
+						dependencies : [param_dep, pydep, csp_dep, slash_dep],
 						install : true)
 
 endforeach

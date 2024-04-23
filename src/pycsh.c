@@ -53,6 +53,7 @@
 
 #include "wrapper/py_csp.h"
 #include "wrapper/param_py.h"
+#include "wrapper/slash_py.h"
 #include "wrapper/dflopt_py.h"
 #include "wrapper/spaceboot_py.h"
 #include "wrapper/csp_init_py.h"
@@ -92,8 +93,8 @@ uint8_t csp_initialized() {
 	return _csp_initialized;
 }
 
-unsigned int pycsh_dfl_node = 0;
-unsigned int pycsh_dfl_timeout = 1000;
+//unsigned int pycsh_dfl_node = 0;
+//unsigned int pycsh_dfl_timeout = 1000;
 
 uint64_t clock_get_nsec(void) {
 	struct timespec ts;
@@ -254,6 +255,7 @@ static PyMethodDef methods[] = {
 
 	/* Utility functions */
 	{"get_type", 	pycsh_util_get_type, 		  	METH_VARARGS, 				  "Gets the type of the specified parameter."},
+	{"slash_execute", pycsh_slash_execute, 			METH_VARARGS | METH_KEYWORDS, "Execute string as a slash command. Used to run .csh scripts"},
 
 	/* Converted vmem commands from libparam/src/vmem/vmem_client_slash.c */
 	{"vmem", 	(PyCFunction)pycsh_param_vmem,   METH_VARARGS | METH_KEYWORDS, "Builds a string of the vmem at the specified node."},

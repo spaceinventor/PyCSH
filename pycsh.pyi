@@ -403,6 +403,9 @@ def push(node: int, timeout: int = None, hwid: int = None, retries: int = None) 
 def pull(node: int = None, timeout: int = None, include_mask: str | int = None, exclude_mask: str | int = None, paramver: int = None) -> None:
     """ Pull all or a specific mask of parameters. """
 
+def slash_execute(command: str) -> int:
+    """ Execute string as a slash command. Used to run .csh scripts """
+
 def cmd_new(type: _Literal['get', 'set'], name: str = None, paramver: int = 2) -> None:
     """
     Create a new global command/queue
