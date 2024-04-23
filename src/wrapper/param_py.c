@@ -176,7 +176,7 @@ PyObject * pycsh_param_cmd_new(PyObject * self, PyObject * args, PyObject * kwds
 
 	static char *kwlist[] = {"type", "name", "paramver", NULL};
 
-	if (!PyArg_ParseTupleAndKeywords(args, kwds, "is|i", kwlist, &type, &name, &paramver, &paramver)) {
+	if (!PyArg_ParseTupleAndKeywords(args, kwds, "ss|i", kwlist, &type, &name, &paramver, &paramver)) {
 		return NULL;
 	}
 
