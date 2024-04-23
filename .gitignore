@@ -20,3 +20,4 @@ builddir
 .idea/
 
 __pycache__/
+*.whl
