@@ -15,8 +15,11 @@ project('csh_bindings', 'c', subproject_dir: 'lib', default_options: [
 	'param:have_fopen=true',
 	'param:slash=true',  # TODO Kevin: How should param:slash work if slash is optional
 	'slash:builtins=true',
+	'param:commands=true',
+	'param:scheduler=true',
+	'param:commands_client=true',
 	'param:scheduler_client=true',
-	'param:collector=true',
+	'param:collector=false',
 	'param:list_dynamic=true',])
 
 add_global_arguments('-I../include', language: 'c')

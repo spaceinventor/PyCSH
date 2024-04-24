@@ -35,6 +35,8 @@
 #include <csp/csp.h>
 #include <csp/csp_yaml.h>
 #include <csp/csp_cmp.h>
+#include <csp/arch/csp_time.h>
+#include <csp/csp_hooks.h>
 #include <pthread.h>
 #include <csp/interfaces/csp_if_can.h>
 #include <csp/interfaces/csp_if_kiss.h>
