@@ -52,8 +52,10 @@ pycsh_sources = [
 	'src/utils.c',
 
 	# Dependencies from CSH
+	'src/csh/lock.c',
 	'src/csh/serial.c',
 	'src/csh/prometheus.c',
+	'src/csh/known_hosts.c',
 	'src/csh/param_sniffer.c',
 ]
 
