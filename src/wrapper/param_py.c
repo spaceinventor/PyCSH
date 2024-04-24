@@ -8,6 +8,8 @@
 #define PY_SSIZE_T_CLEAN
 #include <Python.h>
 
+#include "pycshconfig.h"
+
 #include <param/param.h>
 #include <param/param_queue.h>
 #include <param/param_client.h>
@@ -18,8 +20,15 @@
 
 #include "param_py.h"
 
+#ifdef PYCSH_HAVE_SLASH
+/* Assumes that param:slash if we have slash, and that we want to use the queue from there.
+	This makes slash_execute() use the same queue as PyCSH */
+/* param_slash.h is not exposed, but we need the queue from there, so please close your eyes */
+extern param_queue_t param_queue;
+#else
 static char queue_buf[PARAM_SERVER_MTU];
 param_queue_t param_queue = { .buffer = queue_buf, .buffer_size = PARAM_SERVER_MTU, .type = PARAM_QUEUE_TYPE_EMPTY, .version = 2 };
+#endif
 
 PyObject * pycsh_param_get(PyObject * self, PyObject * args, PyObject * kwds) {
 

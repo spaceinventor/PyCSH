@@ -13,6 +13,7 @@
 #include "structmember.h"
 
 #include "pycsh.h"
+#include "pycshconfig.h"
 
 #include <fcntl.h>
 #include <stdio.h>
@@ -24,6 +25,9 @@
 #endif
 #ifdef PARAM_HAVE_SCHEDULER
 #include <param/param_scheduler.h>
+#endif
+#ifdef PYCSH_HAVE_SLASH
+#include <slash/slash.h>
 #endif
 
 #include <vmem/vmem_file.h>
@@ -93,8 +97,10 @@ uint8_t csp_initialized() {
 	return _csp_initialized;
 }
 
-//unsigned int pycsh_dfl_node = 0;
-//unsigned int pycsh_dfl_timeout = 1000;
+#ifndef PYCSH_HAVE_SLASH
+unsigned int pycsh_dfl_node = 0;
+unsigned int pycsh_dfl_timeout = 1000;
+#endif
 
 uint64_t clock_get_nsec(void) {
 	struct timespec ts;
@@ -255,7 +261,9 @@ static PyMethodDef methods[] = {
 
 	/* Utility functions */
 	{"get_type", 	pycsh_util_get_type, 		  	METH_VARARGS, 				  "Gets the type of the specified parameter."},
-	{"slash_execute", pycsh_slash_execute, 			METH_VARARGS | METH_KEYWORDS, "Execute string as a slash command. Used to run .csh scripts"},
+#ifdef PYCSH_HAVE_SLASH
+	{"slash_execute", (PyCFunction)pycsh_slash_execute, 			METH_VARARGS | METH_KEYWORDS, "Execute string as a slash command. Used to run .csh scripts"},
+#endif
 
 	/* Converted vmem commands from libparam/src/vmem/vmem_client_slash.c */
 	{"vmem", 	(PyCFunction)pycsh_param_vmem,   METH_VARARGS | METH_KEYWORDS, "Builds a string of the vmem at the specified node."},
@@ -412,6 +420,12 @@ PyMODINIT_FUNC PyInit_pycsh(void) {
 	}
 
 	param_callback_dict = (PyDictObject *)PyDict_New();
+
+	{  /* Argumentless CSH init */
+		#ifdef PYCSH_HAVE_SLASH
+			slash_list_init();
+		#endif
+	}
 
 	return m;
 }
