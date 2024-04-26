@@ -30,6 +30,10 @@ void known_hosts_del(int host) {
 
 host_t * known_hosts_add(int addr, const char * new_name, bool override_existing) {
 
+    if (addr == 0) {
+        return NULL;
+    }
+
     if (override_existing) {
         known_hosts_del(addr);  // Ensure 'addr' is not in the list
     } else {
@@ -48,7 +52,7 @@ host_t * known_hosts_add(int addr, const char * new_name, bool override_existing
         return NULL;  // No more memory
     }
     host->node = addr;
-    strncpy(host->name, new_name, HOSTNAME_MAXLEN);
+    strncpy(host->name, new_name, HOSTNAME_MAXLEN-1);  // -1 to fit NULL byte
 
     SLIST_INSERT_HEAD(&known_hosts, host, next);
 
@@ -153,9 +157,15 @@ static int cmd_hosts_add(struct slash *slash)
 	    return SLASH_EINVAL;
     }
 
+    if (node == 0) {
+        fprintf(stderr, "Refusing to add hostname for node 0");
+        optparse_del(parser);
+        return SLASH_EINVAL;
+    }
+
 	/* Check if name is present */
 	if (++argi >= slash->argc) {
-		printf("missing parameter name\n");
+		printf("missing node hostname\n");
         optparse_del(parser);
 		return SLASH_EINVAL;
 	}
@@ -165,7 +175,7 @@ static int cmd_hosts_add(struct slash *slash)
     if (known_hosts_add(node, name, true) == NULL) {
         fprintf(stderr, "No more memory, failed to add host");
         optparse_del(parser);
-        return SLASH_ENOMEM;
+        return SLASH_ENOMEM;  // We have already checked for node 0, so this can currently only be a memory error.
     }
     optparse_del(parser);
     return SLASH_SUCCESS;
