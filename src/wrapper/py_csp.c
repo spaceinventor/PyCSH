@@ -11,6 +11,7 @@
 #include <csp/csp_cmp.h>
 
 #include "../pycsh.h"
+#include "../csh/known_hosts.h"
 
 #include "py_csp.h"
 
@@ -52,10 +53,11 @@ PyObject * pycsh_slash_ident(PyObject * self, PyObject * args, PyObject * kwds) 
 
     unsigned int node = pycsh_dfl_node;
     unsigned int timeout = pycsh_dfl_timeout;
+    bool override = false;
 
-    static char *kwlist[] = {"node", "timeout", NULL};
+    static char *kwlist[] = {"node", "timeout", "override", NULL};
 
-    if (!PyArg_ParseTupleAndKeywords(args, kwds, "|II", kwlist, &node, &timeout)) {
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "|IIp", kwlist, &node, &timeout, &override)) {
         return NULL;  // TypeError is thrown
     }
 
@@ -93,6 +95,7 @@ PyObject * pycsh_slash_ident(PyObject * self, PyObject * args, PyObject * kwds) 
             char buf[500];
             snprintf(buf, sizeof(buf), "\nIDENT %hu\n  %s\n  %s\n  %s\n  %s %s\n", packet->id.src, msg.ident.hostname, msg.ident.model, msg.ident.revision, msg.ident.date, msg.ident.time);
             printf("%s", buf);
+            known_hosts_add(packet->id.src, msg.ident.hostname, override);
             PyUnicode_AppendAndDel(&list_string, PyUnicode_FromString(buf));
         }
         csp_buffer_free(packet);

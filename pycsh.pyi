@@ -502,7 +502,7 @@ def ping(node: int = None, timeout: int = None, size: int = None) -> int:
     :return: >0 = echo time in mS on success, otherwise -1 for error.
     """
 
-def ident(node: int = None, timeout: int = None) -> str:
+def ident(node: int = None, timeout: int = None, override: bool = False) -> str:
     """
     Print the identity of the specified node.
 
