@@ -347,6 +347,54 @@ class ParameterList(_pylist[Parameter | ParameterArray], _Iterable):
         """
 
 
+PARAM_QUEUE_TYPE_GET: int
+PARAM_QUEUE_TYPE_SET: int
+
+class Command:
+
+    def __new__(cls, type: PARAM_QUEUE_TYPE_GET | PARAM_QUEUE_TYPE_SET, name: str, paramver: int = 2) -> Command:
+        """ Create a new Parameter command of the specified type """
+
+    # TODO Kevin: Should we have a "value" argument, or find a way to use the one on the provided parameter?
+    def add(self, param: Parameter, offset: int = None, node: int = None, imask: int | str = None, emask: int | str = None, force: bool = False):
+        """
+        Add a parameter (and a value (for SET) to the command
+
+        :param param: Parameter to add to the command
+        :param offset: Index of value to get/set
+        :param node: node (default = <env>)
+        # TODO Kevin: imask and emask only make sense when param is a string.
+        :param imask: Include mask (param letters) (used for get with wildcard)
+        :param emask: Exclude mask (param letters) (used for get with wildcard)
+        :param force: force setting readonly params
+
+        """
+
+    def run(self, timeout: int = None, server: int = None, hwid: int = None, no_ack_push: bool = False) -> None:
+        """
+        Execute this command queue
+
+        :param timeout: timeout in milliseconds (default = <env>)
+        :param server: server to push parameters to (default = <env>)
+        :param hwid: include hardware id filter (default = off)
+        :param no_ack_push: Disable ack with param push queue
+
+        :raises ConnectionError: when no response is received.
+        :raises RuntimeError: When called before .init().
+        """
+        
+    @property
+    def type(self) -> PARAM_QUEUE_TYPE_GET | PARAM_QUEUE_TYPE_SET:
+        """ Returns the type of the command, which cannot be changed after instantiation. """
+
+    @property
+    def name(self) -> str:
+        """ Returns the name of the Command """
+
+    def __str__(self) -> str:
+        """ Prints the contents of the queue """
+
+
 _param_ident_hint = int | str | Parameter  # Types accepted for finding a param_t
 
 
