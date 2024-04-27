@@ -59,12 +59,14 @@ pycsh_sources = [
 	'src/csh/serial.c',
 	'src/csh/prometheus.c',
 	'src/csh/known_hosts.c',
-	'src/csh/csp_init_cmd.c',
 	'src/csh/param_sniffer.c',
 ]
 
 if slash_dep.found()
-	pycsh_sources += ['src/wrapper/slash_py.c',]
+	pycsh_sources += [
+		'src/wrapper/slash_py.c',
+		'src/csh/csp_init_cmd.c',
+	]
 	conf.set('PYCSH_HAVE_SLASH', slash_dep.found())
 endif
 
