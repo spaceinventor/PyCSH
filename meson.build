@@ -59,6 +59,7 @@ pycsh_sources = [
 	'src/csh/serial.c',
 	'src/csh/prometheus.c',
 	'src/csh/known_hosts.c',
+	'src/csh/csp_init_cmd.c',
 	'src/csh/param_sniffer.c',
 ]
 
