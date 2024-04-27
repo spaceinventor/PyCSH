@@ -257,7 +257,7 @@ PyObject * pycsh_util_parameter_list(void) {
 			return NULL;
 		}
 		PyObject * argtuple = PyTuple_Pack(1, parameter);
-		Py_DECREF(ParameterList_append(list, argtuple));
+		Py_DECREF(ParameterList_append(list, argtuple));  // TODO Kevin: DECREF on None doesn't seem right here...
 		Py_DECREF(argtuple);
 		Py_DECREF(parameter);
 	}
@@ -673,3 +673,19 @@ int _pycsh_util_set_array(param_t *param, PyObject *value, int host, int timeout
 	return 0;
 }
 
+int pycsh_parse_param_mask(PyObject * mask_in, uint32_t * mask_out) {
+
+	assert(mask_in != NULL);
+
+	if (PyUnicode_Check(mask_in)) {
+		const char * include_mask_str = PyUnicode_AsUTF8(mask_in);
+		*mask_out = param_maskstr_to_mask(include_mask_str);
+	} else if (PyLong_Check(mask_in)) {
+		*mask_out = PyLong_AsUnsignedLong(mask_in);
+	} else {
+		PyErr_SetString(PyExc_TypeError, "parameter mask must be either str or int");
+		return -1;
+	}
+
+	return 0;
+}

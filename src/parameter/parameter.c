@@ -71,6 +71,7 @@ static void Parameter_dealloc(ParameterObject *self) {
 }
 
 /* May perform black magic and return a ParameterArray instead of the specified type. */
+__attribute__((malloc, malloc(Parameter_dealloc, 1)))
 static PyObject * Parameter_new(PyTypeObject *type, PyObject *args, PyObject *kwds) {
 
 	static char *kwlist[] = {"param_identifier", "node", "host", "paramver", "timeout", "retries", NULL};

@@ -261,7 +261,7 @@ class ParameterArray(Parameter):
 class PythonParameter(Parameter):
     """ Parameter created in Python. """
 
-    def __new__(cls, id: int, name: str, type: int, mask: int, unit: str = None, docstr: str = None, array_size: int = 0,
+    def __new__(cls, id: int, name: str, type: int, mask: int | str, unit: str = None, docstr: str = None, array_size: int = 0,
                    callback: _Callable[[Parameter, int], None] = None, host: int = None, timeout: int = None,
                    retries: int = 0, paramver: int = 2) -> PythonParameter:
         """
@@ -439,7 +439,7 @@ def timeout(timeout: int = None) -> int:
 def cmd() -> None:
     """ Print the current command. """
 
-def list(node: int = None, verbose: int =None, mask: str = None, globstr: str = None) -> ParameterList:
+def list(node: int = None, verbose: int = None, mask: str | int = None, globstr: str = None) -> ParameterList:
     """
     List all known parameters, remote and local alike.
 
@@ -474,7 +474,7 @@ def list_save(filename: str = None, node: int = None, include_node: bool = True)
     :param include_node: Whether to include the node of the parameter in the "last add" command.
     :returns: Currently returns None, may return string of "list add" commands in future versions.
     """
-def list_add(node: int, length: int, id: int, name: str, type: int, mask: int = None,  comment: str = None, unit: str = None) -> None:
+def list_add(node: int, length: int, id: int, name: str, type: int, mask: int | str = None,  comment: str = None, unit: str = None) -> None:
     """
     Add a parameter to the global list
 

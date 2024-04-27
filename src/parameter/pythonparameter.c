@@ -159,10 +159,9 @@ static void PythonParameter_dealloc(PythonParameterObject *self) {
 static PyObject * PythonParameter_new(PyTypeObject *type, PyObject * args, PyObject * kwds) {
 
     uint16_t id;
-    // TODO Kevin: Flags should not be hard coded here.
     char * name;
     param_type_e param_type;
-    uint32_t mask;
+    PyObject * mask_obj;
     char * unit = "";
     char * docstr = "";
     int array_size = 0;
@@ -175,7 +174,7 @@ static PyObject * PythonParameter_new(PyTypeObject *type, PyObject * args, PyObj
 
     static char *kwlist[] = {"id", "name", "type", "mask", "unit", "docstr", "array_size", "callback", "host", "timeout", "retries", "paramver", NULL};
 
-    if (!PyArg_ParseTupleAndKeywords(args, kwds, "HsiI|ssiOiiii", kwlist, &id, &name, &param_type, &mask, &unit, &docstr, &array_size, &callback, &host, &timeout, &retries, &paramver))
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "HsiO|ssiOiiii", kwlist, &id, &name, &param_type, &mask_obj, &unit, &docstr, &array_size, &callback, &host, &timeout, &retries, &paramver))
         return NULL;  // TypeError is thrown
 
     if (param_list_find_id(0, id) != NULL) {
@@ -183,6 +182,17 @@ static PyObject * PythonParameter_new(PyTypeObject *type, PyObject * args, PyObj
         PyErr_Format(PyExc_ValueError, "Parameter with id %d already exists", id);
         return NULL;
     }
+
+    if (param_list_find_name(0, name)) {
+        /* While it is perhaps technically acceptable, it's probably best if we don't allow duplicate names either. */
+        PyErr_Format(PyExc_ValueError, "Parameter with name \"%s\" already exists", name);
+        return NULL;
+    }
+
+    uint32_t mask;
+    if (pycsh_parse_param_mask(mask_obj, &mask) != 0) {
+        return NULL;  // Exception message set by pycsh_parse_param_mask()
+    } 
 
     if (array_size < 1)
         array_size = 1;
