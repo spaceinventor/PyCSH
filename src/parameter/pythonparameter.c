@@ -68,6 +68,106 @@ void Parameter_callback(param_t * param, int offset) {
     PyGILState_Release(gstate);
 }
 
+// Source: https://chat.openai.com
+/**
+ * @brief Check that the callback accepts exactly one Parameter and one integer,
+ *  as specified by "void (*callback)(struct param_s * param, int offset)"
+ * 
+ * Currently also checks type-hints (if specified).
+ * 
+ * @param callback function to check
+ * @param raise_exc Whether to set exception message when returning false.
+ * @return true for success
+ */
+static bool is_valid_callback(const PyObject *callback, bool raise_exc) {
+
+    /*We currently allow both NULL and Py_None,
+            as those are valid to have on PythonParameterObject */
+    if (callback == NULL || callback == Py_None)
+        return true;
+
+    // Get the __code__ attribute of the function, and check that it is a PyCodeObject
+    // TODO Kevin: Hopefully it's safe to assume that PyObject_GetAttrString() won't mutate callback
+    PyCodeObject *func_code = (PyCodeObject*)PyObject_GetAttrString((PyObject*)callback, "__code__");
+    if (!func_code || !PyCode_Check(func_code)) {
+        if (raise_exc)
+            PyErr_SetString(PyExc_TypeError, "Provided callback must be callable");
+        return false;
+    }
+
+    // Check that number of parameters is exactly 2
+    /* func_code->co_argcount doesn't account for *args,
+        but that's okay as it should always be empty as we only supply 2 arguments. */
+    if (func_code->co_argcount != 2) {
+        if (raise_exc)
+            PyErr_SetString(PyExc_TypeError, "Provided callback must accept exactly 2 arguments");
+        Py_DECREF(func_code);
+        return false;
+    }
+
+    // Get the __annotations__ attribute of the function
+    // TODO Kevin: Hopefully it's safe to assume that PyObject_GetAttrString() won't mutate callback
+    PyDictObject *func_annotations = (PyDictObject *)PyObject_GetAttrString((PyObject*)callback, "__annotations__");
+    assert(PyDict_Check(func_annotations));
+    if (!func_annotations) {
+        Py_DECREF(func_code);
+        return true;  // It's okay to not specify type-hints for the callback.
+    }
+
+    // Get the parameters annotation
+    PyObject *param_names = func_code->co_varnames;
+    if (!param_names) {
+        Py_DECREF(func_code);
+        Py_DECREF(func_annotations);
+        return true;  // Function parameters have not been annotated, this is probably okay.
+    }
+
+    // Check if it's a tuple
+    if (!PyTuple_Check(param_names)) {
+        // TODO Kevin: Not sure what exception to set here.
+        if (raise_exc)
+            PyErr_Format(PyExc_TypeError, "param_names type \"%s\" %p", param_names->ob_type->tp_name, param_names);
+        Py_DECREF(func_code);
+        Py_DECREF(func_annotations);
+        return false;  // Not sure when this fails, but it's probably bad if it does.
+    }
+
+    // TODO Kevin: Perhaps issue warnings for type-hint errors, instead of errors.
+    {  // Checking first parameter type-hint
+        const char *param_name = PyUnicode_AsUTF8(PyTuple_GetItem(param_names, 0));
+        PyTypeObject *param_type = (PyTypeObject *)PyDict_GetItemString((PyObject*)func_annotations, param_name);
+        PyTypeObject *expected_param_type = &ParameterType;
+        // param_type will be NULL when not type_hinted
+        if (param_type != NULL && !PyObject_IsSubclass((PyObject *)param_type, (PyObject *)expected_param_type)) {
+            if (raise_exc)
+                PyErr_Format(PyExc_TypeError, "First callback parameter should be type-hinted as Parameter (or subclass). (not %s)", param_type->tp_name);
+            Py_DECREF(func_code);
+            Py_DECREF(func_annotations);
+            return false;
+        }
+
+    }
+
+    {  // Checking second parameter type-hint
+        const char *param_name = PyUnicode_AsUTF8(PyTuple_GetItem(param_names, 1));
+        PyTypeObject *param_type = (PyTypeObject*)PyDict_GetItemString((PyObject*)func_annotations, param_name);
+        // param_type will be NULL when not type_hinted
+        if (param_type != NULL && !PyObject_IsSubclass((PyObject *)param_type, (PyObject *)&PyLong_Type)) {
+            if (raise_exc)
+                PyErr_Format(PyExc_TypeError, "Second callback parameter should be type-hinted as int offset. (not %s)", param_type->tp_name);
+            Py_DECREF(func_code);
+            Py_DECREF(func_annotations);
+            return false;
+        }
+    }
+
+    // Cleanup
+    Py_DECREF(func_code);
+    Py_DECREF(func_annotations);
+
+    return true;
+}
+
 /* Internal API for creating a new PythonParameterObject. */
 static PythonParameterObject * Parameter_create_new(PyTypeObject *type, uint16_t id, param_type_e param_type, uint32_t mask, char * name, char * unit, char * docstr, int array_size, const PyObject * callback, int host, int timeout, int retries, int paramver) {
 
@@ -101,6 +201,22 @@ static PythonParameterObject * Parameter_create_new(PyTypeObject *type, uint16_t
             return NULL;
     }
 
+    if (param_list_find_id(0, id) != NULL) {
+        /* Run away as quickly as possible if this ID is already in use, we would otherwise get a segfault, which is driving me insane. */
+        PyErr_Format(PyExc_ValueError, "Parameter with id %d already exists", id);
+        return NULL;
+    }
+
+    if (param_list_find_name(0, name)) {
+        /* While it is perhaps technically acceptable, it's probably best if we don't allow duplicate names either. */
+        PyErr_Format(PyExc_ValueError, "Parameter with name \"%s\" already exists", name);
+        return NULL;
+    }
+
+    if (!is_valid_callback(callback, true)) {
+        return NULL;  // Exception message set by is_valid_callback();
+    }
+
     param_t * new_param = param_list_create_remote(id, 0, param_type, mask, array_size, name, unit, docstr, -1);
     if (new_param == NULL) {
         return (PythonParameterObject*)PyErr_NoMemory();
@@ -116,6 +232,7 @@ static PythonParameterObject * Parameter_create_new(PyTypeObject *type, uint16_t
         case 0:
             break;  // All good
         case 1: {
+            // It shouldn't be possible to arrive here, except perhaps from race conditions.
             PyErr_SetString(PyExc_KeyError, "Local parameter with the specifed ID already exists");
             Py_DECREF(self);
             return NULL;
@@ -177,18 +294,6 @@ static PyObject * PythonParameter_new(PyTypeObject *type, PyObject * args, PyObj
     if (!PyArg_ParseTupleAndKeywords(args, kwds, "HsiO|ssiOiiii", kwlist, &id, &name, &param_type, &mask_obj, &unit, &docstr, &array_size, &callback, &host, &timeout, &retries, &paramver))
         return NULL;  // TypeError is thrown
 
-    if (param_list_find_id(0, id) != NULL) {
-        /* Run away as quickly as possible if this ID is already in use, we would otherwise get a segfault, which is driving me insane. */
-        PyErr_Format(PyExc_ValueError, "Parameter with id %d already exists", id);
-        return NULL;
-    }
-
-    if (param_list_find_name(0, name)) {
-        /* While it is perhaps technically acceptable, it's probably best if we don't allow duplicate names either. */
-        PyErr_Format(PyExc_ValueError, "Parameter with name \"%s\" already exists", name);
-        return NULL;
-    }
-
     uint32_t mask;
     if (pycsh_parse_param_mask(mask_obj, &mask) != 0) {
         return NULL;  // Exception message set by pycsh_parse_param_mask()
@@ -246,8 +351,7 @@ int Parameter_set_callback(PythonParameterObject *self, PyObject *value, void *c
         return -1;
     }
 
-    if (value != Py_None && !PyCallable_Check(value)) {
-        PyErr_SetString(PyExc_TypeError, "callback must be None or callable");
+    if (!is_valid_callback(value, true)) {
         return -1;
     }
 
