@@ -72,7 +72,7 @@ if slash_dep.found()
 endif
 
 pycsh_config_h = configure_file(output: 'pycshconfig.h', configuration: conf, install_dir: 'include/pycsh/')
-install_headers(pycsh_config_h, install_dir : 'include/pycsh')
+#install_headers(pycsh_config_h, install_dir : 'include/pycsh')
 
 pycsh_sources += vcs_tag(input: files('src/version.c.in'), output: 'version.c', command: ['git', 'describe', '--long', '--always', '--dirty=+'])
 
