@@ -76,17 +76,19 @@ pycsh_config_h = configure_file(output: 'pycshconfig.h', configuration: conf, in
 
 pycsh_sources += vcs_tag(input: files('src/version.c.in'), output: 'version.c', command: ['git', 'describe', '--long', '--always', '--dirty=+'])
 
+# Add .pyi file for type-hints
+pyi = configure_file(input: 'pycsh.pyi', output: 'pycsh.pyi', copy: true)
+
 # Compile PyCSH for the versions specified in 'python3_versions'.
 # It may only be imported for these versions.
 foreach python_version : get_option('python3_versions')
 
 	py = import('python').find_installation(python_version, pure: false)
 
-	py.extension_module('PyCSH', pycsh_sources,
+	py.extension_module('pycsh', pycsh_sources,
 						dependencies : [param_dep, csp_dep, slash_dep],
 						install : true)
+	py.install_sources(pyi)
 
 endforeach
 
-# Add .pyi file for type-hints
-configure_file(input: 'pycsh.pyi', output: 'pycsh.pyi', copy: true)

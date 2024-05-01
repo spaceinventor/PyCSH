@@ -1,7 +1,7 @@
 [project]
-name = 'PyCSH'
+name = 'pycsh'
 version = '0.0.1'
-description = 'PyCSH Python package'
+description = 'pycsh Python package'
 readme = 'README.md'
 requires-python = '>=3.8'
 authors = []
