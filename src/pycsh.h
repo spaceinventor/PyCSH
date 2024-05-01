@@ -13,6 +13,8 @@
 #define PY_SSIZE_T_CLEAN
 #include <Python.h>
 
+#include "pycshconfig.h"
+
 #include <param/param_queue.h>
 #include <slash/dflopt.h>
 
@@ -25,7 +27,10 @@
 
 uint8_t csp_initialized();
 
-//extern unsigned int pycsh_dfl_node;
-//extern unsigned int pycsh_dfl_timeout;  // In milliseconds
+#ifdef PYCSH_HAVE_SLASH
 #define pycsh_dfl_node slash_dfl_node
 #define pycsh_dfl_timeout slash_dfl_timeout  // In milliseconds
+#else
+extern unsigned int pycsh_dfl_timeout;  // In milliseconds
+extern unsigned int pycsh_dfl_node;
+#endif

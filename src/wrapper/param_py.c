@@ -8,6 +8,8 @@
 #define PY_SSIZE_T_CLEAN
 #include <Python.h>
 
+#include "pycshconfig.h"
+
 #include <param/param.h>
 #include <param/param_queue.h>
 #include <param/param_client.h>
@@ -18,8 +20,15 @@
 
 #include "param_py.h"
 
+#ifdef PYCSH_HAVE_SLASH
+/* Assumes that param:slash if we have slash, and that we want to use the queue from there.
+	This makes slash_execute() use the same queue as PyCSH */
+/* param_slash.h is not exposed, but we need the queue from there, so please close your eyes */
+extern param_queue_t param_queue;
+#else
 static char queue_buf[PARAM_SERVER_MTU];
 param_queue_t param_queue = { .buffer = queue_buf, .buffer_size = PARAM_SERVER_MTU, .type = PARAM_QUEUE_TYPE_EMPTY, .version = 2 };
+#endif
 
 PyObject * pycsh_param_get(PyObject * self, PyObject * args, PyObject * kwds) {
 
@@ -130,28 +139,14 @@ PyObject * pycsh_param_pull(PyObject * self, PyObject * args, PyObject * kwds) {
 	uint32_t exclude_mask = PM_REMOTE | PM_HWREG;
 
 	if (include_mask_obj != NULL) {
-		if (PyUnicode_Check(include_mask_obj)) {
-			const char * include_mask_str = NULL;
-			include_mask_str = PyUnicode_AsUTF8(include_mask_obj);
-			include_mask = param_maskstr_to_mask((char *)include_mask_str);
-		} else if (PyLong_Check(include_mask_obj)) {
-			include_mask = PyLong_AsUnsignedLong(include_mask_obj);
-		} else {
-			PyErr_SetString(PyExc_TypeError, "include_mask must be either str or int");
-			return NULL;
+		if (pycsh_parse_param_mask(include_mask_obj, &include_mask) != 0) {
+			return NULL;  // Exception message set by pycsh_parse_param_mask()
 		}
 	}
 
 	if (exclude_mask_obj != NULL) {
-		if (PyUnicode_Check(exclude_mask_obj)) {
-			const char * exclude_mask_str = NULL;
-			exclude_mask_str = PyUnicode_AsUTF8(exclude_mask_obj);
-			exclude_mask = param_maskstr_to_mask((char *)exclude_mask_str);
-		} else if (PyLong_Check(exclude_mask_obj)) {
-			exclude_mask = PyLong_AsUnsignedLong(exclude_mask_obj);
-		} else {
-			PyErr_SetString(PyExc_TypeError, "exclude_mask must be either str or int");
-			return NULL;
+		if (pycsh_parse_param_mask(exclude_mask_obj, &exclude_mask) != 0) {
+			return NULL;  // Exception message set by pycsh_parse_param_mask()
 		}
 	}
 

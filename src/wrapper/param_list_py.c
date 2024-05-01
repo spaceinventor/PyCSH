@@ -21,19 +21,21 @@ PyObject * pycsh_param_list(PyObject * self, PyObject * args, PyObject * kwds) {
 
     int node = pycsh_dfl_node;
     int verbosity = 1;
-    char * maskstr = NULL;
+    PyObject * mask_obj = NULL;
     char * globstr = NULL;
 
     static char *kwlist[] = {"node", "verbose", "mask", "globstr", NULL};
 
-    if (!PyArg_ParseTupleAndKeywords(args, kwds, "|iiss", kwlist, &node, &verbosity, &maskstr, &globstr)) {
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "|iiOs", kwlist, &node, &verbosity, &mask_obj, &globstr)) {
         return NULL;
     }
 
     /* Interpret maskstring */
     uint32_t mask = 0xFFFFFFFF;
-    if (maskstr != NULL) {
-        mask = param_maskstr_to_mask(maskstr);
+    if (mask_obj != NULL) {
+        if (pycsh_parse_param_mask(mask_obj, &mask) != 0) {
+            return NULL;  // Exception message set by pycsh_parse_param_mask()
+        }
     }
 
     param_list_print(mask, node, globstr, verbosity);
@@ -78,14 +80,15 @@ PyObject * pycsh_param_list_add(PyObject * self, PyObject * args, PyObject * kwd
     unsigned int id;
     char * name;
     unsigned int type; 
-    unsigned int mask = 0;
+    PyObject * mask_obj = NULL;
     char * helpstr = NULL;
     char * unitstr = NULL;
 
     static char *kwlist[] = {"node", "length", "id", "name", "type", "mask", "comment", "unit", NULL};
-    if (!PyArg_ParseTupleAndKeywords(args, kwds, "IIIsI|Iss", kwlist, &node, &length, &id, &name, &type, &mask, &helpstr, &unitstr)) {
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "IIIsI|Oss", kwlist, &node, &length, &id, &name, &type, &mask_obj, &helpstr, &unitstr)) {
         return NULL;
     }
+
     switch (type) {
         case PARAM_TYPE_UINT8:
         case PARAM_TYPE_UINT16:
@@ -109,6 +112,13 @@ PyObject * pycsh_param_list_add(PyObject * self, PyObject * args, PyObject * kwd
         default:
             PyErr_SetString(PyExc_InvalidParameterTypeError, "An invalid parameter type was specified during creation of a new parameter");
             return NULL;
+    }
+
+    uint32_t mask = 0;
+    if (mask_obj != NULL) {
+        if (pycsh_parse_param_mask(mask_obj, &mask) != 0) {
+            return NULL;  // Exception message set by pycsh_parse_param_mask()
+        }
     }
     
     param_t * param = param_list_create_remote(id, node, type, mask, length, name, unitstr, helpstr, -1);
