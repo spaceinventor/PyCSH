@@ -1,0 +1,15 @@
+[project]
+name = 'pycsh'
+version = '0.0.1'
+description = 'pycsh Python package'
+readme = 'README.md'
+requires-python = '>=3.8'
+authors = []
+
+[build-system]
+build-backend = 'mesonpy'
+requires = ['meson-python']
+
+[tool.meson-python.args]
+# setup = ['-Dcsp:b_ndbebug=false']
+install = ['--skip-subprojects'] # the csp subproject wants to install itself in the binary wheel, causong error due to header files not being in Python wheels (maybe just for now?)

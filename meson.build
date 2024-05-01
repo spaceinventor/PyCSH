@@ -44,6 +44,7 @@ pycsh_sources = [
 
 	# Wrapper functions
 	'src/wrapper/py_csp.c',
+	'src/wrapper/slash_py.c',
 	'src/wrapper/param_py.c',
 	'src/wrapper/dflopt_py.c',
 	'src/wrapper/csp_init_py.c',
@@ -70,24 +71,24 @@ if slash_dep.found()
 	conf.set('PYCSH_HAVE_SLASH', slash_dep.found())
 endif
 
-pycsh_config_h = configure_file(output: 'pycshconfig.h', configuration: conf, install_dir: 'include/pycsh/')
-install_headers(pycsh_config_h, install_dir : 'include/pycsh')
+pycsh_config_h = configure_file(output: 'pycshconfig.h', configuration: conf, install_dir: 'include/pycsh/', install: false)
+#install_headers(pycsh_config_h, install_dir : 'include/pycsh')
 
 pycsh_sources += vcs_tag(input: files('src/version.c.in'), output: 'version.c', command: ['git', 'describe', '--long', '--always', '--dirty=+'])
+
+# Add .pyi file for type-hints
+pyi = configure_file(input: 'pycsh.pyi', output: 'pycsh.pyi', copy: true)
 
 # Compile PyCSH for the versions specified in 'python3_versions'.
 # It may only be imported for these versions.
 foreach python_version : get_option('python3_versions')
 
-	py = import('python').find_installation(python_version)
-	# py.dependency() doesn't work with version constraint. Use plain
-	# dependency() instead
-	pydep = dependency('python3', version : '>=3.5', required : true)
-	py.extension_module('pycsh', [pycsh_sources, pycsh_config_h],
-						dependencies : [param_dep, pydep, csp_dep, slash_dep],
+	py = import('python').find_installation(python_version, pure: false)
+
+	py.extension_module('pycsh', pycsh_sources,
+						dependencies : [param_dep, csp_dep, slash_dep],
 						install : true)
+	py.install_sources(pyi)
 
 endforeach
 
-# Add .pyi file for type-hints
-configure_file(input: 'pycsh.pyi', output: 'pycsh.pyi', copy: true)
