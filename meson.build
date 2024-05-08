@@ -26,9 +26,23 @@ add_global_arguments('-I../include', language: 'c')
 
 conf = configuration_data()
 
-csp_dep = dependency('csp', fallback: ['csp', 'csp_dep'], required: true)
-slash_dep = dependency('slash', fallback: ['slash', 'slash_dep'], required: false).as_link_whole()
-param_dep = dependency('param', fallback: ['param', 'param_dep'], required: true).as_link_whole()
+dependencies = []
+
+if get_option('build_apm')
+	dependencies += dependency('apm_csh', fallback: ['apm_csh', 'apm_csh_dep'], required: true)
+	conf.set('PYCSH_HAVE_APM', 1)  # If we havn't errored, we have APM
+
+	csp_dep = dependency('csp', fallback: ['csp', 'csp_dep'], required: true).partial_dependency(links: false, includes: true)
+	slash_dep = dependency('slash', fallback: ['slash', 'slash_dep'], required: false).partial_dependency(links: false, includes: true)
+	param_dep = dependency('param', fallback: ['param', 'param_dep'], required: true).partial_dependency(links: false, includes: true)
+	dependencies += dependency('python3', required: true)
+else
+	dependencies += dependency('csp', fallback: ['csp', 'csp_dep'], required: true)
+	dependencies += dependency('param', fallback: ['param', 'param_dep'], required: true).as_link_whole()
+	slash_dep = dependency('slash', fallback: ['slash', 'slash_dep'], required: false).as_link_whole()
+	dependencies += slash_dep
+endif
+
 
 
 pycsh_sources = [
@@ -79,16 +93,31 @@ pycsh_sources += vcs_tag(input: files('src/version.c.in'), output: 'version.c', 
 # Add .pyi file for type-hints
 pyi = configure_file(input: 'pycsh.pyi', output: 'pycsh.pyi', copy: true)
 
-# Compile PyCSH for the versions specified in 'python3_versions'.
-# It may only be imported for these versions.
-foreach python_version : get_option('python3_versions')
+if get_option('build_apm')
+	# TODO Kevin: Either statically link with Python, or make sure CSH can find the symbols
+	apm_lib = library('csh_pycsh',
+					pycsh_sources,
+					dependencies : dependencies,
+					link_args : ['-Wl,-Map=cshmodtest.map', '-lm'],
+					install : true)
+else
+	# Compile PyCSH for the versions specified in 'python3_versions'.
+	# It may only be imported for these versions.
+	foreach python_version : get_option('python3_versions')
 
-	py = import('python').find_installation(python_version, pure: false)
+		py = import('python').find_installation(python_version, pure: false)
 
-	py.extension_module('pycsh', pycsh_sources,
-						dependencies : [param_dep, csp_dep, slash_dep],
-						install : true)
-	py.install_sources(pyi)
+		# TODO Kevin: Either statically link with Python, or make sure CSH can find the symbols
+		if get_option('build_apm')
+			module_name = 'libcsh_pycsh'  # APMs must be prefixed with 'libcsh_'
+		else
+			module_name = 'pycsh'
+		endif
 
-endforeach
+		py.extension_module(module_name, pycsh_sources,
+							dependencies : dependencies,
+							install : true)
+		py.install_sources(pyi)
 
+	endforeach
+endif

@@ -1,3 +1,4 @@
 #!/bin/sh
-rm -r builddir
+rm -r builddir*
 meson . builddir
+meson . builddir-apm -Dbuild_apm=true

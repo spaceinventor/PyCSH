@@ -16,7 +16,6 @@
 #include "pycshconfig.h"
 
 #include <param/param_queue.h>
-#include <slash/dflopt.h>
 
 #define CSP_INIT_CHECK() \
 	if (!csp_initialized()) {\
@@ -28,6 +27,7 @@
 uint8_t csp_initialized();
 
 #ifdef PYCSH_HAVE_SLASH
+#include <slash/dflopt.h>
 #define pycsh_dfl_node slash_dfl_node
 #define pycsh_dfl_timeout slash_dfl_timeout  // In milliseconds
 #else

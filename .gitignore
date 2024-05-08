@@ -10,7 +10,7 @@
 .lock*
 .waf-*
 *.swp
-builddir
+builddir*
 *.cfg
 *.lzo
 *.csv
