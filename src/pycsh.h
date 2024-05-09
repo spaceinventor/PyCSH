@@ -25,6 +25,7 @@
 	}
 
 uint8_t csp_initialized();
+extern PyMODINIT_FUNC PyInit_pycsh(void);
 
 #ifdef PYCSH_HAVE_SLASH
 #include <slash/dflopt.h>

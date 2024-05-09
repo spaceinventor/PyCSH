@@ -35,6 +35,7 @@ if get_option('build_apm')
 	csp_dep = dependency('csp', fallback: ['csp', 'csp_dep'], required: true).partial_dependency(links: false, includes: true)
 	slash_dep = dependency('slash', fallback: ['slash', 'slash_dep'], required: false).partial_dependency(links: false, includes: true)
 	param_dep = dependency('param', fallback: ['param', 'param_dep'], required: true).partial_dependency(links: false, includes: true)
+	dependencies += dependency('python3', required: true)  # We don't actually Python as dep here when we have the linker args, but it might help VSC with highlighting.
 else
 	dependencies += dependency('csp', fallback: ['csp', 'csp_dep'], required: true)
 	dependencies += dependency('param', fallback: ['param', 'param_dep'], required: true).as_link_whole()
@@ -69,7 +70,11 @@ pycsh_sources = [
 	'src/utils.c',
 ]
 
-if get_option('build_apm') == false
+if get_option('build_apm')
+	pycsh_sources += [
+		'src/apm.c',
+	]
+else
 	pycsh_sources += [
 		# Dependencies from CSH
 		'src/csh/lock.c',
