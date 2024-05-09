@@ -92,6 +92,7 @@ int known_hosts_get_node(const char * find_name) {
 
 
 #ifdef PYCSH_HAVE_SLASH
+#ifndef PYCSH_HAVE_APM  // APM build will have slash commands implemented in CSH
 static int cmd_node_save(struct slash *slash)
 {
     
@@ -185,4 +186,5 @@ static int cmd_hosts_add(struct slash *slash)
 }
 
 slash_command_sub(node, add, cmd_hosts_add, NULL, NULL);
-#endif
+#endif  // PYCSH_HAVE_APM
+#endif  // PYCSH_HAVE_SLASH

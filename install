@@ -1,0 +1,14 @@
+#!/bin/sh
+
+# APM version should be installed to ~/.local/lib/csh as configured by ./configure
+# Find the built target, Thanks ChatGPT
+target=$(find builddir-apm -name "libcsh_pycsh*.so" -print -quit)
+# Extract just the target name without the directory path
+target_name=$(basename "$target")
+ninja -C builddir-apm clean
+ninja -C builddir-apm $target_name install
+
+# PyCSH package should be installed through pip3 using:
+pip3 install -U git+https://github.com/spaceinventor/PyCSH.git@master#egg=pycsh
+#ninja -C builddir clean
+#ninja -C builddir pycsh.so install

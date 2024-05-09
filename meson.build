@@ -35,7 +35,6 @@ if get_option('build_apm')
 	csp_dep = dependency('csp', fallback: ['csp', 'csp_dep'], required: true).partial_dependency(links: false, includes: true)
 	slash_dep = dependency('slash', fallback: ['slash', 'slash_dep'], required: false).partial_dependency(links: false, includes: true)
 	param_dep = dependency('param', fallback: ['param', 'param_dep'], required: true).partial_dependency(links: false, includes: true)
-	dependencies += dependency('python3', required: true)
 else
 	dependencies += dependency('csp', fallback: ['csp', 'csp_dep'], required: true)
 	dependencies += dependency('param', fallback: ['param', 'param_dep'], required: true).as_link_whole()
@@ -68,20 +67,28 @@ pycsh_sources = [
 
 	# Utilities
 	'src/utils.c',
-
-	# Dependencies from CSH
-	'src/csh/lock.c',
-	'src/csh/serial.c',
-	'src/csh/prometheus.c',
-	'src/csh/known_hosts.c',
-	'src/csh/param_sniffer.c',
 ]
+
+if get_option('build_apm') == false
+	pycsh_sources += [
+		# Dependencies from CSH
+		'src/csh/lock.c',
+		'src/csh/serial.c',
+		'src/csh/prometheus.c',
+		'src/csh/known_hosts.c',
+		'src/csh/param_sniffer.c',
+	]
+endif
 
 if slash_dep.found()
 	pycsh_sources += [
 		'src/wrapper/slash_py.c',
-		'src/csh/csp_init_cmd.c',
 	]
+	if get_option('build_apm') == false
+		pycsh_sources += [
+			'src/csh/csp_init_cmd.c',
+		]
+	endif
 	conf.set('PYCSH_HAVE_SLASH', slash_dep.found())
 endif
 
@@ -93,31 +100,37 @@ pycsh_sources += vcs_tag(input: files('src/version.c.in'), output: 'version.c', 
 # Add .pyi file for type-hints
 pyi = configure_file(input: 'pycsh.pyi', output: 'pycsh.pyi', copy: true)
 
-if get_option('build_apm')
-	# TODO Kevin: Either statically link with Python, or make sure CSH can find the symbols
-	apm_lib = library('csh_pycsh',
-					pycsh_sources,
-					dependencies : dependencies,
-					link_args : ['-Wl,-Map=cshmodtest.map', '-lm'],
-					install : true)
-else
-	# Compile PyCSH for the versions specified in 'python3_versions'.
-	# It may only be imported for these versions.
-	foreach python_version : get_option('python3_versions')
+# Compile PyCSH for the versions specified in 'python3_versions'.
+# It may only be imported for these versions.
+foreach python_version : get_option('python3_versions')
 
-		py = import('python').find_installation(python_version, pure: false)
+	py = import('python').find_installation('python'+python_version, pure: false)
 
-		# TODO Kevin: Either statically link with Python, or make sure CSH can find the symbols
-		if get_option('build_apm')
-			module_name = 'libcsh_pycsh'  # APMs must be prefixed with 'libcsh_'
-		else
-			module_name = 'pycsh'
-		endif
+	if get_option('build_apm')
+		# NOTE: It sounds as if these linker args may need changes to accomedate: compiler, linker, distribution.
+		#	If you find that they no longer work, "python3.10-config --ldflags --embed" may be used to update them.
+		python_ldflags = ['-L/usr/lib/python'+python_version+'/config-'+python_version+'-x86_64-linux-gnu', 
+				'-L/usr/lib/x86_64-linux-gnu', 
+				'-lpython'+python_version, 
+				'-lcrypt', 
+				'-ldl', 
+				'-lm']
+		# APM names must be prefixed with 'libcsh_'
+		py.extension_module('libcsh_pycsh', pycsh_sources,
+						dependencies : dependencies,
+						install : true,
+						# link_with : [static_library('python3')]
+						link_args : python_ldflags,
+						install_dir : join_paths(get_option('prefix'), 'lib', 'csh'),
+						)
+		
+	else  # Not building APM
+		py.extension_module('pycsh', pycsh_sources,
+						dependencies : dependencies,
+						install : true,
+						)
+	endif
 
-		py.extension_module(module_name, pycsh_sources,
-							dependencies : dependencies,
-							install : true)
-		py.install_sources(pyi)
+	py.install_sources(pyi)
 
-	endforeach
-endif
+endforeach

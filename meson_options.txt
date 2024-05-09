@@ -1,2 +1,2 @@
-option('python3_versions', type: 'array', value: ['python3.10'], description: 'Which versions of Python to compile bindings for')
+option('python3_versions', type: 'array', value: ['3.10'], description: 'Which versions of Python to compile bindings for')
 option('build_apm', type: 'boolean', value: false, description: 'Whether to build PyCSH as an APM for CSH')
