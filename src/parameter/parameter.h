@@ -16,20 +16,6 @@
 
 extern PyDictObject * param_callback_dict;
 
-/* TODO Kevin: This is quite a hack, we ought not to dig around in the libparam internals */
-/* NOTE: Should match lib/param/src/param/list/param_list.c param_heap_t */
-typedef struct{
-	param_t param;
-	union {
-		uint64_t alignme;
-		uint8_t *buffer;
-	};
-	uint32_t timestamp;
-	char name[36];
-	char unit[10];
-	char help[150];
-} parameter_heap_t;
-
 typedef struct {
     PyObject_HEAD
     /* Type-specific fields go here. */

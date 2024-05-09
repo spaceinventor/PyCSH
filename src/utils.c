@@ -221,7 +221,6 @@ PyObject * _pycsh_Parameter_from_param(PyTypeObject *type, param_t * param, cons
 		// On a more serious note, I'm amazed that this even works at all.
 
 	ParameterObject *self = (ParameterObject *)type->tp_alloc(type, 0);
-	self->param = param;
 
 	if (self == NULL)
 		return NULL;
@@ -231,6 +230,7 @@ PyObject * _pycsh_Parameter_from_param(PyTypeObject *type, param_t * param, cons
     Py_DECREF(key);
 
 	self->host = host;
+	self->param = param;
 	self->timeout = timeout;
 	self->retries = retries;
 	self->paramver = paramver;

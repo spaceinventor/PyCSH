@@ -88,6 +88,9 @@ endif
 if slash_dep.found()
 	pycsh_sources += [
 		'src/wrapper/slash_py.c',
+
+		'src/slash_command/slash_command.c',
+		'src/slash_command/python_slash_command.c',
 	]
 	if get_option('build_apm') == false
 		pycsh_sources += [

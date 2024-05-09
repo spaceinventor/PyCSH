@@ -136,7 +136,7 @@ void libinfo(void) {
 	printf("which can then run Python scripts that import PyCSH linked with our symbols\n");
 }
 
-__attribute__((destructor)) static void finalize_python_interpreter(void) {
+__attribute__((destructor(150))) static void finalize_python_interpreter(void) {
 	printf("Shutting down Python interpreter\n");
 	if (Py_FinalizeEx() < 0) {
 		/* We probably don't have to die to unloading errors here,

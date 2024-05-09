@@ -9,6 +9,7 @@ These provide an object-oriented interface to libparam, but are largely meant fo
 
 from __future__ import annotations
 
+from _typeshed import Self
 from typing import \
     Any as _Any, \
     Iterable as _Iterable, \
@@ -344,6 +345,59 @@ class ParameterList(_pylist[Parameter | ParameterArray], _Iterable):
         Pushes all Parameters in the list in a single packet.
 
         :raises ConnectionError: When no response is received.
+        """
+
+
+class SlashCommand:
+    """ Wrapper class for slash commands """
+
+    @property
+    def name(self):
+        """ :returns: the full name of the wrapped slash command (including spaces) """
+
+    @property
+    def args(self):
+        """ :returns: the argument documentation string """
+
+    def __new__(cls: type[Self], name: str) -> Self:
+        """
+        Finds an existing slash command from the provided 'name'
+
+        :param name: Full name of the desired slash command (including spaces for sub commands).
+
+        :raises ValueError: When no slash command can be found from an otherwise valid identifier.
+
+        :returns: An instance of a SlashCommand, matching the identifier, that can be used to call the wrapped command
+        """
+
+    def __call__(self, *args) -> _Any:
+        """
+        Call the wrapped slash command with any number of positional arguments,
+        that are then translated to argc and argv
+
+        :param *args: Positional arguments converted to C argv strings.
+
+        :raises ValueError: When the slash commands return any error.
+
+        :returns: TODO Kevin:
+        """
+
+class PythonSlashCommand(SlashCommand):
+    """ Allows for creating new slash commands in Python, that may then later be called from CSH """
+
+    def __new__(cls: type[Self], name: str, function: _Callable[[_Any, ...], _Any], args: str = None) -> Self:
+        """
+        Finds an existing slash command from the provided 'name'
+
+        :param name: Full name of the slash command (including spaces for sub commands).
+        :param function: Function that the slash command will invoke.
+            Should preferably accept *args of user input and parse it accordingly
+        :param args: Optional argument documentation string.
+
+        :raises TypeError: When arguments are of invalid types.
+
+        :returns: An instance of a PythonSlashCommand,
+            that can be used to call the provided function (either from CSH or here)
         """
 
 

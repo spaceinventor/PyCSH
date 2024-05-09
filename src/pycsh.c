@@ -57,6 +57,9 @@
 #include "parameter/pythonparameter.h"
 #include "parameter/parameterlist.h"
 
+#include "slash_command/slash_command.h"
+#include "slash_command/python_slash_command.h"
+
 #include "wrapper/py_csp.h"
 #include "wrapper/param_py.h"
 #include "wrapper/slash_py.h"
@@ -322,6 +325,16 @@ PyMODINIT_FUNC PyInit_pycsh(void) {
 	if (PyType_Ready(&ParameterListType) < 0)
 		return NULL;
 
+
+#ifdef PYCSH_HAVE_SLASH
+	if (PyType_Ready(&SlashCommandType) < 0)
+        return NULL;
+
+	if (PyType_Ready(&PythonSlashCommandType) < 0)
+        return NULL;
+#endif
+
+
 	PyObject * m = PyModule_Create(&moduledef);
 	if (m == NULL)
 		return NULL;
@@ -378,6 +391,24 @@ PyMODINIT_FUNC PyInit_pycsh(void) {
 		return NULL;
 	}
 
+
+#ifdef PYCSH_HAVE_SLASH
+	Py_INCREF(&SlashCommandType);
+	if (PyModule_AddObject(m, "SlashCommand", (PyObject *) &SlashCommandType) < 0) {
+		Py_DECREF(&SlashCommandType);
+        Py_DECREF(m);
+        return NULL;
+	}
+
+	Py_INCREF(&PythonSlashCommandType);
+	if (PyModule_AddObject(m, "PythonSlashCommand", (PyObject *) &PythonSlashCommandType) < 0) {
+		Py_DECREF(&PythonSlashCommandType);
+        Py_DECREF(m);
+        return NULL;
+	}
+#endif
+
+
 	{ /* Constants */
 		/* Version Control */
 		PyModule_AddObject(m, "VERSION", PyUnicode_FromString(version_string));
@@ -419,9 +450,12 @@ PyMODINIT_FUNC PyInit_pycsh(void) {
 		PyModule_AddObject(m, "PM_PRIO2", PyLong_FromLong(PM_PRIO2));
 		PyModule_AddObject(m, "PM_PRIO3", PyLong_FromLong(PM_PRIO3));
 		PyModule_AddObject(m, "PM_PRIO_MASK", PyLong_FromLong(PM_PRIO_MASK));
+
+		// TODO Kevin: We should probably add constants for SLASH_SUCCESS and such
 	}
 
 	param_callback_dict = (PyDictObject *)PyDict_New();
+	//slash_command_dict = (PyDictObject *)PyDict_New();
 
 	{  /* Argumentless CSH init */
 		#ifdef PYCSH_HAVE_SLASH
