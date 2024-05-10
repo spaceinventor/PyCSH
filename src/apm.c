@@ -261,7 +261,7 @@ static int py_run_cmd(struct slash *slash) {
 		/* pValue reference stolen here: */
 		PyTuple_SetItem(pArgs, i-argi-1, pValue);
 	}
-	//py_print__str__(pArgs);
+
 	PyObject *pValue = PyObject_CallObject(pFunc, pArgs);
 	Py_DECREF(pArgs);
 

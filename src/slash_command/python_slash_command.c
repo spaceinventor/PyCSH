@@ -352,6 +352,7 @@ static PyGetSetDef PythonParameter_getsetters[] = {
      "Whether the slash command should remain in the command list, when all Python references are lost", NULL},
     {"function", (getter)PythonSlashCommand_get_function, (setter)PythonSlashCommand_set_func,
      "function invoked by the slash command", NULL},
+    // TODO Kevin: Maybe PythonSlashCommandObject should have getsetters for 'name' and 'args'
     {NULL, NULL, NULL, NULL}  /* Sentinel */
 };
 

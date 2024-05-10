@@ -14,8 +14,6 @@
 
 #include "slash_command.h"
 
-extern PyObject * PyExc_ParamCallbackError;
-extern PyObject * PyExc_InvalidParameterTypeError;
 
 typedef struct {
     SlashCommandObject slash_command_object;

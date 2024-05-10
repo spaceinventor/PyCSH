@@ -17,19 +17,12 @@
 #include "../pycsh.h"
 #include "../utils.h"
 
-/* Maps param_t to its corresponding PythonParameter for use by C callbacks. */
-PyDictObject * slash_command_dict = NULL;
 
 /* 1 for success. Compares the wrapped param_t for parameters, otherwise 0. Assumes self to be a SlashCommandObject. */
 static int SlashCommand_equal(PyObject *self, PyObject *other) {
 	if (PyObject_TypeCheck(other, &SlashCommandType))
 		return ((SlashCommandObject *)self)->command == ((SlashCommandObject *)other)->command;
 	return 0;
-#if 0
-	if (PyObject_TypeCheck(other, &SlashCommandType) && (memcmp(&(((SlashCommandObject *)other)->command), &(((SlashCommandObject *)self)->command), sizeof(struct slash_command)) == 0))
-		return 1;
-	return 0;
-#endif
 }
 
 static PyObject * SlashCommand_richcompare(PyObject *self, PyObject *other, int op) {
@@ -62,16 +55,6 @@ static PyObject * SlashCommand_str(SlashCommandObject *self) {
 }
 
 static void SlashCommand_dealloc(SlashCommandObject *self) {
-#if 0
-	/* Whether or not we keep self->param in the list, it should not point to a freed 'self' */
-	PyObject *key = PyLong_FromVoidPtr(self->param);
-	if (PyDict_GetItem((PyObject*)slash_command_dict, key) != NULL)
-		PyDict_DelItem((PyObject*)slash_command_dict, key);
-	Py_DECREF(key);
-#endif
-
-	// C slash commands should not be removed from the list
-	//slash_list_remove(self->command);
 
 	// Get the type of 'self' in case the user has subclassed 'SlashCommand'.
 	Py_TYPE(self)->tp_free((PyObject *) self);
@@ -108,9 +91,6 @@ static PyObject * SlashCommand_new(PyTypeObject *type, PyObject *args, PyObject 
 	self->command = command;
 
 	return (PyObject*)self;
-#if 0
-    return _pycsh_SlashCommand_from_slash_command(type, param, NULL, host, timeout, retries, paramver);
-#endif
 }
 
 // TODO Kevin: _set_name
@@ -124,32 +104,10 @@ static PyObject * SlashCommands_get_args(SlashCommandObject *self, void *closure
 
 
 static long SlashCommand_hash(SlashCommandObject *self) {
-	/* Use the ID of the parameter as the hash, as it is assumed unique. */
+	/* Use pointer command pointer as the hash,
+		as that should only collide when multiple objects wrap the same command. */
     return (long)self->command;
 }
-
-#if 0
-static void py_print__str__(PyObject *obj) {
-	// Get the string representation of the object
-    PyObject* str_repr = PyObject_Str(obj);
-    if (str_repr == NULL) {
-		fprintf(stderr, "Failed to get string representation\n");
-		return;
-	}
-
-	// Convert the string representation to a C string
-	const char* c_str_repr = PyUnicode_AsUTF8(str_repr);
-	if (c_str_repr != NULL) {
-		// Print the string representation
-		printf("String representation: %s\n", c_str_repr);
-	} else {
-		fprintf(stderr, "Failed to convert string representation to C string\n");
-	}
-
-	// Decrement the reference count of the string representation
-	Py_DECREF(str_repr);
-}
-#endif
 
 // Source https://chatgpt.com
 static char* _tuple_to_slash_string(const char * command_name, PyObject* args) {
@@ -275,7 +233,7 @@ static PyGetSetDef Parameter_getsetters[] = {
 
 	{"name", (getter)SlashCommand_get_name, NULL,
      "Returns the name of the wrapped slash_command.", NULL},
-    {"unit", (getter)SlashCommands_get_args, NULL,
+    {"args", (getter)SlashCommands_get_args, NULL,
      "The args string of the slash_command.", NULL},
     {NULL, NULL, NULL, NULL}  /* Sentinel */
 };

@@ -455,7 +455,6 @@ PyMODINIT_FUNC PyInit_pycsh(void) {
 	}
 
 	param_callback_dict = (PyDictObject *)PyDict_New();
-	//slash_command_dict = (PyDictObject *)PyDict_New();
 
 	{  /* Argumentless CSH init */
 		#ifdef PYCSH_HAVE_SLASH
