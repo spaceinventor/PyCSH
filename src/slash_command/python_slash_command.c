@@ -291,12 +291,21 @@ __attribute__((destructor(151))) static void remove_python_slash_commands(void) 
 }
 
 static void PythonSlashCommand_dealloc(PythonSlashCommandObject *self) {
-    //printf("GGG dealloc %s\n", self->command_heap.name);
+
     if (self->py_slash_func != NULL && self->py_slash_func != Py_None) {
         Py_XDECREF(self->py_slash_func);
         self->py_slash_func = NULL;
     }
-    slash_list_remove(((SlashCommandObject*)self)->command);
+
+    struct slash_command * existing = slash_list_find_name(self->command_heap.name);
+    //PythonSlashCommandObject *py_slash_command = python_wraps_slash_command(existing);
+
+    /* This check will fail if a new slash command is added to the list, before we are garbage collected.
+        This is actually quite likely to happen if the same Python 'APM' is loaded multiple times. */
+    if (existing == &self->command_heap) {
+        slash_list_remove(((SlashCommandObject*)self)->command);
+    }
+
     free(self->command_heap.name);
     free((char*)self->command_heap.args);
     //self->command_heap.name = NULL;
