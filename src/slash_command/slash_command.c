@@ -13,6 +13,7 @@
 
 #include <slash/slash.h>
 
+#include "python_slash_command.h"
 #include "../pycsh.h"
 #include "../utils.h"
 
@@ -88,6 +89,12 @@ static PyObject * SlashCommand_new(PyTypeObject *type, PyObject *args, PyObject 
 	}
 
 	struct slash_command * command = slash_list_find_name(name);
+
+	/* I don't really like that we require knowledge of a subclass here,
+		but it's probably worth it if we can return a more accurate existing object. */
+	const PythonSlashCommandObject *existing_wrapper = python_wraps_slash_command(command);
+	if (existing_wrapper != NULL)
+		return Py_NewRef(existing_wrapper);
 
 	if (command == NULL) {  // Did not find a match.
 		PyErr_Format(PyExc_ValueError, "Could not find a slash command called '%s'", name);

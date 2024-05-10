@@ -23,7 +23,7 @@ int SlashCommand_func(struct slash *slash);
  * 
  * @return borrowed reference to the wrapping PythonSlashCommandObject if wrapped, otherwise NULL.
  */
-static PythonSlashCommandObject *python_wraps_slash_command(const struct slash_command * command) {
+PythonSlashCommandObject *python_wraps_slash_command(const struct slash_command * command) {
     if (command->func != SlashCommand_func)
         return NULL;  // This slash command is not wrapped by PythonSlashCommandObject
     return (PythonSlashCommandObject *)((char *)command - offsetof(PythonSlashCommandObject, command_heap));

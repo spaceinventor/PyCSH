@@ -27,3 +27,4 @@ typedef struct {
 
 extern PyTypeObject PythonSlashCommandType;
 
+PythonSlashCommandObject *python_wraps_slash_command(const struct slash_command * command);
