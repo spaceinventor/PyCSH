@@ -9,64 +9,80 @@
 
 #include "structmember.h"
 
-#include <param/param.h>
+#include <slash/slash.h>
+#include <slash/completer.h>
 
 #include "../pycsh.h"
 #include "../utils.h"
 
-// Instantiated in our PyMODINIT_FUNC
-//PyObject * PyExc_SlashFunctionError;
-//PyObject * PyExc_InvalidParameterTypeError;
+
+int SlashCommand_func(struct slash *slash);
+
+/**
+ * @brief Check if this slash command is wrapped by a PythonSlashCommandObject.
+ * 
+ * @return borrowed reference to the wrapping PythonSlashCommandObject if wrapped, otherwise NULL.
+ */
+static PythonSlashCommandObject *python_wraps_slash_command(const struct slash_command * command) {
+    if (command->func != SlashCommand_func)
+        return NULL;  // This slash command is not wrapped by PythonSlashCommandObject
+    return (PythonSlashCommandObject *)((char *)command - offsetof(PythonSlashCommandObject, command_heap));
+}
 
 /**
  * @brief Shared callback for all slash_commands wrapped by a Slash object instance.
  */
 int SlashCommand_func(struct slash *slash) {
+
+    char *args;
+
+    /* We need to find our way back to the storage location is this called slash command */
+    extern struct slash_command * slash_command_find(struct slash *slash, char *line, size_t linelen, char **args);
+    struct slash_command *command = slash_command_find(slash, slash->buffer, strlen(slash->buffer), &args);
+    assert(command != NULL);  // If slash was able to execute this function, then the command should very much exist
+    /* If we find a command that doesn't use this function, then there's likely duplicate of multiple applicable commands in the list.
+        We could probably manually iterate until we find what is hopefully our command, but that also has issues.*/
+
     PyGILState_STATE gstate = PyGILState_Ensure();  // TODO Kevin: Do we ever need to take the GIL here, we don't have a CSP thread that can run slash commands
     //assert(Parameter_wraps_param(param));  // TODO Kevin: It shouldn't be neccesarry to assert wrapped here, only PythonSlashCommands should use this function.
     assert(!PyErr_Occurred());  // Callback may raise an exception. But we don't want to override an existing one.
 
-#if 0
-    PyObject *key = PyLong_FromVoidPtr(param);
-    PythonSlashCommandObject *python_slash_command = (PythonSlashCommandObject*)PyDict_GetItem((PyObject*)slash_command_dict, key);
-    Py_DECREF(key);
+    PythonSlashCommandObject *python_slash_command = python_wraps_slash_command(command);
+    assert(python_slash_command != NULL);  // Slash command must be wrapped by Python
+    // PyObject *python_callback = python_slash_command->py_slash_func;
+    PyObject *python_func = python_slash_command->py_slash_func;
 
-    /* This param_t uses the Python Parameter callback, but doesn't actually point to a Parameter.
-        Perhaps it was deleted? Or perhaps it was never set correctly. */
-    if (python_slash_command == NULL) {
-        assert(false);  // TODO Kevin: Is this situation worthy of an assert(), or should we just ignore it?
-        PyGILState_Release(gstate);
-        return;
-    }
-#endif
-
-    PythonSlashCommandObject *python_slash_command = (PythonSlashCommandObject *)((char *)slash - offsetof(PythonSlashCommandObject, command_heap));
-    // PyObject *python_callback = python_slash_command->slash_func;
-    PyObject *slash_func = python_slash_command->slash_func;
-
-    /* This Parameter has no callback */
-    /* Python_callback should not be NULL here when Parameter_wraps_param(), but we will allow it for now... */
-    if (slash_func == NULL || slash_func == Py_None) {
+    /* It probably doesn't make sense to have a slash command without a corresponding function,
+        but we will allow it for now. */
+    if (python_func == NULL || python_func == Py_None) {
         PyGILState_Release(gstate);
         return SLASH_ENOENT;
     }
 
-    assert(PyCallable_Check(slash_func));
+    assert(PyCallable_Check(python_func));
     /* Create the arguments. */
-    PyObject *args = PyTuple_New(slash->argc);
-	for (int i = 0; i < slash->argc; i++) {
-		PyObject *value = PyUnicode_FromString(slash->argv[i]);
+    PyObject *py_args = PyTuple_New(slash->argc-1);
+	for (int i = 0; i < slash->argc-1; i++) {
+		PyObject *value = PyUnicode_FromString(slash->argv[i+1]);
 		if (!value) {
-			Py_DECREF(args);
+			Py_DECREF(py_args);
 			return SLASH_EINVAL;
 		}
 		/* pValue reference stolen here: */
-		PyTuple_SetItem(args, i, value);
+		PyTuple_SetItem(py_args, i, value);
 	}
-    /* Call the user Python callback */
-    PyObject_CallObject(slash_func, args);
+    /* Call the user provided Python function */
+    PyObject * value = PyObject_CallObject(python_func, py_args);
+
     /* Cleanup */
-    Py_DECREF(args);
+    Py_XDECREF(value);
+    Py_DECREF(py_args);
+
+    if (PyErr_Occurred()) {
+        PyErr_Print();
+        PyGILState_Release(gstate);
+        return SLASH_EINVAL;
+    }
 
 #if 0  // It's probably best to just let any potential error propagate normally
     if (PyErr_Occurred()) {
@@ -121,75 +137,8 @@ static bool is_valid_slash_func(const PyObject *function, bool raise_exc) {
         return false;
     }
 
-    // Check that number of parameters is exactly 2
-    /* func_code->co_argcount doesn't account for *args,
-        but that's okay as it should always be empty as we only supply 2 arguments. */
-    if (func_code->co_argcount != 2) {
-        if (raise_exc)
-            PyErr_SetString(PyExc_TypeError, "Provided function must accept exactly 2 arguments");
-        Py_DECREF(func_code);
-        return false;
-    }
-
-    // Get the __annotations__ attribute of the function
-    // TODO Kevin: Hopefully it's safe to assume that PyObject_GetAttrString() won't mutate function
-    PyDictObject *func_annotations = (PyDictObject *)PyObject_GetAttrString((PyObject*)function, "__annotations__");
-    assert(PyDict_Check(func_annotations));
-    if (!func_annotations) {
-        Py_DECREF(func_code);
-        return true;  // It's okay to not specify type-hints for the function.
-    }
-
-    // Get the parameters annotation
-    PyObject *param_names = func_code->co_varnames;
-    if (!param_names) {
-        Py_DECREF(func_code);
-        Py_DECREF(func_annotations);
-        return true;  // Function parameters have not been annotated, this is probably okay.
-    }
-
-    // Check if it's a tuple
-    if (!PyTuple_Check(param_names)) {
-        // TODO Kevin: Not sure what exception to set here.
-        if (raise_exc)
-            PyErr_Format(PyExc_TypeError, "param_names type \"%s\" %p", param_names->ob_type->tp_name, param_names);
-        Py_DECREF(func_code);
-        Py_DECREF(func_annotations);
-        return false;  // Not sure when this fails, but it's probably bad if it does.
-    }
-
-    // TODO Kevin: Perhaps issue warnings for type-hint errors, instead of errors.
-    {  // Checking first parameter type-hint
-        const char *param_name = PyUnicode_AsUTF8(PyTuple_GetItem(param_names, 0));
-        PyTypeObject *param_type = (PyTypeObject *)PyDict_GetItemString((PyObject*)func_annotations, param_name);
-        PyTypeObject *expected_param_type = &SlashCommandType;
-        // param_type will be NULL when not type_hinted
-        if (param_type != NULL && !PyObject_IsSubclass((PyObject *)param_type, (PyObject *)expected_param_type)) {
-            if (raise_exc)
-                PyErr_Format(PyExc_TypeError, "First function parameter should be type-hinted as Parameter (or subclass). (not %s)", param_type->tp_name);
-            Py_DECREF(func_code);
-            Py_DECREF(func_annotations);
-            return false;
-        }
-
-    }
-
-    {  // Checking second parameter type-hint
-        const char *param_name = PyUnicode_AsUTF8(PyTuple_GetItem(param_names, 1));
-        PyTypeObject *param_type = (PyTypeObject*)PyDict_GetItemString((PyObject*)func_annotations, param_name);
-        // param_type will be NULL when not type_hinted
-        if (param_type != NULL && !PyObject_IsSubclass((PyObject *)param_type, (PyObject *)&PyLong_Type)) {
-            if (raise_exc)
-                PyErr_Format(PyExc_TypeError, "Second function parameter should be type-hinted as int offset. (not %s)", param_type->tp_name);
-            Py_DECREF(func_code);
-            Py_DECREF(func_annotations);
-            return false;
-        }
-    }
-
     // Cleanup
     Py_DECREF(func_code);
-    Py_DECREF(func_annotations);
 
     return true;
 }
@@ -197,7 +146,7 @@ static bool is_valid_slash_func(const PyObject *function, bool raise_exc) {
 int PythonSlashCommand_set_func(PythonSlashCommandObject *self, PyObject *value, void *closure) {
 
     if (value == NULL) {
-        PyErr_SetString(PyExc_TypeError, "Cannot delete the callback attribute");
+        PyErr_SetString(PyExc_TypeError, "Cannot delete the function attribute");
         return -1;
     }
 
@@ -205,35 +154,69 @@ int PythonSlashCommand_set_func(PythonSlashCommandObject *self, PyObject *value,
         return -1;
     }
 
-    if (value == self->slash_func)
+    if (value == self->py_slash_func)
         return 0;  // No work to do
 
     /* Changing the callback to None. */
     if (value == Py_None) {
-        if (self->slash_func != Py_None) {
+        if (self->py_slash_func != Py_None) {
             /* We should not arrive here when the old value is Py_None, 
                 but prevent Py_DECREF() on at all cost. */
-            Py_XDECREF(self->slash_func);
+            Py_XDECREF(self->py_slash_func);
         }
-        self->slash_func = Py_None;
+        self->py_slash_func = Py_None;
         return 0;
     }
 
     /* We now know that 'value' is a new callable. */
 
     /* When replacing a previous callable. */
-    if (self->slash_func != Py_None) {
-        Py_XDECREF(self->slash_func);
+    if (self->py_slash_func != Py_None) {
+        Py_XDECREF(self->py_slash_func);
     }
 
     Py_INCREF(value);
-    self->slash_func = value;
+    self->py_slash_func = value;
 
     return 0;
 }
 
+static PyObject * PythonSlashCommand_get_keep_alive(PythonSlashCommandObject *self, void *closure) {
+    return self->keep_alive ? Py_True : Py_False;
+}
+
+static int PythonSlashCommand_set_keep_alive(PythonSlashCommandObject *self, PyObject *value, void *closure) {
+
+    if (value == NULL) {
+        PyErr_SetString(PyExc_TypeError, "Cannot delete the keep_alive attribute");
+        return -1;
+    }
+
+    if (value != Py_True && value != Py_False) {
+        PyErr_SetString(PyExc_TypeError, "keep_alive must be True or False");
+        return -1;
+    }
+
+    if (self->keep_alive && value == Py_False) {
+        self->keep_alive = 0;
+        Py_DECREF(self);
+    } else if (!self->keep_alive && value == Py_True) {
+        self->keep_alive = 1;
+        Py_INCREF(self);
+    }
+
+    return 0;
+}
+
+static char *safe_strdup(const char *s) {
+    if (s == NULL) {
+        return NULL;
+    }
+    return strdup(s);
+}
+
 /* Internal API for creating a new PythonSlashCommandObject. */
-static PythonSlashCommandObject * SlashCommand_create_new(PyTypeObject *type, char * name, const char * args, const PyObject * slash_func) {
+static PythonSlashCommandObject * SlashCommand_create_new(PyTypeObject *type, char * name, const char * args, const PyObject * py_slash_func) {
 
 /* NOTE: Overriding an existing PythonSlashCommand here will most likely cause a memory leak. SLIST_REMOVE() will not Py_DECREF() */
 #if 0  /* It's okay if a command with this name already exists, Overriding it is an intended feature. */
@@ -243,7 +226,7 @@ static PythonSlashCommandObject * SlashCommand_create_new(PyTypeObject *type, ch
     }
 #endif
 
-    if (!is_valid_slash_func(slash_func, true)) {
+    if (!is_valid_slash_func(py_slash_func, true)) {
         return NULL;  // Exception message set by is_valid_slash_func();
     }
 
@@ -254,45 +237,70 @@ static PythonSlashCommandObject * SlashCommand_create_new(PyTypeObject *type, ch
         return NULL;
     }
 
-    self->command_heap.name = name;
-    self->command_heap.args = args;
-
     self->keep_alive = 1;
     Py_INCREF(self);  // Slash command list now holds a reference to this PythonSlashCommandObject
     /* NOTE: If .keep_alive defaults to False, then we should remove this Py_INCREF() */
 
     /* NULL callback becomes None on a SlashCommandObject instance */
-    if (slash_func == NULL)
-        slash_func = Py_None;
+    if (py_slash_func == NULL)
+        py_slash_func = Py_None;
 
-    if (PythonSlashCommand_set_func(self, (PyObject *)slash_func, NULL) == -1) {
+    if (PythonSlashCommand_set_func(self, (PyObject *)py_slash_func, NULL) == -1) {
         Py_DECREF(self);
         return NULL;
     }
 
-    /* TODO Kevin: How should we deal with the fact that self->command->func is const? This is just a workaround. */
-    slash_func_t *func_ptr = (slash_func_t *)&(((SlashCommandObject*)self)->command->func);
-    // Assign the desired function to the const function pointer
-    *func_ptr = SlashCommand_func;
+    const struct slash_command temp_command = {
+        .args = safe_strdup(args),
+        .name = safe_strdup(name),
+        .func = SlashCommand_func,
+        .completer = slash_path_completer,  // TODO Kevin: It should probably be possible for the user to change the completer.
+    };
 
-    int res = slash_list_add(&(self->command_heap));
+    /* NOTE: This memcpy() seems to be the best way to deal with the fact that self->command->func is const?  */
+    memcpy(&self->command_heap, &temp_command, sizeof(struct slash_command));
+    self->slash_command_object.command = &self->command_heap;
+
+    struct slash_command * existing = slash_list_find_name(self->command_heap.name);
+
+    int res = slash_list_add(&self->command_heap);
     if (res < 0) {
         fprintf(stderr, "Failed to add slash command \"%s\" while loading APM (return status: %d)\n", self->command_heap.name, res);
         Py_DECREF(self);
         return NULL;
     } else if (res > 0) {
         printf("Slash command '%s' is overriding an existing command\n", self->command_heap.name);
+        PythonSlashCommandObject *py_slash_command = python_wraps_slash_command(existing);
+        if (py_slash_command != NULL) {
+            PythonSlashCommand_set_keep_alive(py_slash_command, Py_False, NULL);
+        }
     }
 
     return self;
 }
 
+__attribute__((destructor(151))) static void remove_python_slash_commands(void) {
+    struct slash_command * cmd;
+    slash_list_iterator i = {};
+    while ((cmd = slash_list_iterate(&i)) != NULL) {
+        PythonSlashCommandObject *py_slash_command = python_wraps_slash_command(cmd);
+        if (py_slash_command != NULL) {
+            PythonSlashCommand_set_keep_alive(py_slash_command, Py_False, NULL);
+        }
+    }
+}
+
 static void PythonSlashCommand_dealloc(PythonSlashCommandObject *self) {
-    if (self->slash_func != NULL && self->slash_func != Py_None) {
-        Py_XDECREF(self->slash_func);
-        self->slash_func = NULL;
+    //printf("GGG dealloc %s\n", self->command_heap.name);
+    if (self->py_slash_func != NULL && self->py_slash_func != Py_None) {
+        Py_XDECREF(self->py_slash_func);
+        self->py_slash_func = NULL;
     }
     slash_list_remove(((SlashCommandObject*)self)->command);
+    free(self->command_heap.name);
+    free((char*)self->command_heap.args);
+    //self->command_heap.name = NULL;
+    //((char*)self->command_heap.args) = NULL;
     // Get the type of 'self' in case the user has subclassed 'Parameter'.
     Py_TYPE(self)->tp_free((PyObject *) self);
 }
@@ -319,42 +327,22 @@ static PyObject * PythonSlashCommand_new(PyTypeObject *type, PyObject * args, Py
     return (PyObject *)python_slash_command;
 }
 
-static PyObject * Parameter_get_keep_alive(PythonSlashCommandObject *self, void *closure) {
-    return self->keep_alive ? Py_True : Py_False;
+static PyObject * PythonSlashCommand_get_function(PythonSlashCommandObject *self, void *closure) {
+    return Py_NewRef(self->py_slash_func);
 }
 
-static int Parameter_set_keep_alive(PythonSlashCommandObject *self, PyObject *value, void *closure) {
-
-    if (value == NULL) {
-        PyErr_SetString(PyExc_TypeError, "Cannot delete the keep_alive attribute");
-        return -1;
-    }
-
-    if (value != Py_True && value != Py_False) {
-        PyErr_SetString(PyExc_TypeError, "keep_alive must be True or False");
-        return -1;
-    }
-
-    if (self->keep_alive && value == Py_False) {
-        self->keep_alive = 0;
-        Py_DECREF(self);
-    } else if (!self->keep_alive && value == Py_True) {
-        self->keep_alive = 1;
-        Py_INCREF(self);
-    }
-
-    return 0;
-}
-
-static PyObject * Parameter_get_callback(PythonSlashCommandObject *self, void *closure) {
-    return Py_NewRef(self->slash_func);
+static PyObject * PythonSlashCommand_call(PythonSlashCommandObject *self, PyObject *args, PyObject *kwds) {
+    assert(self->py_slash_func);
+    assert(PyCallable_Check(self->py_slash_func));
+    /* Call the user provided Python function. Return whatever it returns, and let errors propagate normally. */
+    return PyObject_Call(self->py_slash_func, args, kwds);
 }
 
 static PyGetSetDef PythonParameter_getsetters[] = {
-    {"keep_alive", (getter)Parameter_get_keep_alive, (setter)Parameter_set_keep_alive,
-     "Whether the Parameter should remain in the parameter list, when all Python references are lost. This makes it possible to recover the Parameter instance through list()", NULL},
-    {"callback", (getter)Parameter_get_callback, (setter)PythonSlashCommand_set_func,
-     "callback of the parameter", NULL},
+    {"keep_alive", (getter)PythonSlashCommand_get_keep_alive, (setter)PythonSlashCommand_set_keep_alive,
+     "Whether the slash command should remain in the command list, when all Python references are lost", NULL},
+    {"function", (getter)PythonSlashCommand_get_function, (setter)PythonSlashCommand_set_func,
+     "function invoked by the slash command", NULL},
     {NULL, NULL, NULL, NULL}  /* Sentinel */
 };
 
@@ -371,4 +359,5 @@ PyTypeObject PythonSlashCommandType = {
     // .tp_str = (reprfunc)SlashCommand_str,
     // .tp_richcompare = (richcmpfunc)SlashCommand_richcompare,
     .tp_base = &SlashCommandType,
+    .tp_call = (PyCFunctionWithKeywords)PythonSlashCommand_call,
 };

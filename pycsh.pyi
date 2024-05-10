@@ -385,7 +385,7 @@ class SlashCommand:
 class PythonSlashCommand(SlashCommand):
     """ Allows for creating new slash commands in Python, that may then later be called from CSH """
 
-    def __new__(cls: type[Self], name: str, function: _Callable[[_Any, ...], _Any], args: str = None) -> Self:
+    def __new__(cls: type[Self], name: str, function: _Callable[..., _Any], args: str = None) -> Self:
         """
         Finds an existing slash command from the provided 'name'
 
@@ -398,6 +398,22 @@ class PythonSlashCommand(SlashCommand):
 
         :returns: An instance of a PythonSlashCommand,
             that can be used to call the provided function (either from CSH or here)
+        """
+
+    @property
+    def keep_alive(self) -> bool:
+        """
+        Whether the slash command should remain in the slash command list,
+        when all Python references are lost.
+        This makes it possible to call the command from CSH (or similar)
+        after the Python script has finished
+        """
+
+    @keep_alive.setter
+    def keep_alive(self, value: bool) -> None:
+        """
+        Change whether the slash command should remain in the slash command list,
+        when all Python references are lost.
         """
 
 

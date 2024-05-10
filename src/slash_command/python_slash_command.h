@@ -20,11 +20,10 @@ extern PyObject * PyExc_InvalidParameterTypeError;
 typedef struct {
     SlashCommandObject slash_command_object;
     struct slash_command command_heap;  // The implementation of slash allows us control where to store our slash_command
-    PyObject *slash_func;
+    PyObject *py_slash_func;
     // TODO Kevin: We should also expose completer to be implemented by the user
 	int keep_alive: 1;  // For the sake of reference counting, keep_alive should only be changed by SlashCommand_set_keep_alive()
 } PythonSlashCommandObject;
 
 extern PyTypeObject PythonSlashCommandType;
 
-int SlashCommand_func(struct slash *slash);

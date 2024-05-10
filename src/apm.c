@@ -187,6 +187,18 @@ static void py_print__str__(PyObject *obj) {
 #endif
 
 #ifdef PYCSH_HAVE_SLASH
+#include <slash/completer.h>
+
+static void python_module_path_completer(struct slash * slash, char * token) {
+    slash_path_completer(slash, token);
+	
+	/* strip_py_extension */
+	size_t len = strlen(slash->buffer);
+    if (len >= 3 && strcmp(slash->buffer + len - 3, ".py") == 0) {
+        slash->buffer[len - 3] = '\0'; // Null-terminate the string at the position before ".py"
+		slash->cursor = slash->length = strlen(slash->buffer);
+    }
+}
 
 /* NOTE: It doesn't make sense for PYCSH_HAVE_APM without PYCSH_HAVE_SLASH.
 	But we allow it for now, instead of erroring. */
@@ -269,6 +281,6 @@ static int py_run_cmd(struct slash *slash) {
 	optparse_del(parser);
 	return SLASH_SUCCESS;
 }
-slash_command_sub(py, run, py_run_cmd, "<file> [arguments...]", "Run a Python script with an importable PyCSH from this APM");
+slash_command_sub_completer(py, run, py_run_cmd, python_module_path_completer, "<file> [arguments...]", "Run a Python script with an importable PyCSH from this APM");
 
 #endif  // PYCSH_HAVE_SLASH
