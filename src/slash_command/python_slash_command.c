@@ -45,7 +45,10 @@ int SlashCommand_func(struct slash *slash) {
 
     PyGILState_STATE gstate = PyGILState_Ensure();  // TODO Kevin: Do we ever need to take the GIL here, we don't have a CSP thread that can run slash commands
     //assert(Parameter_wraps_param(param));  // TODO Kevin: It shouldn't be neccesarry to assert wrapped here, only PythonSlashCommands should use this function.
-    assert(!PyErr_Occurred());  // Callback may raise an exception. But we don't want to override an existing one.
+    if(PyErr_Occurred()) {  // Callback may raise an exception. But we don't want to override an existing one.
+        PyErr_Print();  // Provide context by printing before we self-destruct
+        assert(false);
+    }
 
     PythonSlashCommandObject *python_slash_command = python_wraps_slash_command(command);
     assert(python_slash_command != NULL);  // Slash command must be wrapped by Python

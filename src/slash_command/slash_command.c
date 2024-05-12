@@ -181,9 +181,14 @@ static char* _tuple_to_slash_string(const char * command_name, PyObject* args) {
     return result;
 }
 
+static inline void cleanup_free(char ** obj) {
+	free(*obj);
+}
+
 static PyObject * SlashCommand_call(SlashCommandObject *self, PyObject *args, PyObject *kwds) {
 
-	if (kwds == NULL || (kwds != NULL && PyDict_Size(kwds))) {
+	// TODO Kevin: Ideally, an empty dict would also be allowed.
+	if (kwds != NULL) {
 
 		// Get the string representation of the object
 		PyObject* str_repr = PyObject_Str(kwds);
@@ -205,24 +210,55 @@ static PyObject * SlashCommand_call(SlashCommandObject *self, PyObject *args, Py
 		Py_DECREF(str_repr);
 	}
 
-	char *line = _tuple_to_slash_string(self->command->name, args);
+	char *line __attribute__((cleanup(cleanup_free))) = _tuple_to_slash_string(self->command->name, args);
 
 	if (line == NULL) {
 		//PyErr_SetString(PyExc_ValueError, "Failed to convert arguments to slash string");
 		return NULL;
 	}
 
-	struct slash slas = {0};
+	/* Configuration */
+	#define SLASH_ARG_MAX		16	/* Maximum number of arguments */
+	#define SLASH_SHOW_MAX		25	/* Maximum number of commands to list */
     #define LINE_SIZE		    512
-    char line_buf[LINE_SIZE];
     #define HISTORY_SIZE		2048
+
+	struct slash slas = {0};
     char hist_buf[HISTORY_SIZE];
-    slash_create_static(&slas, line_buf, LINE_SIZE, hist_buf, HISTORY_SIZE);
-	/* We could consider just running self->command_heap->func() ourselves,
-		but slash slash_execute() is a lot more convenient. */
-	PyObject *ret = Py_BuildValue("i", slash_execute(&slas, line));
-	free(line);
-	return ret;
+    slash_create_static(&slas, line, LINE_SIZE, hist_buf, HISTORY_SIZE);
+	
+	assert(self->command);  // It is invalid for SlashCommandObject to exist without wrapping a slash command
+
+	/* Implement this function to perform logging for example */
+	slash_on_execute_hook(line);
+
+	char *slash_args = line+strnlen(self->command->name, LINE_MAX), *argv[SLASH_ARG_MAX];
+	int argc = 0;
+
+	/* Build args */
+	extern int slash_build_args(char *args, char **argv, int *argc);
+	if (slash_build_args(slash_args, argv, &argc) < 0) {
+		slash_printf(&slas, "Mismatched quotes\n");
+		// TODO Kevin: Probably raise exception here?
+		return Py_BuildValue("i", -EINVAL);
+	}
+
+	/* Reset state for slash_getopt */
+	slas.optarg = 0;
+	slas.optind = 1;
+	slas.opterr = 1;
+	slas.optopt = '?';
+	slas.sp = 1;
+
+	slas.argc = argc;
+	slas.argv = argv;
+	const int ret = self->command->func(&slas);
+
+	extern void slash_command_usage(struct slash *slash, struct slash_command *command);
+	if (ret == SLASH_EUSAGE)
+		slash_command_usage(&slas, self->command);
+
+	return Py_BuildValue("i", ret);
 }
 
 /* 
