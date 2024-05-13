@@ -64,8 +64,10 @@ int SlashCommand_func(struct slash *slash) {
 
     assert(PyCallable_Check(python_func));
     /* Create the arguments. */
-    PyObject *py_args = PyTuple_New(slash->argc-1);
-	for (int i = 0; i < slash->argc-1; i++) {
+    // -1 because args seems to be 0 without arguments, but start at 2 with arguments, probably because of the command name.
+    const int actual_argc = slash->argc <= 0 ? 0 : slash->argc-1;  
+    PyObject *py_args = PyTuple_New(actual_argc);
+	for (int i = 0; i < actual_argc; i++) {
 		PyObject *value = PyUnicode_FromString(slash->argv[i+1]);
 		if (!value) {
 			Py_DECREF(py_args);
