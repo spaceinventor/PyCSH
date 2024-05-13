@@ -544,7 +544,7 @@ def list_save(filename: str = None, node: int = None, include_node: bool = True)
     :param include_node: Whether to include the node of the parameter in the "last add" command.
     :returns: Currently returns None, may return string of "list add" commands in future versions.
     """
-def list_add(node: int, length: int, id: int, name: str, type: int, mask: int | str = None,  comment: str = None, unit: str = None) -> None:
+def list_add(node: int, length: int, id: int, name: str, type: int, mask: int | str = None,  comment: str = None, unit: str = None) -> Parameter:
     """
     Add a parameter to the global list
 
