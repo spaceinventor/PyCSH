@@ -370,12 +370,13 @@ class SlashCommand:
         :returns: An instance of a SlashCommand, matching the identifier, that can be used to call the wrapped command
         """
 
-    def __call__(self, *args) -> _Any:
+    def __call__(self, *args, **kwargs) -> _Any:
         """
-        Call the wrapped slash command with any number of positional arguments,
-        that are then translated to argc and argv
+        Call the wrapped slash command with any number of arguments,
+        that are then translated to slash command arguments
 
-        :param *args: Positional arguments converted to C argv strings.
+        :param *args: Positional arguments converted to arguments for the slash command.
+        :param **kwargs: Keyword arguments converted to named arguments for the slash command.
 
         :raises ValueError: When the slash commands return any error.
 

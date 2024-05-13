@@ -110,10 +110,11 @@ static long SlashCommand_hash(SlashCommandObject *self) {
 }
 
 // Source https://chatgpt.com
-static char* _tuple_to_slash_string(const char * command_name, PyObject* args) {
-    // Check if args is a tuple
+static char* _tuple_to_slash_string(const char * command_name, PyObject* args, PyObject* kwargs) {
+
+	// Check if args is a tuple
     if (!PyTuple_Check(args)) {
-        PyErr_SetString(PyExc_TypeError, "Argument is not a tuple");
+        PyErr_SetString(PyExc_TypeError, "First argument is not a tuple");
         return NULL;
     }
 
@@ -137,7 +138,38 @@ static char* _tuple_to_slash_string(const char * command_name, PyObject* args) {
         return NULL;
     }
 
-    // Iterate over the tuple elements
+    // Append keyword arguments to the Unicode object
+    if (kwargs != NULL && PyDict_Check(kwargs)) {
+        PyObject *key, *value;
+        Py_ssize_t pos = 0;
+
+        while (PyDict_Next(kwargs, &pos, &key, &value)) {
+            // Format each key-value pair as named arguments to shell commands
+            PyObject* str_key = PyObject_Str(key);
+            PyObject* str_value = PyObject_Str(value);
+            if (str_key == NULL || str_value == NULL) {
+                Py_XDECREF(str_key);
+                Py_XDECREF(str_value);
+                Py_DECREF(unicode_result);
+                PyErr_SetString(PyExc_RuntimeError, "Failed to convert key-value pair to string");
+                return NULL;
+            }
+
+            // Append to the Unicode object
+            PyUnicode_AppendAndDel(&unicode_result, PyUnicode_FromString(" --"));
+            PyUnicode_AppendAndDel(&unicode_result, str_key);
+            /* Assume that boolean arguments are just flags without values,
+                i.e "--override" for ident */
+            if (PyBool_Check(value)) {
+                Py_DECREF(str_value);
+            } else {
+                PyUnicode_AppendAndDel(&unicode_result, PyUnicode_FromString("="));
+                PyUnicode_AppendAndDel(&unicode_result, str_value);
+            }
+        }
+    }
+
+    // Append positional arguments to the Unicode object
     for (Py_ssize_t i = 0; i < size; ++i) {
         // Get the i-th element of the tuple
         PyObject* item = PyTuple_GetItem(args, i);
@@ -187,30 +219,7 @@ static inline void cleanup_free(char ** obj) {
 
 static PyObject * SlashCommand_call(SlashCommandObject *self, PyObject *args, PyObject *kwds) {
 
-	// TODO Kevin: Ideally, an empty dict would also be allowed.
-	if (kwds != NULL) {
-
-		// Get the string representation of the object
-		PyObject* str_repr = PyObject_Str(kwds);
-		if (str_repr == NULL) {
-			fprintf(stderr, "Failed to get string representation\n");
-			PyErr_SetString(PyExc_TypeError, "Cannot call slash command with keyword arguments");
-			return NULL;
-		}
-
-		// Convert the string representation to a C string
-		const char* c_str_repr = PyUnicode_AsUTF8(str_repr);
-		if (c_str_repr == NULL) {
-			fprintf(stderr, "Failed to convert string representation to C string\n");
-		}
-
-		PyErr_Format(PyExc_TypeError, "Cannot call slash command with keyword arguments: %s", c_str_repr);
-
-		// Decrement the reference count of the string representation
-		Py_DECREF(str_repr);
-	}
-
-	char *line __attribute__((cleanup(cleanup_free))) = _tuple_to_slash_string(self->command->name, args);
+	char *line __attribute__((cleanup(cleanup_free))) = _tuple_to_slash_string(self->command->name, args, kwds);
 
 	if (line == NULL) {
 		//PyErr_SetString(PyExc_ValueError, "Failed to convert arguments to slash string");
