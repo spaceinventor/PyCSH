@@ -213,13 +213,11 @@ static char* _tuple_to_slash_string(const char * command_name, PyObject* args, P
     return result;
 }
 
-static inline void cleanup_free(char ** obj) {
-	free(*obj);
-}
+
 
 static PyObject * SlashCommand_call(SlashCommandObject *self, PyObject *args, PyObject *kwds) {
 
-	char *line __attribute__((cleanup(cleanup_free))) = _tuple_to_slash_string(self->command->name, args, kwds);
+	char *line CLEANUP_STR = _tuple_to_slash_string(self->command->name, args, kwds);
 
 	if (line == NULL) {
 		//PyErr_SetString(PyExc_ValueError, "Failed to convert arguments to slash string");

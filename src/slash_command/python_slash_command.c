@@ -29,6 +29,101 @@ PythonSlashCommandObject *python_wraps_slash_command(const struct slash_command 
     return (PythonSlashCommandObject *)((char *)command - offsetof(PythonSlashCommandObject, command_heap));
 }
 
+int pycsh_parse_slash_args(const struct slash *slash, PyObject **args_out, PyObject **kwargs_out) {
+
+    // Create a tuple and dit to hold *args and **kwargs.
+    // TODO Kevin: Support args_out and kwargs_out already being partially filled i.e not NULL
+    PyObject* args_tuple = PyTuple_New(slash->argc < 0 ? 0 : slash->argc);
+    PyObject* kwargs_dict = PyDict_New();
+
+    if (args_tuple == NULL || kwargs_dict == NULL) {
+        // Handle memory allocation failure
+        PyErr_SetString(PyExc_MemoryError, "Failed to allocate memory for args list or kwargs dictionary");
+        Py_XDECREF(args_tuple);
+        Py_XDECREF(kwargs_dict);
+        return -1;
+    }
+
+    int parsed_positional_args = 0;
+
+    // Tokenize the input arguments
+    for (int i = 1; i < slash->argc; ++i) {
+        const char* arg = slash->argv[i];
+        // Check if the argument is of the form "--key=value"
+        if (strncmp(arg, "--", 2) != 0) {
+            /* Token is not a keyword argument, simply add it as a positional argument to *args_out */
+            PyObject* py_arg = PyUnicode_FromString(arg);
+            if (py_arg == NULL) {
+                // Handle memory allocation failure
+                PyErr_SetString(PyExc_MemoryError, "Failed to allocate memory for positional argument");
+                Py_DECREF(args_tuple);
+                Py_DECREF(kwargs_dict);
+                return -1;
+            }
+            PyTuple_SET_ITEM(args_tuple, parsed_positional_args++, py_arg);  // Add the argument to the args_out list
+            continue; // Skip processing for keyword arguments
+        }
+
+        /* Token is a keyword argument, now try to split it into key and value */
+        char* equal_sign = strchr(arg, '=');
+        if (equal_sign == NULL) {
+            // Invalid format for keyword argument
+            PyErr_SetString(PyExc_ValueError, "Invalid format for keyword argument");
+            Py_DECREF(args_tuple);
+            Py_DECREF(kwargs_dict);
+            return -1;
+        }
+
+        *equal_sign = '\0'; // Null-terminate the key
+        const char* key = arg + 2; // Skip "--"
+        const char* value = equal_sign + 1;
+        
+        // Create Python objects for key and value
+        PyObject* py_key = PyUnicode_FromString(key);
+        PyObject* py_value = PyUnicode_FromString(value);
+        if (py_key == NULL || py_value == NULL) {
+            // Handle memory allocation failure
+            PyErr_SetString(PyExc_MemoryError, "Failed to allocate memory for key or value");
+            Py_XDECREF(py_key);
+            Py_XDECREF(py_value);
+            Py_DECREF(args_tuple);
+            Py_DECREF(kwargs_dict);
+            return -1;
+        }
+
+        // Add the key-value pair to the kwargs_out dictionary
+        if (PyDict_SetItem(kwargs_dict, py_key, py_value) != 0) {
+            // Handle dictionary insertion failure
+            PyErr_SetString(PyExc_RuntimeError, "Failed to add key-value pair to kwargs dictionary");
+            Py_DECREF(args_tuple);
+            Py_DECREF(kwargs_dict);
+            return -1;
+        }
+
+        /* Reccnt should be 2 after we have added to the dict. */
+        assert(py_key->ob_refcnt != 1);
+        assert(py_value->ob_refcnt != 1);
+
+        Py_XDECREF(py_key);
+        Py_XDECREF(py_value);
+    }
+
+    // Resize tuple to actual length
+    if (_PyTuple_Resize(&args_tuple, parsed_positional_args) < 0) {
+        // Handle tuple resizing failure
+        PyErr_SetString(PyExc_RuntimeError, "Failed to resize tuple for positional arguments");
+        Py_DECREF(args_tuple);
+        Py_DECREF(kwargs_dict);
+        return -1;
+    }
+
+    // Assign the args and kwargs variables
+    *args_out = args_tuple;
+    *kwargs_out = kwargs_dict;
+
+    return 0;
+}
+
 /**
  * @brief Shared callback for all slash_commands wrapped by a Slash object instance.
  */
@@ -44,7 +139,6 @@ int SlashCommand_func(struct slash *slash) {
         We could probably manually iterate until we find what is hopefully our command, but that also has issues.*/
 
     PyGILState_STATE gstate = PyGILState_Ensure();  // TODO Kevin: Do we ever need to take the GIL here, we don't have a CSP thread that can run slash commands
-    //assert(Parameter_wraps_param(param));  // TODO Kevin: It shouldn't be neccesarry to assert wrapped here, only PythonSlashCommands should use this function.
     if(PyErr_Occurred()) {  // Callback may raise an exception. But we don't want to override an existing one.
         PyErr_Print();  // Provide context by printing before we self-destruct
         assert(false);
@@ -63,21 +157,18 @@ int SlashCommand_func(struct slash *slash) {
     }
 
     assert(PyCallable_Check(python_func));
+
     /* Create the arguments. */
-    // -1 because args seems to be 0 without arguments, but start at 2 with arguments, probably because of the command name.
-    const int actual_argc = slash->argc <= 0 ? 0 : slash->argc-1;  
-    PyObject *py_args = PyTuple_New(actual_argc);
-	for (int i = 0; i < actual_argc; i++) {
-		PyObject *value = PyUnicode_FromString(slash->argv[i+1]);
-		if (!value) {
-			Py_DECREF(py_args);
-			return SLASH_EINVAL;
-		}
-		/* pValue reference stolen here: */
-		PyTuple_SetItem(py_args, i, value);
-	}
+    PyObject *py_args = NULL;
+    PyObject *py_kwargs = NULL;
+    if (pycsh_parse_slash_args(slash, &py_args, &py_kwargs) != 0) {
+        PyErr_Print();
+        PyGILState_Release(gstate);
+        return SLASH_EINVAL;
+    }
+    
     /* Call the user provided Python function */
-    PyObject * value = PyObject_CallObject(python_func, py_args);
+    PyObject * value = PyObject_Call(python_func, py_args, py_kwargs);
 
     /* Cleanup */
     Py_XDECREF(value);

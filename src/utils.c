@@ -19,6 +19,21 @@
 #include "parameter/pythonparameter.h"
 #include "parameter/parameterlist.h"
 
+
+/* __attribute__(()) doesn't like to treat char** and void** interchangeably. */
+void cleanup_str(char ** obj) {
+    if (*obj == NULL)
+        return
+    free(*obj);
+    *obj = NULL;
+}
+void cleanup_free(void ** obj) {
+    if (*obj == NULL)
+        return
+    free(*obj);
+    *obj = NULL;
+}
+
 /* Source: https://pythonextensionpatterns.readthedocs.io/en/latest/super_call.html */
 PyObject * call_super_pyname_lookup(PyObject *self, PyObject *func_name, PyObject *args, PyObject *kwargs) {
     PyObject *result        = NULL;

@@ -16,6 +16,11 @@
 #include <param/param_queue.h>
 #include "parameter/pythonparameter.h"
 
+void cleanup_str(char ** obj);
+void cleanup_free(void ** obj);
+
+#define CLEANUP_STR __attribute__((cleanup(cleanup_str)))
+#define CLEANUP_FREE __attribute__((cleanup(cleanup_free)))
 
 /* Source: https://pythonextensionpatterns.readthedocs.io/en/latest/super_call.html */
 PyObject * call_super_pyname_lookup(PyObject *self, PyObject *func_name, PyObject *args, PyObject *kwargs);
