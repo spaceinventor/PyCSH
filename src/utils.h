@@ -18,9 +18,13 @@
 
 void cleanup_str(char ** obj);
 void cleanup_free(void ** obj);
+void cleanup_GIL(PyGILState_STATE * gstate);
+void cleanup_pyobject(PyObject **obj);
 
 #define CLEANUP_STR __attribute__((cleanup(cleanup_str)))
 #define CLEANUP_FREE __attribute__((cleanup(cleanup_free)))
+#define CLEANUP_GIL __attribute__((cleanup(cleanup_GIL)))
+#define AUTO_DECREF __attribute__((cleanup(cleanup_pyobject)))
 
 /* Source: https://pythonextensionpatterns.readthedocs.io/en/latest/super_call.html */
 PyObject * call_super_pyname_lookup(PyObject *self, PyObject *func_name, PyObject *args, PyObject *kwargs);

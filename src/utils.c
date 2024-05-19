@@ -33,6 +33,16 @@ void cleanup_free(void ** obj) {
     free(*obj);
     *obj = NULL;
 }
+void cleanup_GIL(PyGILState_STATE * gstate) {
+	//printf("AAA %d\n", PyGILState_Check());
+    //if (*gstate == PyGILState_UNLOCKED)
+    //    return
+    PyGILState_Release(*gstate);
+    //*gstate = NULL;
+}
+void cleanup_pyobject(PyObject **obj) {
+    Py_XDECREF(*obj);
+}
 
 /* Source: https://pythonextensionpatterns.readthedocs.io/en/latest/super_call.html */
 PyObject * call_super_pyname_lookup(PyObject *self, PyObject *func_name, PyObject *args, PyObject *kwargs) {

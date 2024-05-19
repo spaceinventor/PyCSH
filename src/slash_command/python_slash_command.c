@@ -29,6 +29,11 @@ PythonSlashCommandObject *python_wraps_slash_command(const struct slash_command 
     return (PythonSlashCommandObject *)((char *)command - offsetof(PythonSlashCommandObject, command_heap));
 }
 
+/**
+ * @brief Parse positional slash arguments to **args_out and named arguments to **kwargs_out
+ * 
+ * @return int 0 when arguments are successfully parsed
+ */
 int pycsh_parse_slash_args(const struct slash *slash, PyObject **args_out, PyObject **kwargs_out) {
 
     // Create a tuple and dit to hold *args and **kwargs.
@@ -124,6 +129,54 @@ int pycsh_parse_slash_args(const struct slash *slash, PyObject **args_out, PyObj
     return 0;
 }
 
+// Source: https://chat.openai.com
+// Function to print the signature of a provided Python function
+void print_function_signature(PyObject* function) {
+    assert(function != NULL);
+
+    if (!PyCallable_Check(function)) {
+        PyErr_SetString(PyExc_TypeError, "Argument is not callable");
+        return;
+    }
+
+    PyObject* inspect_module AUTO_DECREF = PyImport_ImportModule("inspect");
+    if (!inspect_module) {
+        return;
+    }
+
+    PyObject* signature_func AUTO_DECREF = PyObject_GetAttrString(inspect_module, "signature");
+    if (!signature_func) {
+        return;
+    }
+
+    PyObject* signature AUTO_DECREF = PyObject_CallFunctionObjArgs(signature_func, function, NULL);
+    if (!signature) {
+        return;
+    }
+
+    PyObject* str_signature AUTO_DECREF = PyObject_Str(signature);
+    if (!str_signature) {
+        return;
+    }
+
+    PyObject* qualname_attr AUTO_DECREF = PyObject_GetAttrString(function, "__qualname__");
+    PyObject* name_attr AUTO_DECREF = PyObject_GetAttrString(function, "__name__");
+
+    const char *qualname = qualname_attr ? PyUnicode_AsUTF8(qualname_attr) : NULL;
+    const char *name = name_attr ? PyUnicode_AsUTF8(name_attr) : NULL;
+    const char *func_name = qualname ? qualname : (name ? name : "Unknown");
+
+    const char *signature_cstr = PyUnicode_AsUTF8(str_signature);
+    if (!signature_cstr) {
+        return;
+    }
+
+    printf("def %s%s\n", func_name, signature_cstr);
+}
+
+#undef CLEANUP
+
+
 /**
  * @brief Shared callback for all slash_commands wrapped by a Slash object instance.
  */
@@ -135,35 +188,54 @@ int SlashCommand_func(struct slash *slash) {
     extern struct slash_command * slash_command_find(struct slash *slash, char *line, size_t linelen, char **args);
     struct slash_command *command = slash_command_find(slash, slash->buffer, strlen(slash->buffer), &args);
     assert(command != NULL);  // If slash was able to execute this function, then the command should very much exist
-    /* If we find a command that doesn't use this function, then there's likely duplicate of multiple applicable commands in the list.
+    /* If we find a command that doesn't use this function, then there's likely duplicate or multiple applicable commands in the list.
         We could probably manually iterate until we find what is hopefully our command, but that also has issues.*/
 
-    PyGILState_STATE gstate = PyGILState_Ensure();  // TODO Kevin: Do we ever need to take the GIL here, we don't have a CSP thread that can run slash commands
+    PyGILState_STATE CLEANUP_GIL gstate = PyGILState_Ensure();  // TODO Kevin: Do we ever need to take the GIL here, we don't have a CSP thread that can run slash commands
     if(PyErr_Occurred()) {  // Callback may raise an exception. But we don't want to override an existing one.
         PyErr_Print();  // Provide context by printing before we self-destruct
         assert(false);
     }
 
-    PythonSlashCommandObject *python_slash_command = python_wraps_slash_command(command);
-    assert(python_slash_command != NULL);  // Slash command must be wrapped by Python
-    // PyObject *python_callback = python_slash_command->py_slash_func;
-    PyObject *python_func = python_slash_command->py_slash_func;
+    PythonSlashCommandObject *self = python_wraps_slash_command(command);
+    assert(self != NULL);  // Slash command must be wrapped by Python
+    // PyObject *python_callback = self->py_slash_func;
+    PyObject *python_func = self->py_slash_func;
 
     /* It probably doesn't make sense to have a slash command without a corresponding function,
         but we will allow it for now. */
     if (python_func == NULL || python_func == Py_None) {
-        PyGILState_Release(gstate);
         return SLASH_ENOENT;
     }
 
     assert(PyCallable_Check(python_func));
+
+    // TODO Kevin: Support printing help with "help <command>", would probably require print_function_signature() to return char*
+    // Check if we should just print help.
+    for (int i = 1; i < slash->argc; i++) {
+        const char *arg = slash->argv[i];
+        if (strncmp(arg, "-h", 3) == 0 || strncmp(arg, "--help", 7) == 0) {
+
+            if (self->command_heap.args == NULL) {
+                print_function_signature(python_func);
+            } else {
+                void slash_command_usage(struct slash *slash, struct slash_command *command);
+                slash_command_usage(slash, command);
+            }
+
+            if (PyErr_Occurred()) {
+                PyErr_Print();
+                return SLASH_ENOENT;
+            }
+            return SLASH_SUCCESS;
+        }
+    }
 
     /* Create the arguments. */
     PyObject *py_args = NULL;
     PyObject *py_kwargs = NULL;
     if (pycsh_parse_slash_args(slash, &py_args, &py_kwargs) != 0) {
         PyErr_Print();
-        PyGILState_Release(gstate);
         return SLASH_EINVAL;
     }
     
@@ -176,7 +248,6 @@ int SlashCommand_func(struct slash *slash) {
 
     if (PyErr_Occurred()) {
         PyErr_Print();
-        PyGILState_Release(gstate);
         return SLASH_EINVAL;
     }
 
@@ -189,11 +260,11 @@ int SlashCommand_func(struct slash *slash) {
         _PyErr_FormatFromCause(PyExc_ParamCallbackError, "Error calling Python callback");
     }
 #endif
-    PyGILState_Release(gstate);
     return SLASH_SUCCESS;//?
 }
 
-PythonSlashCommandObject * find_existing_PythonSlashCommand(struct slash_command *command) {
+#if 0
+PythonSlashCommandObject * find_existing_PythonSlashCommand(const struct slash_command *command) {
 	/* TODO Kevin: If it ever becomes possible to assert() the held state of the GIL,
 		we would definitely want to do it here. We don't want to use PyGILState_Ensure()
 		because the GIL should still be held after returning. */
@@ -205,6 +276,7 @@ PythonSlashCommandObject * find_existing_PythonSlashCommand(struct slash_command
 
 	return (PythonSlashCommandObject *)((char *)command - offsetof(PythonSlashCommandObject, command_heap));
 }
+#endif
 
 // Source: https://chat.openai.com
 /**
@@ -317,7 +389,7 @@ static PythonSlashCommandObject * SlashCommand_create_new(PyTypeObject *type, ch
 /* NOTE: Overriding an existing PythonSlashCommand here will most likely cause a memory leak. SLIST_REMOVE() will not Py_DECREF() */
 #if 0  /* It's okay if a command with this name already exists, Overriding it is an intended feature. */
     if (slash_list_find_name(0, name)) {
-        PyErr_Format(PyExc_ValueError, "Parameter with name \"%s\" already exists", name);
+        PyErr_Format(PyExc_ValueError, "Command with name \"%s\" already exists", name);
         return NULL;
     }
 #endif
