@@ -41,6 +41,12 @@ else
 	dependencies += dependency('param', fallback: ['param', 'param_dep'], required: true).as_link_whole()
 	slash_dep = dependency('slash', fallback: ['slash', 'slash_dep'], required: false).as_link_whole()
 	dependencies += slash_dep
+
+	curl_dep = dependency('libcurl', required: false)
+	if not curl_dep.found()
+		error('libcurl not found! Please install libcurl4-openssl-dev or the appropriate package for your system.')
+	endif
+	dependencies += curl_dep
 endif
 
 
@@ -77,11 +83,14 @@ if get_option('build_apm')
 else
 	pycsh_sources += [
 		# Dependencies from CSH
+		'src/csh/vts.c',
 		'src/csh/lock.c',
 		'src/csh/serial.c',
 		'src/csh/prometheus.c',
 		'src/csh/known_hosts.c',
 		'src/csh/param_sniffer.c',
+		'src/csh/hk_param_sniffer.c',
+		'src/csh/victoria_metrics.c',
 	]
 endif
 
