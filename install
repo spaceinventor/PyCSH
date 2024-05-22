@@ -19,7 +19,6 @@ ninja -C builddir-apm $target_name install
 # So either uninstall pycsh first or use --force-reinstall
 #pip3 uninstall -y pycsh
 # Build in builddir-pip, so we can assume that we will only find 1 .whl
-whl_file=$(ls builddir-pip/pycsh*.whl)
 python3 -mpip wheel -w builddir-pip . && \
 # installing the .whl seems to also install the .pyi file, so that's nice
- pip3 install --force-reinstall $whl_file
+pip3 install --force-reinstall $(ls builddir-pip/pycsh*.whl)
