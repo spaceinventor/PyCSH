@@ -1,4 +1,4 @@
 #!/bin/sh
 #ninja -C builddir clean
-ninja -C builddir && python3 -mpip wheel .
+ninja -C builddir && python3 -mpip wheel -w builddir-pip .
 ninja -C builddir-apm

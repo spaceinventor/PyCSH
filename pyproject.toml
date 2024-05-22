@@ -13,3 +13,6 @@ requires = ['meson-python']
 [tool.meson-python.args]
 # setup = ['-Dcsp:b_ndbebug=false']
 install = ['--skip-subprojects'] # the csp subproject wants to install itself in the binary wheel, causong error due to header files not being in Python wheels (maybe just for now?)
+# TODO Kevin: builddir argument is documeted here: https://meson-python.readthedocs.io/en/stable/reference/config-settings.html#cmdoption-arg-builddir
+#   But is doesn't appear to work.
+#builddir = 'builddir-pip'  # Default pip builddir is 'build/', but that name is already taken by the 'build' script
