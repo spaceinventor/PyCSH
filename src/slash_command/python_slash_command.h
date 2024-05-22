@@ -15,6 +15,8 @@
 #include "slash_command.h"
 
 
+extern PyThreadState* main_thread_state;
+
 typedef struct {
     SlashCommandObject slash_command_object;
     struct slash_command command_heap;  // The implementation of slash allows us control where to store our slash_command

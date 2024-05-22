@@ -21,6 +21,8 @@ void cleanup_free(void ** obj);
 void cleanup_GIL(PyGILState_STATE * gstate);
 void cleanup_pyobject(PyObject **obj);
 
+void state_release_GIL(PyThreadState ** state);
+
 #define CLEANUP_STR __attribute__((cleanup(cleanup_str)))
 #define CLEANUP_FREE __attribute__((cleanup(cleanup_free)))
 #define CLEANUP_GIL __attribute__((cleanup(cleanup_GIL)))

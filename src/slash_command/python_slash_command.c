@@ -16,6 +16,10 @@
 #include "../utils.h"
 
 
+/* The main_thread_state is mostly needed by apm.c. But we define it here,
+    so it's also visible when not compiling as APM. */
+PyThreadState *main_thread_state = NULL;
+
 int SlashCommand_func(struct slash *slash);
 
 /**
@@ -24,7 +28,7 @@ int SlashCommand_func(struct slash *slash);
  * @return borrowed reference to the wrapping PythonSlashCommandObject if wrapped, otherwise NULL.
  */
 PythonSlashCommandObject *python_wraps_slash_command(const struct slash_command * command) {
-    if (command->func != SlashCommand_func)
+    if (command == NULL || command->func != SlashCommand_func)
         return NULL;  // This slash command is not wrapped by PythonSlashCommandObject
     return (PythonSlashCommandObject *)((char *)command - offsetof(PythonSlashCommandObject, command_heap));
 }
@@ -37,7 +41,8 @@ PythonSlashCommandObject *python_wraps_slash_command(const struct slash_command 
 int pycsh_parse_slash_args(const struct slash *slash, PyObject **args_out, PyObject **kwargs_out) {
 
     // Create a tuple and dit to hold *args and **kwargs.
-    // TODO Kevin: Support args_out and kwargs_out already being partially filled i.e not NULL
+    /* TODO Kevin: Support args_out and kwargs_out already being partially filled i.e not NULL,
+        may be a bit complicated by the fact that we use _PyTuple_Resize() */
     PyObject* args_tuple = PyTuple_New(slash->argc < 0 ? 0 : slash->argc);
     PyObject* kwargs_dict = PyDict_New();
 
@@ -190,6 +195,10 @@ int SlashCommand_func(struct slash *slash) {
     assert(command != NULL);  // If slash was able to execute this function, then the command should very much exist
     /* If we find a command that doesn't use this function, then there's likely duplicate or multiple applicable commands in the list.
         We could probably manually iterate until we find what is hopefully our command, but that also has issues.*/
+
+    /* Re-acquire GIL */
+    PyEval_RestoreThread(main_thread_state);
+    PyThreadState * state __attribute__((cleanup(state_release_GIL))) = main_thread_state;
 
     PyGILState_STATE CLEANUP_GIL gstate = PyGILState_Ensure();  // TODO Kevin: Do we ever need to take the GIL here, we don't have a CSP thread that can run slash commands
     if(PyErr_Occurred()) {  // Callback may raise an exception. But we don't want to override an existing one.

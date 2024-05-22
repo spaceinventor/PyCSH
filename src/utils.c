@@ -44,6 +44,13 @@ void cleanup_pyobject(PyObject **obj) {
     Py_XDECREF(*obj);
 }
 
+void state_release_GIL(PyThreadState ** state) {
+	if (*state == NULL) {
+		return;  // We didn't have the GIL, so there's nothing to release.
+	}
+    *state = PyEval_SaveThread();
+}
+
 /* Source: https://pythonextensionpatterns.readthedocs.io/en/latest/super_call.html */
 PyObject * call_super_pyname_lookup(PyObject *self, PyObject *func_name, PyObject *args, PyObject *kwargs) {
     PyObject *result        = NULL;

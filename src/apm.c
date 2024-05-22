@@ -5,7 +5,9 @@
 
 // Slash is conditionally included by pycsh.h
 #include "pycsh.h"
+#include "utils.h"
 #include "pycshconfig.h"
+#include "slash_command/python_slash_command.h"
 
 
 static int py_iter_sys_path(void) {
@@ -135,9 +137,32 @@ void libinfo(void) {
 	printf("This APM embeds a Python interpreter into CSH,\n");
 	printf("which can then run Python scripts that import PyCSH linked with our symbols\n");
 }
+ 
+/* Source: https://chat.openai.com
+	Function to raise an exception in all threads */
+static void raise_exception_in_all_threads(PyObject *exception) {
+    PyGILState_STATE gstate = PyGILState_Ensure();
+    PyInterpreterState *interp = PyInterpreterState_Head();
+    PyThreadState *tstate = PyInterpreterState_ThreadHead(interp);
+
+    while (tstate != NULL) {
+        if (tstate != PyThreadState_Get()) {  // Skip the current thread
+            PyThreadState_SetAsyncExc(tstate->thread_id, exception);
+        }
+        tstate = PyThreadState_Next(tstate);
+    }
+
+    PyGILState_Release(gstate);
+}
 
 __attribute__((destructor(150))) static void finalize_python_interpreter(void) {
 	printf("Shutting down Python interpreter\n");
+	PyEval_RestoreThread(main_thread_state);  // Re-acquire the GIL so we can raise and exit \_(ツ)_/¯
+	raise_exception_in_all_threads(PyExc_SystemExit);
+	/* NOTE: It seems exceptions don't interrupt sleep() in threads,
+		so Py_FinalizeEx() still has to wait for them to finish.
+		I have tried calling PyEval_SaveThread(); and here PyEval_RestoreThread(main_thread_state); here,
+		but that doesn't seem to solve the problem. */
 	if (Py_FinalizeEx() < 0) {
 		/* We probably don't have to die to unloading errors here,
 			but maybe the user wants to know. */
@@ -147,6 +172,9 @@ __attribute__((destructor(150))) static void finalize_python_interpreter(void) {
 
 int apm_init(void) {
 	PyImport_AppendInittab("pycsh", &PyInit_pycsh);
+	/* Calling Py_Initialize() "has the side effect of locking the global interpreter lock.
+		Once the function completes, you are responsible for releasing the lock."
+		-- https://www.linuxjournal.com/article/3641 */
 	Py_Initialize();
 	printf("Python interpreter started\n");
 	if (append_pyapm_paths()) {
@@ -159,6 +187,9 @@ int apm_init(void) {
 		then we have to assume that CSH has already initialized CSP. */
 	extern uint8_t _csp_initialized;
     _csp_initialized = 1;
+
+	// release GIL here
+  	main_thread_state = PyEval_SaveThread();
 
 	return 0;
 }
@@ -223,6 +254,9 @@ static int py_run_cmd(struct slash *slash) {
         optparse_del(parser);
 		return SLASH_EINVAL;
 	}
+
+	PyEval_RestoreThread(main_thread_state);
+    PyThreadState * state __attribute__((cleanup(state_release_GIL))) = main_thread_state;
 
 	PyObject *pName = PyUnicode_DecodeFSDefault(slash->argv[argi]);
     /* Error checking of pName left out */
