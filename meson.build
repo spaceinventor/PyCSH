@@ -20,7 +20,8 @@ project('csh_bindings', 'c', subproject_dir: 'lib', default_options: [
 	'param:commands_client=true',
 	'param:scheduler_client=true',
 	'param:collector=false',
-	'param:list_dynamic=true',])
+	'param:list_dynamic=true',],
+	version: run_command('./get_ersion_for_meson.py').stdout().strip())
 
 add_global_arguments('-I../include', language: 'c')
 

@@ -1,10 +1,13 @@
 [project]
 name = 'pycsh'
-version = '0.0.1'
+dynamic = ["version"]
 description = 'pycsh Python package'
 readme = 'README.md'
 requires-python = '>=3.8'
 authors = []
+
+[tool.setuptools-git-versioning]
+enabled = true
 
 [build-system]
 build-backend = 'mesonpy'
