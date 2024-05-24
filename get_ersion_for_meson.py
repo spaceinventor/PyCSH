@@ -8,13 +8,18 @@ from subprocess import PIPE, run
 def main() -> None:
     ersion: str = run(['git', 'describe', '--long', '--always', '--dirty=+'], stdout=PIPE).stdout.decode()
     ersion = ersion.lstrip('vV')
-    lst = ersion.split('.')
-    if len(lst) <= 2:  # Not semantic versioning
-        ersion = ersion.replace('-', '.', 1)
 
-    ersion = ersion.split('-')[0]
+    semantic_ersion = ersion.split('-')[0]
 
-    print(ersion, end='')
+    num_commits_ahead = int(ersion.split('-')[1])
+
+    if num_commits_ahead > 0:
+        semantic_ersion += f".post{num_commits_ahead}"
+
+    if '+' in ersion:
+        semantic_ersion += '.dev0'
+
+    print(semantic_ersion, end='')
 
 if __name__ == '__main__':
     main()
