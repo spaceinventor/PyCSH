@@ -134,7 +134,7 @@ static int append_pyapm_paths(void) {
 
 void libinfo(void) {
 
-	printf("This APM embeds a Python interpreter into CSH,\n");
+	printf("Loading PyCSH as an APM, embeds a Python interpreter into CSH,\n");
 	printf("which can then run Python scripts that import PyCSH linked with our symbols\n");
 }
  
@@ -156,6 +156,10 @@ static void raise_exception_in_all_threads(PyObject *exception) {
 }
 
 __attribute__((destructor(150))) static void finalize_python_interpreter(void) {
+	/* TODO Kevin: Is seems that this deallocator will still be called,
+		even if the shared library (PyCSH) isn't loaded correctly.
+		Which will cause a segmentation fault when finalizing Python.
+		So we should make a guard clause for that. */
 	printf("Shutting down Python interpreter\n");
 	PyEval_RestoreThread(main_thread_state);  // Re-acquire the GIL so we can raise and exit \_(ツ)_/¯
 	raise_exception_in_all_threads(PyExc_SystemExit);
@@ -220,15 +224,61 @@ static void py_print__str__(PyObject *obj) {
 #ifdef PYCSH_HAVE_SLASH
 #include <slash/completer.h>
 
+static bool path_is_file(const char * path) {
+	struct stat s;
+	if (stat(path, &s) == 0 && s.st_mode & S_IFREG)
+		return true;
+	return false;
+}
+
 static void python_module_path_completer(struct slash * slash, char * token) {
-    slash_path_completer(slash, token);
-	
-	/* strip_py_extension */
-	size_t len = strlen(slash->buffer);
-    if (len >= 3 && strcmp(slash->buffer + len - 3, ".py") == 0) {
-        slash->buffer[len - 3] = '\0'; // Null-terminate the string at the position before ".py"
-		slash->cursor = slash->length = strlen(slash->buffer);
+
+	size_t len = strlen(token);
+
+#if 0  // Using path_is_file() to get the length to restore, means we have to type the full path with filename.
+	if (path_is_file(token)) {
+		char * file_extension = strrchr(token, '.');
+		if (file_extension != NULL) {
+			len = file_extension - token;
+		}
+	}
+
+	printf("ABA %ld\n", len);
+#endif
+
+	/* Restore path after previous Python package tab completion */
+	for (size_t i = 0; i < len; i++) {
+		if (token[i] == '.') {
+			token[i] = '/';
+		}
+	}
+
+	slash_path_completer(slash, token);
+	len = strlen(token);
+
+	if (path_is_file(token)) {
+#if 0
+		/* Strip file extension if token is file */
+		char * file_extension = strrchr(token, '.');
+		if (file_extension != NULL) {
+			*file_extension = '\0';
+			slash->cursor = slash->length = file_extension - token;
+		}
+#else
+	/* Strip .py extension */
+    if (len >= 3 && strcmp(token + len - 3, ".py") == 0) {
+        token[len - 3] = '\0'; // Null-terminate the string at the position before ".py"
+		len -= 3;
+		slash->cursor = slash->length -= 3;
     }
+#endif
+	}
+	
+	for (size_t i = 0; i < len; i++) {
+		if (token[i] == '/') {
+			token[i] = '.';
+		}
+	}
 }
 
 /* NOTE: It doesn't make sense for PYCSH_HAVE_APM without PYCSH_HAVE_SLASH.
