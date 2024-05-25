@@ -16,7 +16,7 @@ def main() -> None:
     if num_commits_ahead > 0:
         semantic_ersion += f".post{num_commits_ahead}"
 
-    if '+' in ersion:
+    if ersion.endswith('+'):  # Dirty working tree
         semantic_ersion += '.dev0'
 
     print(semantic_ersion, end='')
