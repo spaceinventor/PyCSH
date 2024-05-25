@@ -187,7 +187,7 @@ char* print_function_signature(PyObject* function, bool only_print) {
         return NULL;
     }
 
-    int cx = snprintf(signature_buf, signature_len, "def %s%s\n", func_name, signature_cstr);
+    int cx = snprintf(signature_buf, signature_len, "def %s%s", func_name, signature_cstr);
     if (cx < 0) {
         free(signature_buf);
         return NULL;
@@ -199,39 +199,45 @@ char* print_function_signature(PyObject* function, bool only_print) {
  
 // Function to get or print the signature and docstring of a provided Python function in .pyi format
 char* print_function_signature_w_docstr(PyObject* function, int only_print) {
-    char* signature = print_function_signature(function, false);
+    char* signature CLEANUP_STR = print_function_signature(function, false);
     if (!signature) {
         return NULL;
     }
 
+    assert(!PyErr_Occurred());
     PyObject* doc_attr AUTO_DECREF = PyObject_GetAttrString(function, "__doc__");
-    const char *docstr = doc_attr ? PyUnicode_AsUTF8(doc_attr) : "";
-
-    if (only_print) {
-        printf("%s", signature);
-        if (docstr && *docstr) {
-            printf("    \"\"\"%s\"\"\"\n", docstr);
-        }
-        free(signature);
+    PyErr_Clear();  // We don't want an exception if __doc__ doesn't exist, we can simply use an empty string.
+    const char *docstr = (doc_attr != NULL && doc_attr != Py_None) ? PyUnicode_AsUTF8(doc_attr) : "";
+    
+    if (!docstr) {
         return NULL;
     }
 
+    if (only_print) {
+        printf("%s:", signature);
+        if (docstr && *docstr) {
+            printf("    \"\"\"%s\"\"\"\n", docstr);
+        }
+        return NULL;
+    }
+
+    ssize_t signature_len = strlen(signature);
     ssize_t docstr_len = docstr ? strlen(docstr) : 0;
-    ssize_t total_len = strlen(signature) + (docstr_len ? (docstr_len + 14) : 0) + 1; // +14 for indentation and quote marks and null terminator
+    ssize_t total_len = signature_len + (docstr_len ? (docstr_len + 16) : 0) + 1; // +14 for indentation and quote marks and null terminator
     char *result_buf = malloc(total_len);
     if (!result_buf) {
-        free(signature);
         return NULL;
     }
 
     strcpy(result_buf, signature);
     if (docstr_len) {
+        //result_buf[signature_len-1] = '\0';  // Remove newline ...
+        strcat(result_buf, ":\n");           // so we can insert a colon before it
         strcat(result_buf, "    \"\"\"");
         strcat(result_buf, docstr);
-        strcat(result_buf, "\"\"\"\n");
+        strcat(result_buf, "\"\"\"");
     }
 
-    free(signature);
     return result_buf;
 }
 
@@ -279,17 +285,15 @@ int SlashCommand_func(struct slash *slash) {
         const char *arg = slash->argv[i];
         if (strncmp(arg, "-h", 3) == 0 || strncmp(arg, "--help", 7) == 0) {
 
-            if (self->command_heap.args == NULL) {
-                print_function_signature_w_docstr(python_func, true);
-            } else {
+            if (command->args != NULL) {
+#if 0
                 void slash_command_usage(struct slash *slash, struct slash_command *command);
                 slash_command_usage(slash, command);
+#else
+                printf("%s\n", command->args+1);  // +1 to skip newline
+#endif
             }
 
-            if (PyErr_Occurred()) {
-                PyErr_Print();
-                return SLASH_ENOENT;
-            }
             return SLASH_SUCCESS;
         }
     }
@@ -325,21 +329,6 @@ int SlashCommand_func(struct slash *slash) {
 #endif
     return SLASH_SUCCESS;//?
 }
-
-#if 0
-PythonSlashCommandObject * find_existing_PythonSlashCommand(const struct slash_command *command) {
-	/* TODO Kevin: If it ever becomes possible to assert() the held state of the GIL,
-		we would definitely want to do it here. We don't want to use PyGILState_Ensure()
-		because the GIL should still be held after returning. */
-    assert(command != NULL);
-
-    if (command->func != (slash_func_t)SlashCommand_func) {
-        return NULL;
-    }
-
-	return (PythonSlashCommandObject *)((char *)command - offsetof(PythonSlashCommandObject, command_heap));
-}
-#endif
 
 // Source: https://chat.openai.com
 /**
@@ -481,14 +470,32 @@ static PythonSlashCommandObject * SlashCommand_create_new(PyTypeObject *type, ch
         return NULL;
     }
 
+    if (args == NULL) {
+        char *docstr_wo_newline CLEANUP_STR = print_function_signature_w_docstr((PyObject*)py_slash_func, false);
+
+        if (docstr_wo_newline == NULL) {
+            Py_DECREF(self);
+            return NULL;
+        }
+
+        // Prepend newline to make "help <command>" look better
+        char *docstr_w_newline = malloc(strlen(docstr_wo_newline)+2);
+        docstr_w_newline[0] = '\n';
+        strcpy(docstr_w_newline+1, docstr_wo_newline);
+
+        args = docstr_w_newline;
+    } else {
+        args = safe_strdup(args);
+    }
+
     const struct slash_command temp_command = {
-        .args = safe_strdup(args),
+        .args = args,
         .name = safe_strdup(name),
         .func = SlashCommand_func,
         .completer = slash_path_completer,  // TODO Kevin: It should probably be possible for the user to change the completer.
     };
 
-    /* NOTE: This memcpy() seems to be the best way to deal with the fact that self->command->func is const?  */
+    /* NOTE: This memcpy() seems to be the best way to deal with the fact that self->command->func is const  */
     memcpy(&self->command_heap, &temp_command, sizeof(struct slash_command));
     self->slash_command_object.command = &self->command_heap;
 
