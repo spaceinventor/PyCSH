@@ -22,14 +22,16 @@
 
 /* __attribute__(()) doesn't like to treat char** and void** interchangeably. */
 void cleanup_str(char ** obj) {
-    if (*obj == NULL)
-        return
+    if (*obj == NULL) {
+        return;
+	}
     free(*obj);
     *obj = NULL;
 }
 void cleanup_free(void ** obj) {
-    if (*obj == NULL)
-        return
+    if (*obj == NULL) {
+        return;
+	}
     free(*obj);
     *obj = NULL;
 }

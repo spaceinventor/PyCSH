@@ -181,7 +181,7 @@ char* print_function_signature(PyObject* function, bool only_print) {
         return NULL;
     }
 
-    ssize_t signature_len = strlen("def \n") + strlen(func_name) + strlen(signature_cstr) + 1;  // +1 for NULL terminator
+    ssize_t signature_len = strlen("def ") + strlen(func_name) + strlen(signature_cstr) + 1;  // +1 for NULL terminator
     char * signature_buf = malloc(signature_len);
     if (!signature_buf) {
         return NULL;
