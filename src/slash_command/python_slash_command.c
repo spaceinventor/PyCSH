@@ -530,7 +530,9 @@ __attribute__((destructor(151))) static void remove_python_slash_commands(void) 
 
 static void PythonSlashCommand_dealloc(PythonSlashCommandObject *self) {
 
-    if (self->py_slash_func != NULL && self->py_slash_func != Py_None) {
+    /* Calling Py_XDECREF() while Python is finalizing, seems to cause a segfault (due to the GIL not being held)
+        (->tp_free() seems fine however), So that is why we check for _Py_IsFinalizing(). */
+    if (!_Py_IsFinalizing() && self->py_slash_func != NULL && self->py_slash_func != Py_None) {
         Py_XDECREF(self->py_slash_func);
         self->py_slash_func = NULL;
     }
