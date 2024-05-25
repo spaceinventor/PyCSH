@@ -135,33 +135,33 @@ int pycsh_parse_slash_args(const struct slash *slash, PyObject **args_out, PyObj
 }
 
 // Source: https://chat.openai.com
-// Function to print the signature of a provided Python function
-void print_function_signature(PyObject* function) {
+// Function to print or return the signature of a provided Python function
+char* print_function_signature(PyObject* function, bool only_print) {
     assert(function != NULL);
 
     if (!PyCallable_Check(function)) {
         PyErr_SetString(PyExc_TypeError, "Argument is not callable");
-        return;
+        return NULL;
     }
 
     PyObject* inspect_module AUTO_DECREF = PyImport_ImportModule("inspect");
     if (!inspect_module) {
-        return;
+        return NULL;
     }
 
     PyObject* signature_func AUTO_DECREF = PyObject_GetAttrString(inspect_module, "signature");
     if (!signature_func) {
-        return;
+        return NULL;
     }
 
     PyObject* signature AUTO_DECREF = PyObject_CallFunctionObjArgs(signature_func, function, NULL);
     if (!signature) {
-        return;
+        return NULL;
     }
 
     PyObject* str_signature AUTO_DECREF = PyObject_Str(signature);
     if (!str_signature) {
-        return;
+        return NULL;
     }
 
     PyObject* qualname_attr AUTO_DECREF = PyObject_GetAttrString(function, "__qualname__");
@@ -173,13 +173,67 @@ void print_function_signature(PyObject* function) {
 
     const char *signature_cstr = PyUnicode_AsUTF8(str_signature);
     if (!signature_cstr) {
-        return;
+        return NULL;
     }
 
-    printf("def %s%s\n", func_name, signature_cstr);
-}
+    if (only_print) {
+        printf("def %s%s\n", func_name, signature_cstr);
+        return NULL;
+    }
 
-#undef CLEANUP
+    ssize_t signature_len = strlen("def \n") + strlen(func_name) + strlen(signature_cstr) + 1;  // +1 for NULL terminator
+    char * signature_buf = malloc(signature_len);
+    if (!signature_buf) {
+        return NULL;
+    }
+
+    int cx = snprintf(signature_buf, signature_len, "def %s%s\n", func_name, signature_cstr);
+    if (cx < 0) {
+        free(signature_buf);
+        return NULL;
+     }
+ 
+    signature_buf[signature_len-1] = '\0';
+    return signature_buf;
+ }
+ 
+// Function to get or print the signature and docstring of a provided Python function in .pyi format
+char* print_function_signature_w_docstr(PyObject* function, int only_print) {
+    char* signature = print_function_signature(function, false);
+    if (!signature) {
+        return NULL;
+    }
+
+    PyObject* doc_attr AUTO_DECREF = PyObject_GetAttrString(function, "__doc__");
+    const char *docstr = doc_attr ? PyUnicode_AsUTF8(doc_attr) : "";
+
+    if (only_print) {
+        printf("%s", signature);
+        if (docstr && *docstr) {
+            printf("    \"\"\"%s\"\"\"\n", docstr);
+        }
+        free(signature);
+        return NULL;
+    }
+
+    ssize_t docstr_len = docstr ? strlen(docstr) : 0;
+    ssize_t total_len = strlen(signature) + (docstr_len ? (docstr_len + 14) : 0) + 1; // +14 for indentation and quote marks and null terminator
+    char *result_buf = malloc(total_len);
+    if (!result_buf) {
+        free(signature);
+        return NULL;
+    }
+
+    strcpy(result_buf, signature);
+    if (docstr_len) {
+        strcat(result_buf, "    \"\"\"");
+        strcat(result_buf, docstr);
+        strcat(result_buf, "\"\"\"\n");
+    }
+
+    free(signature);
+    return result_buf;
+}
 
 
 /**
@@ -226,7 +280,7 @@ int SlashCommand_func(struct slash *slash) {
         if (strncmp(arg, "-h", 3) == 0 || strncmp(arg, "--help", 7) == 0) {
 
             if (self->command_heap.args == NULL) {
-                print_function_signature(python_func);
+                print_function_signature_w_docstr(python_func, true);
             } else {
                 void slash_command_usage(struct slash *slash, struct slash_command *command);
                 slash_command_usage(slash, command);

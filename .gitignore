@@ -21,3 +21,6 @@ builddir*
 
 __pycache__/
 *.whl
+
+# Meson-Python temp build dir/artifacts
+.mesonpy-*
