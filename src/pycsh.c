@@ -68,6 +68,7 @@
 #include "wrapper/csp_init_py.h"
 #include "wrapper/param_list_py.h"
 #include "wrapper/vmem_client_py.h"
+#include "wrapper/victoria_metrics_py.h"
 
 extern const char *version_string;
 
@@ -249,6 +250,10 @@ static PyMethodDef methods[] = {
 	{"node", 		pycsh_slash_node, 			  	METH_VARARGS, 				  "Used to get or change the default node."},
 	{"timeout", 	pycsh_slash_timeout, 			METH_VARARGS, 		  		  "Used to get or change the default timeout."},
 	{"queue", 		pycsh_param_cmd,			  	METH_NOARGS, 				  "Print the current command."},
+	
+	/* Victoria Metrics */
+	{"vm_start",    (PyCFunction)pycsh_vm_start,    METH_VARARGS | METH_KEYWORDS, "Starts the victoria metrics thread."},
+	{"vm_stop",     (PyCFunction)pycsh_vm_stop,     METH_VARARGS | METH_KEYWORDS, "Stops the victoria metrics thread."},
 
 	/* Converted CSH commands from libparam/src/param/list/param_list_slash.c */
 	{"list", 		(PyCFunction)pycsh_param_list,	METH_VARARGS | METH_KEYWORDS, "List all known parameters."},

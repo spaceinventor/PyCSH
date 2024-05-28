@@ -690,6 +690,19 @@ def sps(from: int, to: int, filename: str, node: int = None, window: int = None,
     :raises ProgramDiffError: See class docstring.
     """
 
+def vm_start(logfile: int = 0, username: str = None, password: str = None, pyargs: dict = None):
+    """Starts victoria metrics thread
+
+    Args:
+        logfile (int, optional): _description_. Defaults to 0.
+        username (str, optional): Username for vm. Defaults to None.
+        password (str, optional): Password for vm. Defaults to None.
+        pyargs (dict, optional): _description_. Defaults to None.
+    """
+
+def vm_stop():
+    """Stops victoria metrics thread"""
+
 def csp_init(host: str = None, model: str = None, revision: str = None, version: int = 2, dedup: int = 3) -> None:
     """
     Initialize CSP

@@ -20,27 +20,14 @@
 #include <param/param_queue.h>
 #include <param/param_string.h>
 #include "param_sniffer.h"
+#include "victoria_metrics.h"
 
 static pthread_t vm_push_thread;
 int vm_running = 0;
 
-#define SERVER_PORT      8428
-#define SERVER_PORT_AUTH 8427
-#define BUFFER_SIZE      10 * 1024 * 1024
-
 static char buffer[BUFFER_SIZE];
 static size_t buffer_size = 0;
 static pthread_mutex_t buffer_mutex = PTHREAD_MUTEX_INITIALIZER;
-
-typedef struct {
-    int use_ssl;
-    int port;
-    int skip_verify;
-    int verbose;
-    char * username;
-    char * password;
-    char * server_ip;
-} vm_args;
 
 static size_t write_callback(char *ptr, size_t size, size_t nmemb, void *userdata) {
     return size * nmemb;
