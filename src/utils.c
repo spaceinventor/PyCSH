@@ -18,6 +18,7 @@
 #include "parameter/parameterarray.h"
 #include "parameter/pythonparameter.h"
 #include "parameter/parameterlist.h"
+#include "../src/csh/victoria_metrics.h"
 
 
 /* __attribute__(()) doesn't like to treat char** and void** interchangeably. */
