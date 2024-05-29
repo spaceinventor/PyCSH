@@ -69,6 +69,7 @@
 #include "wrapper/csp_init_py.h"
 #include "wrapper/param_list_py.h"
 #include "wrapper/vmem_client_py.h"
+#include "wrapper/node_add_py.h"
 
 extern const char *version_string;
 

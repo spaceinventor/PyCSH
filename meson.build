@@ -73,6 +73,7 @@ pycsh_sources = [
 	'src/wrapper/spaceboot_py.c',
 	'src/wrapper/param_list_py.c',
 	'src/wrapper/vmem_client_py.c',
+	'src/wrapper/node_add_py.c',
 
 	# Utilities
 	'src/utils.c',
