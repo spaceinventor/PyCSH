@@ -17,6 +17,8 @@
 extern PyObject * PyExc_ParamCallbackError;
 extern PyObject * PyExc_InvalidParameterTypeError;
 
+extern PyDictObject * param_callback_dict;
+
 typedef struct {
     ParameterObject parameter_object;
     PyObject *callback;

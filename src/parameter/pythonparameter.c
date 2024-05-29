@@ -165,7 +165,36 @@ static bool is_valid_callback(const PyObject *callback, bool raise_exc) {
     return true;
 }
 
+static void PythonParameter_dealloc(PythonParameterObject *self) {
+
+    if (self->callback != NULL && self->callback != Py_None) {
+        Py_XDECREF(self->callback);
+        self->callback = NULL;
+    }
+
+    param_list_remove_specific(((ParameterObject*)self)->param, 0, 1);
+
+    {   /* Remove ourselves from the callback/lookup dictionary */
+        PyObject *key AUTO_DECREF = PyLong_FromVoidPtr(self->parameter_object.param);
+        assert(key != NULL);
+        if (PyDict_GetItem((PyObject*)param_callback_dict, key) != NULL) {
+            PyDict_DelItem((PyObject*)param_callback_dict, key);
+        }
+    }
+
+    // Get the type of 'self' in case the user has subclassed 'Parameter'.
+    // TODO Kevin: Alternatively it might be better to always iterate from pycsh.PythonParameter.
+    PyTypeObject *baseclass = Py_TYPE(self);
+
+    // Keep iterating baseclasses until we find one that doesn't use this deallocator.
+    while ((baseclass = baseclass->tp_base)->tp_dealloc == (destructor)PythonParameter_dealloc && baseclass != NULL);
+
+    assert(baseclass->tp_dealloc != NULL);  // Assert that Python installs some deallocator to classes that don't specifically implement one (Whether pycsh.Parameter or object()).
+    baseclass->tp_dealloc((PyObject*)self);
+}
+
 /* Internal API for creating a new PythonParameterObject. */
+__attribute__((malloc, malloc(PythonParameter_dealloc, 1)))
 static PythonParameterObject * Parameter_create_new(PyTypeObject *type, uint16_t id, param_type_e param_type, uint32_t mask, char * name, char * unit, char * docstr, int array_size, const PyObject * callback, int host, int timeout, int retries, int paramver) {
 
     /* Check for valid parameter type. param_list_create_remote() should always return NULL for errors,
@@ -258,16 +287,6 @@ static PythonParameterObject * Parameter_create_new(PyTypeObject *type, uint16_t
     ((ParameterObject*)self)->param->callback = Parameter_callback;
 
     return self;
-}
-
-static void PythonParameter_dealloc(PythonParameterObject *self) {
-    if (self->callback != NULL && self->callback != Py_None) {
-        Py_XDECREF(self->callback);
-        self->callback = NULL;
-    }
-    param_list_remove_specific(((ParameterObject*)self)->param, 0, 1);
-    // Get the type of 'self' in case the user has subclassed 'Parameter'.
-    Py_TYPE(self)->tp_free((PyObject *) self);
 }
 
 static PyObject * PythonParameter_new(PyTypeObject *type, PyObject * args, PyObject * kwds) {

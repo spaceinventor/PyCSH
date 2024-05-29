@@ -14,8 +14,6 @@
 
 #include <param/param.h>
 
-extern PyDictObject * param_callback_dict;
-
 typedef struct {
     PyObject_HEAD
     /* Type-specific fields go here. */

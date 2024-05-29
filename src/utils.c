@@ -312,6 +312,7 @@ PyObject * _pycsh_Parameter_from_param(PyTypeObject *type, param_t * param, cons
 	PyObject *key = PyLong_FromVoidPtr(param);
 	PyDict_SetItem((PyObject*)param_callback_dict, key, (PyObject*)self);  // Allows the param_t callback to find the corresponding PythonParameterObject.
     Py_DECREF(key);
+    Py_DECREF(self);  // param_callback_dict should hold a weak reference to self
 
 	self->host = host;
 	self->param = param;

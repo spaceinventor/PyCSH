@@ -57,21 +57,7 @@ static PyObject * Parameter_str(ParameterObject *self) {
 	return Py_BuildValue("s", buf);
 }
 
-static void Parameter_dealloc(ParameterObject *self) {
-	/* Whether or not we keep self->param in the list, it should not point to a freed 'self' */
-	PyObject *key = PyLong_FromVoidPtr(self->param);
-	if (PyDict_GetItem((PyObject*)param_callback_dict, key) != NULL)
-		PyDict_DelItem((PyObject*)param_callback_dict, key);
-	Py_DECREF(key);
-
-	param_list_remove_specific(self->param, 0, 1);  // TODO Kevin: I'm not sure if we should remove our parameter from the list :/
-
-	// Get the type of 'self' in case the user has subclassed 'Parameter'.
-	Py_TYPE(self)->tp_free((PyObject *) self);
-}
-
 /* May perform black magic and return a ParameterArray instead of the specified type. */
-__attribute__((malloc, malloc(Parameter_dealloc, 1)))
 static PyObject * Parameter_new(PyTypeObject *type, PyObject *args, PyObject *kwds) {
 
 	static char *kwlist[] = {"param_identifier", "node", "host", "paramver", "timeout", "retries", NULL};
@@ -368,7 +354,7 @@ PyTypeObject ParameterType = {
     .tp_itemsize = 0,
     .tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
     .tp_new = Parameter_new,
-    .tp_dealloc = (destructor)Parameter_dealloc,
+    //.tp_dealloc = (destructor)Parameter_dealloc,
 	.tp_getset = Parameter_getsetters,
 	// .tp_members = Parameter_members,
 	// .tp_methods = Parameter_methods,
