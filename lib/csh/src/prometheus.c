@@ -18,8 +18,8 @@
 #include <param/param.h>
 #include <param/param_queue.h>
 
-#include "prometheus.h"
-#include "param_sniffer.h"
+#include <csh/prometheus.h>
+#include <csh/param_sniffer.h>
 
 static pthread_t prometheus_tread;
 int prometheus_started = 0;

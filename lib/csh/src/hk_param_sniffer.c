@@ -18,8 +18,8 @@
 #include <slash/dflopt.h>
 #include <slash/optparse.h>
 
-#include "prometheus.h"
-#include "param_sniffer.h"
+#include <csh/prometheus.h>
+#include <csh/param_sniffer.h>
 
 pthread_t hk_param_sniffer_thread;
 #define MAX_HKS 16

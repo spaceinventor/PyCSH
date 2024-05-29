@@ -11,7 +11,7 @@
 #include <csp/csp_cmp.h>
 
 #include "../pycsh.h"
-#include "../csh/known_hosts.h"
+#include <csh/known_hosts.h>
 
 #include "py_csp.h"
 

@@ -10,7 +10,7 @@
 
 #include <slash/slash.h>
 #include <slash/optparse.h>
-#include "param_sniffer.h"
+#include <csh/param_sniffer.h>
 
 static int adcs_node = 0;
 static char *default_ip = "127.0.0.1";

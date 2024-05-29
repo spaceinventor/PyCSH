@@ -33,22 +33,21 @@ if get_option('build_apm')
 	dependencies += dependency('apm_csh', fallback: ['apm_csh', 'apm_csh_dep'], required: true)
 	conf.set('PYCSH_HAVE_APM', 1)  # If we havn't errored, we have APM
 
-	csp_dep = dependency('csp', fallback: ['csp', 'csp_dep'], required: true).partial_dependency(links: false, includes: true)
-	slash_dep = dependency('slash', fallback: ['slash', 'slash_dep'], required: false).partial_dependency(links: false, includes: true)
-	param_dep = dependency('param', fallback: ['param', 'param_dep'], required: true).partial_dependency(links: false, includes: true)
-	dependencies += dependency('python3', required: true)  # We don't actually Python as dep here when we have the linker args, but it might help VSC with highlighting.
-else
-	dependencies += dependency('csp', fallback: ['csp', 'csp_dep'], required: true)
-	dependencies += dependency('param', fallback: ['param', 'param_dep'], required: true).as_link_whole()
-	slash_dep = dependency('slash', fallback: ['slash', 'slash_dep'], required: false).as_link_whole()
-	dependencies += slash_dep
-
-	curl_dep = dependency('libcurl', required: false)
-	if not curl_dep.found()
-		error('libcurl not found! Please install libcurl4-openssl-dev or the appropriate package for your system.')
-	endif
-	dependencies += curl_dep
 endif
+
+dependencies += dependency('csp', fallback: ['csp', 'csp_dep'], required: true).partial_dependency(links: false, includes: true)
+slash_dep = dependency('slash', fallback: ['slash', 'slash_dep'], required: false).partial_dependency(links: false, includes: true)
+dependencies += dependency('param', fallback: ['param', 'param_dep'], required: true).partial_dependency(links: false, includes: true)
+dependencies += dependency('python3', required: true)  # We don't actually Python as dep here when we have the linker args, but it might help VSC with highlighting.
+
+# CSH (and or libcsh) is reponsible for static linking of libcurl
+curl_dep = dependency('libcurl', required: false).partial_dependency(links: false, includes: true)
+if not curl_dep.found()
+	error('libcurl not found! Please install libcurl4-openssl-dev or the appropriate package for your system.')
+endif
+dependencies += curl_dep
+
+dependencies += slash_dep
 
 
 
@@ -82,18 +81,6 @@ if get_option('build_apm')
 	pycsh_sources += [
 		'src/apm.c',
 	]
-else
-	pycsh_sources += [
-		# Dependencies from CSH
-		'src/csh/vts.c',
-		'src/csh/lock.c',
-		'src/csh/serial.c',
-		'src/csh/prometheus.c',
-		'src/csh/known_hosts.c',
-		'src/csh/param_sniffer.c',
-		'src/csh/hk_param_sniffer.c',
-		'src/csh/victoria_metrics.c',
-	]
 endif
 
 if slash_dep.found()
@@ -103,13 +90,13 @@ if slash_dep.found()
 		'src/slash_command/slash_command.c',
 		'src/slash_command/python_slash_command.c',
 	]
-	if get_option('build_apm') == false
-		pycsh_sources += [
-			'src/csh/csp_init_cmd.c',
-		]
-	endif
 	conf.set('PYCSH_HAVE_SLASH', slash_dep.found())
 endif
+
+# Build/declare CSH dependencies
+subproject('csh')
+
+dependencies += dependency('csh', fallback: ['csh', 'csh_dep'], required: true).partial_dependency(links: false, includes: true)
 
 pycsh_config_h = configure_file(output: 'pycshconfig.h', configuration: conf, install_dir: 'include/pycsh/', install: false)
 #install_headers(pycsh_config_h, install_dir : 'include/pycsh')
