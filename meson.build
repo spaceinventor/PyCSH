@@ -107,6 +107,10 @@ if slash_dep.found()
 		pycsh_sources += [
 			'src/csh/csp_init_cmd.c',
 		]
+	else
+		pycsh_sources += [
+			'src/apm_py.c',
+		]
 	endif
 	conf.set('PYCSH_HAVE_SLASH', slash_dep.found())
 endif
