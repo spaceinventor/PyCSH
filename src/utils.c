@@ -18,6 +18,7 @@
 #include "parameter/parameterarray.h"
 #include "parameter/pythonparameter.h"
 #include "parameter/parameterlist.h"
+#include "parameter/pythonarrayparameter.h"
 
 
 /* __attribute__(()) doesn't like to treat char** and void** interchangeably. */
@@ -233,6 +234,51 @@ PythonParameterObject * Parameter_wraps_param(param_t *param) {
 	return python_param;
 }
 
+static PyTypeObject * get_arrayparameter_subclass(PyTypeObject *type) {
+
+	// Get the __subclasses__ method
+    PyObject *subclasses_method AUTO_DECREF = PyObject_GetAttrString((PyObject *)type, "__subclasses__");
+    if (subclasses_method == NULL) {
+        return NULL;
+    }
+
+	// NOTE: .__subclasses__() is not recursive, but this is currently not an issue with ParameterArray and PythonArrayParameter
+
+    // Call the __subclasses__ method
+    PyObject *subclasses_list AUTO_DECREF = PyObject_CallObject(subclasses_method, NULL);
+    if (subclasses_list == NULL) {
+        return NULL;
+    }
+
+    // Ensure the result is a list
+    if (!PyList_Check(subclasses_list)) {
+        PyErr_SetString(PyExc_TypeError, "__subclasses__ did not return a list");
+        return NULL;
+    }
+
+    // Iterate over the list of subclasses
+    Py_ssize_t num_subclasses = PyList_Size(subclasses_list);
+    for (Py_ssize_t i = 0; i < num_subclasses; i++) {
+        PyObject *subclass = PyList_GetItem(subclasses_list, i);  // Borrowed reference
+        if (subclass == NULL) {
+            return NULL;
+        }
+
+		int is_subclass = PyObject_IsSubclass(subclass, (PyObject*)&ParameterArrayType);
+        if (is_subclass < 0) {
+			return NULL;
+		}
+		
+		PyErr_Clear();
+		if (is_subclass) {
+			return (PyTypeObject*)subclass;
+		}
+    }
+
+	PyErr_Format(PyExc_TypeError, "Failed to find ArrayParameter variant of class %s", type->tp_name);
+	return NULL;
+}
+
 /* Create a Python Parameter object from a param_t pointer directly. */
 PyObject * _pycsh_Parameter_from_param(PyTypeObject *type, param_t * param, const PyObject * callback, int host, int timeout, int retries, int paramver) {
 	if (param == NULL) {
@@ -249,10 +295,14 @@ PyObject * _pycsh_Parameter_from_param(PyTypeObject *type, param_t * param, cons
 		PyErr_SetString(PyExc_TypeError, 
 			"Attempted to create an ParameterArray instance, for a non array parameter.");
 		return NULL;
-	} else if (param->array_size > 1)  // If the parameter is an array.
-		type = &ParameterArrayType;  // We create a ParameterArray instance instead.
+	} else if (param->array_size > 1) {  		   // If the parameter is an array.
+		type = get_arrayparameter_subclass(type);  // We create a ParameterArray instance instead.
+		if (type == NULL) {
+			return NULL;
+		}
 		// If you listen really carefully here, you can hear OOP idealists, screaming in agony.
 		// On a more serious note, I'm amazed that this even works at all.
+	}
 
 	ParameterObject *self = (ParameterObject *)type->tp_alloc(type, 0);
 

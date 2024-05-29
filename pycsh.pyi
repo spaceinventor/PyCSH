@@ -310,7 +310,7 @@ class PythonParameter(Parameter):
         Change the callback of the parameter
         """
 
-class PythonParameterArray(PythonParameter, ParameterArray):
+class PythonArrayParameter(PythonParameter, ParameterArray):
     """ ParameterArray created in Python. """
 
 # PyCharm may refuse to acknowledge that a list subclass is iterable, so we explicitly state that it is.

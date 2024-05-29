@@ -55,6 +55,7 @@
 #include "parameter/parameter.h"
 #include "parameter/parameterarray.h"
 #include "parameter/pythonparameter.h"
+#include "parameter/pythonarrayparameter.h"
 #include "parameter/parameterlist.h"
 
 #include "slash_command/slash_command.h"
@@ -321,6 +322,13 @@ PyMODINIT_FUNC PyInit_pycsh(void) {
 	if (PyType_Ready(&PythonParameterType) < 0)
         return NULL;
 
+	/* PythonArrayParameterType must be created dynamically after
+		ParameterArrayType and PythonParameterType to support multiple inheritance. */
+	if (create_pythonarrayparameter_type() == NULL)
+		return NULL;
+	if (PyType_Ready(PythonArrayParameterType) < 0)
+		return NULL;
+
 	ParameterListType.tp_base = &PyList_Type;
 	if (PyType_Ready(&ParameterListType) < 0)
 		return NULL;
@@ -380,6 +388,13 @@ PyMODINIT_FUNC PyInit_pycsh(void) {
 	Py_INCREF(&PythonParameterType);
 	if (PyModule_AddObject(m, "PythonParameter", (PyObject *) &PythonParameterType) < 0) {
 		Py_DECREF(&PythonParameterType);
+        Py_DECREF(m);
+        return NULL;
+	}
+
+	Py_INCREF(PythonArrayParameterType);
+    if (PyModule_AddObject(m, "PythonArrayParameter", (PyObject *) PythonArrayParameterType) < 0) {
+		Py_DECREF(PythonArrayParameterType);
         Py_DECREF(m);
         return NULL;
 	}

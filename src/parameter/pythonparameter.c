@@ -294,7 +294,7 @@ static PyObject * PythonParameter_new(PyTypeObject *type, PyObject * args, PyObj
     uint32_t mask;
     if (pycsh_parse_param_mask(mask_obj, &mask) != 0) {
         return NULL;  // Exception message set by pycsh_parse_param_mask()
-    } 
+    }
 
     if (array_size < 1)
         array_size = 1;
