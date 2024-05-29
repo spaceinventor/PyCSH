@@ -161,6 +161,11 @@ __attribute__((destructor(150))) static void finalize_python_interpreter(void) {
 		Which will cause a segmentation fault when finalizing Python.
 		So we should make a guard clause for that. */
 	printf("Shutting down Python interpreter\n");
+	PyThreadState* tstate = PyGILState_GetThisThreadState();
+	if(tstate == NULL){
+		fprintf(stderr, "Python interpreter not started.\n");
+		return;
+	}
 	PyEval_RestoreThread(main_thread_state);  // Re-acquire the GIL so we can raise and exit \_(ツ)_/¯
 	raise_exception_in_all_threads(PyExc_SystemExit);
 	/* NOTE: It seems exceptions don't interrupt sleep() in threads,
