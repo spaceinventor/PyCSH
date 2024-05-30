@@ -1,26 +1,22 @@
 #!/usr/bin/env python3
 
 from __future__ import annotations
+import inspect
 
 import pycsh
 import resource
 from time import time
-
-# def check_memory_leaks(sec_duration=10):
-
-#     start_timestamp = time()
-#     while time() < start_timestamp + sec_duration:
-#         pass
 
 
 def check_PythonSlashCommand_leaks(iterations=10000):
 
     start_mem_usage = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
     for i in range(iterations):
+    # i = 0
     # while True:
-    #     i = 0
+    #     i = i+1
         current_mem_usage = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss - start_mem_usage
-        print(f"{i=}\t{current_mem_usage=}")
+        print(f"{inspect.currentframe().f_code.co_name}\t{i=}\t{current_mem_usage=}")
 
         def command_with_docstr() -> None:
             """
@@ -31,7 +27,7 @@ def check_PythonSlashCommand_leaks(iterations=10000):
 
         def command_without_docstr() -> None:
             return
-        pycsh.PythonSlashCommand("command_without_docstr", command_without_docstr).keep_alive = True
+        pycsh.PythonSlashCommand("command_without_docstr", command_without_docstr)
 
         def command_with_argstr() -> None:
             return
@@ -43,6 +39,19 @@ def check_PythonSlashCommand_leaks(iterations=10000):
         pycsh.PythonSlashCommand("command_with_all", command_with_all, "argstring goes here")
 
 
+def check_SlashCommand_leaks(iterations=10000):
+
+    start_mem_usage = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
+    for i in range(iterations):
+    # i = 0
+    # while True:
+    #     i = i+1
+        current_mem_usage = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss - start_mem_usage
+        print(f"{inspect.currentframe().f_code.co_name}\t{i=}\t{current_mem_usage=}")
+
+        pycsh.SlashCommand("help")()
+
+
 def main() -> None:
 
 
@@ -50,6 +59,7 @@ def main() -> None:
     pycsh.csp_init()
 
     check_PythonSlashCommand_leaks()
+    check_SlashCommand_leaks()
 
 
 if __name__ == '__main__':
