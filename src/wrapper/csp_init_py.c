@@ -306,13 +306,24 @@ PyObject * pycsh_csh_csp_ifadd_udp(PyObject * self, PyObject * args, PyObject * 
 	if (!PyArg_ParseTupleAndKeywords(args, kwds, "Is|iiiii", kwlist, &addr, &server, &promisc, &mask, &dfl, &listen_port, &remote_port))
 		return NULL;  // TypeError is thrown
 
-    csp_iface_t * iface;
-    iface = malloc(sizeof(csp_iface_t));
+    csp_iface_t * iface = malloc(sizeof(csp_iface_t));
+    if (iface == NULL) {
+        PyErr_NoMemory();
+        return NULL;
+    }
     memset(iface, 0, sizeof(csp_iface_t));
     csp_if_udp_conf_t * udp_conf = malloc(sizeof(csp_if_udp_conf_t));
+    if (udp_conf == NULL) {
+        PyErr_NoMemory();
+        return NULL;
+    }
     udp_conf->host = strdup(server);
     udp_conf->lport = listen_port;
     udp_conf->rport = remote_port;
+    if (udp_conf->host == NULL) {
+        PyErr_NoMemory();
+        return NULL;
+    }
     csp_if_udp_init(iface, udp_conf);
 
     iface->is_default = dfl;
