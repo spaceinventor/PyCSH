@@ -94,7 +94,9 @@ if slash_dep.found()
 endif
 
 # Build/declare CSH dependencies
-subproject('csh')
+libcsh_proj = subproject('csh')
+libcsh_lib = libcsh_proj.get_variable('csh_lib')
+libcsh_lib_path = libcsh_lib.full_path()
 
 dependencies += dependency('csh', fallback: ['csh', 'csh_dep'], required: true).partial_dependency(links: false, includes: true)
 
@@ -137,6 +139,8 @@ foreach python_version : get_option('python3_versions')
 						)
 	endif
 
+	# TODO Kevin: .so file doesn't exist at this point, and install_data() isn't lazy. So this doesn't work.
+	#install_data(libcsh_lib_path, install_dir : get_option('datadir'))
 	py.install_sources(pyi)
 
 endforeach
