@@ -54,6 +54,14 @@ void state_release_GIL(PyThreadState ** state) {
     *state = PyEval_SaveThread();
 }
 
+__attribute__((malloc, malloc(free, 1)))
+char *safe_strdup(const char *s) {
+    if (s == NULL) {
+        return NULL;
+    }
+    return strdup(s);
+}
+
 /* Source: https://pythonextensionpatterns.readthedocs.io/en/latest/super_call.html */
 PyObject * call_super_pyname_lookup(PyObject *self, PyObject *func_name, PyObject *args, PyObject *kwargs) {
     PyObject *result        = NULL;

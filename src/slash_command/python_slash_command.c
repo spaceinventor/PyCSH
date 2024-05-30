@@ -417,13 +417,6 @@ static int PythonSlashCommand_set_keep_alive(PythonSlashCommandObject *self, PyO
     return 0;
 }
 
-static char *safe_strdup(const char *s) {
-    if (s == NULL) {
-        return NULL;
-    }
-    return strdup(s);
-}
-
 /* Internal API for creating a new PythonSlashCommandObject. */
 static PythonSlashCommandObject * SlashCommand_create_new(PyTypeObject *type, char * name, const char * args, const PyObject * py_slash_func) {
 
