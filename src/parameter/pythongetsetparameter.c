@@ -5,7 +5,7 @@
  *
  */
 
-#include "pythonparameter.h"
+#include "pythongetsetparameter.h"
 
 #include "structmember.h"
 
@@ -14,48 +14,41 @@
 #include "../pycsh.h"
 #include "../utils.h"
 
-// Instantiated in our PyMODINIT_FUNC
-PyObject * PyExc_ParamCallbackError;
-PyObject * PyExc_InvalidParameterTypeError;
-
 /**
  * @brief Shared callback for all param_t's wrapped by a Parameter instance.
  */
-void Parameter_callback(param_t * param, int offset) {
+void Parameter_getter(vmem_t * vmem, uint32_t addr, void * dataout, uint32_t len) {
+
     PyGILState_STATE CLEANUP_GIL gstate = PyGILState_Ensure();
-    assert(Parameter_wraps_param(param));
     assert(!PyErr_Occurred());  // Callback may raise an exception. But we don't want to override an existing one.
 
-    PyObject *key = PyLong_FromVoidPtr(param);
-    PythonParameterObject *python_param = (PythonParameterObject*)PyDict_GetItem((PyObject*)param_callback_dict, key);
-    Py_DECREF(key);
+    PythonGetSetParameterObject *python_param = python_wraps_vmem(vmem);
 
     /* This param_t uses the Python Parameter callback, but doesn't actually point to a Parameter.
         Perhaps it was deleted? Or perhaps it was never set correctly. */
-    if (python_param == NULL) {
-        assert(false);  // TODO Kevin: Is this situation worthy of an assert(), or should we just ignore it?
-        return;
-    }
+    assert(python_param != NULL);  // TODO Kevin: Is this situation worthy of an assert(), or should we just ignore it?
 
     // PythonParameterObject *python_param = (PythonParameterObject *)((char *)param - offsetof(PythonParameterObject, parameter_object.param));
-    PyObject *python_callback = python_param->callback;
+    PyObject *python_getter = python_param->getter_func;
 
     /* This Parameter has no callback */
     /* Python_callback should not be NULL here when Parameter_wraps_param(), but we will allow it for now... */
-    if (python_callback == NULL || python_callback == Py_None) {
+    if (python_getter == NULL || python_getter == Py_None) {
         return;
     }
 
-    assert(PyCallable_Check(python_callback));
-    /* Create the arguments. */
-    PyObject *pyoffset = Py_BuildValue("i", offset);
-    PyObject * args = PyTuple_Pack(2, python_param, pyoffset);
-    /* Call the user Python callback */
-    PyObject_CallObject(python_callback, args);
-    /* Cleanup */
-    Py_DECREF(args);
-    Py_DECREF(pyoffset);
+    // Undo VMEM addr conversion to find parameter index.
+    const param_t *param = python_param->parameter_object.parameter_object.param;
+    const int offset = (addr-(intptr_t)param->addr)/param->array_step;
 
+    assert(PyCallable_Check(python_getter));
+    /* Create the arguments. */
+    PyObject *pyoffset AUTO_DECREF = Py_BuildValue("i", offset);
+    PyObject * args AUTO_DECREF = PyTuple_Pack(2, python_param, pyoffset);
+    /* Call the user Python callback */
+    PyObject_CallObject(python_getter, args);
+
+#if 0  // TODO Kevin: Either propagate exception naturally, or set FromCause to custom getter exception.
     if (PyErr_Occurred()) {
         /* It may not be clear to the user, that the exception came from the callback,
             we therefore chain unto the existing exception, for better clarity. */
@@ -63,6 +56,20 @@ void Parameter_callback(param_t * param, int offset) {
         // TODO Kevin: It seems exceptions raised in the CSP thread are ignored.
         _PyErr_FormatFromCause(PyExc_ParamCallbackError, "Error calling Python callback");
     }
+#endif
+}
+
+/**
+ * @brief Check if this vmem is wrapped by a PythonGetSetParameterObject.
+ * 
+ * @return borrowed reference to the wrapping PythonSlashCommandObject if wrapped, otherwise NULL.
+ */
+PythonGetSetParameterObject *python_wraps_vmem(const vmem_t * vmem) {
+    if (vmem == NULL || (vmem->read != Parameter_getter && vmem->write != Parameter_setter))
+        return NULL;  // This slash command is not wrapped by PythonSlashCommandObject
+    // TODO Kevin: What are the consequences of allowing only getter and or setter?
+    // assert(vmem->write == Parameter_setter);  // It should not be possible to have the correct internal .read(), but the incorrect internal .write()
+    return (PythonGetSetParameterObject *)((char *)vmem - offsetof(PythonGetSetParameterObject, vmem_heap));
 }
 
 // Source: https://chat.openai.com
@@ -76,7 +83,9 @@ void Parameter_callback(param_t * param, int offset) {
  * @param raise_exc Whether to set exception message when returning false.
  * @return true for success
  */
-static bool is_valid_callback(const PyObject *callback, bool raise_exc) {
+static bool is_valid_getter(const PyObject *callback, bool raise_exc) {
+
+    static_assert(false);  // TODO Kevin: Rewrite from callback to getter.
 
     /*We currently allow both NULL and Py_None,
             as those are valid to have on PythonParameterObject */
@@ -165,131 +174,35 @@ static bool is_valid_callback(const PyObject *callback, bool raise_exc) {
     return true;
 }
 
-static void PythonParameter_dealloc(PythonParameterObject *self) {
+static void PythonGetSetParameter_dealloc(PythonGetSetParameterObject *self) {
 
-    if (self->callback != NULL && self->callback != Py_None) {
-        Py_XDECREF(self->callback);
-        self->callback = NULL;
+    if (self->getter_func != NULL && self->getter_func != Py_None) {
+        Py_XDECREF(self->getter_func);
+        self->getter_func = NULL;
     }
 
-    param_list_remove_specific(((ParameterObject*)self)->param, 0, 1);
-
-    {   /* Remove ourselves from the callback/lookup dictionary */
-        PyObject *key AUTO_DECREF = PyLong_FromVoidPtr(self->parameter_object.param);
-        assert(key != NULL);
-        if (PyDict_GetItem((PyObject*)param_callback_dict, key) != NULL) {
-            PyDict_DelItem((PyObject*)param_callback_dict, key);
-        }
+    if (self->setter_func != NULL && self->setter_func != Py_None) {
+        Py_XDECREF(self->setter_func);
+        self->setter_func = NULL;
     }
+
 
     // Get the type of 'self' in case the user has subclassed 'Parameter'.
     // TODO Kevin: Alternatively it might be better to always iterate from pycsh.PythonParameter.
     PyTypeObject *baseclass = Py_TYPE(self);
 
     // Keep iterating baseclasses until we find one that doesn't use this deallocator.
-    while ((baseclass = baseclass->tp_base)->tp_dealloc == (destructor)PythonParameter_dealloc && baseclass != NULL);
+    while ((baseclass = baseclass->tp_base)->tp_dealloc == (destructor)PythonGetSetParameter_dealloc && baseclass != NULL);
 
     assert(baseclass->tp_dealloc != NULL);  // Assert that Python installs some deallocator to classes that don't specifically implement one (Whether pycsh.Parameter or object()).
     baseclass->tp_dealloc((PyObject*)self);
 }
 
-/* Internal API for creating a new PythonParameterObject. */
-__attribute__((malloc, malloc(PythonParameter_dealloc, 1)))
-static PythonParameterObject * Parameter_create_new(PyTypeObject *type, uint16_t id, param_type_e param_type, uint32_t mask, char * name, char * unit, char * docstr, int array_size, const PyObject * callback, int host, int timeout, int retries, int paramver) {
 
-    /* Check for valid parameter type. param_list_create_remote() should always return NULL for errors,
-        but this allows us to raise a specific exception. */
-    /* I'm not sure whether we can use (param_type > PARAM_TYPE_INVALID) to check for invalid parameters,
-        so for now we will use a switch. This should also make GCC warn us when new types are added. */
-    switch (param_type) {
-
-        case PARAM_TYPE_UINT8:
-        case PARAM_TYPE_UINT16:
-        case PARAM_TYPE_UINT32:
-        case PARAM_TYPE_UINT64:
-        case PARAM_TYPE_INT8:
-        case PARAM_TYPE_INT16:
-        case PARAM_TYPE_INT32:
-        case PARAM_TYPE_INT64:
-        case PARAM_TYPE_XINT8:
-        case PARAM_TYPE_XINT16:
-        case PARAM_TYPE_XINT32:
-        case PARAM_TYPE_XINT64:
-        case PARAM_TYPE_FLOAT:
-        case PARAM_TYPE_DOUBLE:
-        case PARAM_TYPE_STRING:
-        case PARAM_TYPE_DATA:
-        case PARAM_TYPE_INVALID:
-            break;
-        
-        default:
-            PyErr_SetString(PyExc_InvalidParameterTypeError, "An invalid parameter type was specified during creation of a new parameter");
-            return NULL;
-    }
-
-    if (param_list_find_id(0, id) != NULL) {
-        /* Run away as quickly as possible if this ID is already in use, we would otherwise get a segfault, which is driving me insane. */
-        PyErr_Format(PyExc_ValueError, "Parameter with id %d already exists", id);
-        return NULL;
-    }
-
-    if (param_list_find_name(0, name)) {
-        /* While it is perhaps technically acceptable, it's probably best if we don't allow duplicate names either. */
-        PyErr_Format(PyExc_ValueError, "Parameter with name \"%s\" already exists", name);
-        return NULL;
-    }
-
-    if (!is_valid_callback(callback, true)) {
-        return NULL;  // Exception message set by is_valid_callback();
-    }
-
-    param_t * new_param = param_list_create_remote(id, 0, param_type, mask, array_size, name, unit, docstr, -1);
-    if (new_param == NULL) {
-        return (PythonParameterObject*)PyErr_NoMemory();
-    }
-
-    PythonParameterObject * self = (PythonParameterObject *)_pycsh_Parameter_from_param(type, new_param, callback, host, timeout, retries, paramver);
-    if (self == NULL) {
-        /* This is likely a memory allocation error, in which case we expect .tp_alloc() to have raised an exception. */
-        return NULL;
-    }
-
-    switch (param_list_add(new_param)) {
-        case 0:
-            break;  // All good
-        case 1: {
-            // It shouldn't be possible to arrive here, except perhaps from race conditions.
-            PyErr_SetString(PyExc_KeyError, "Local parameter with the specifed ID already exists");
-            Py_DECREF(self);
-            return NULL;
-        }
-        default: {
-            Py_DECREF(self);
-            assert(false);  // list_dynamic=false ?
-            break;
-        }
-    }
-
-    // ((ParameterObject *)self)->param->callback = Parameter_callback;  // NOTE: This assignment is performed in _pycsh_Parameter_from_param()
-    self->keep_alive = 1;
-    Py_INCREF(self);  // Parameter list holds a reference to the ParameterObject
-    /* NOTE: If .keep_alive defaults to False, then we should remove this Py_INCREF() */
-
-    /* NULL callback becomes None on a ParameterObject instance */
-    if (callback == NULL)
-        callback = Py_None;
-
-    if (Parameter_set_callback(self, (PyObject *)callback, NULL) == -1) {
-        Py_DECREF(self);
-        return NULL;
-    }
-
-    ((ParameterObject*)self)->param->callback = Parameter_callback;
-
-    return self;
-}
-
+__attribute__((malloc, malloc(PythonGetSetParameter_dealloc, 1)))
 static PyObject * PythonParameter_new(PyTypeObject *type, PyObject * args, PyObject * kwds) {
+
+    static_assert(false);  // TODO Kevin: Initialize VMEM and call super()
 
     uint16_t id;
     char * name;
@@ -329,41 +242,15 @@ static PyObject * PythonParameter_new(PyTypeObject *type, PyObject * args, PyObj
     return (PyObject *)python_param;
 }
 
-static PyObject * Parameter_get_keep_alive(PythonParameterObject *self, void *closure) {
-    return self->keep_alive ? Py_True : Py_False;
+
+static PyObject * Parameter_get_getter(PythonGetSetParameterObject *self, void *closure) {
+    return Py_NewRef(self->getter_func);
 }
 
-static int Parameter_set_keep_alive(PythonParameterObject *self, PyObject *value, void *closure) {
+int Parameter_set_getter(PythonGetSetParameterObject *self, PyObject *value, void *closure) {
 
     if (value == NULL) {
-        PyErr_SetString(PyExc_TypeError, "Cannot delete the keep_alive attribute");
-        return -1;
-    }
-
-    if (value != Py_True && value != Py_False) {
-        PyErr_SetString(PyExc_TypeError, "keep_alive must be True or False");
-        return -1;
-    }
-
-    if (self->keep_alive && value == Py_False) {
-        self->keep_alive = 0;
-        Py_DECREF(self);
-    } else if (!self->keep_alive && value == Py_True) {
-        self->keep_alive = 1;
-        Py_INCREF(self);
-    }
-
-    return 0;
-}
-
-static PyObject * Parameter_get_callback(PythonParameterObject *self, void *closure) {
-    return Py_NewRef(self->callback);
-}
-
-int Parameter_set_callback(PythonParameterObject *self, PyObject *value, void *closure) {
-
-    if (value == NULL) {
-        PyErr_SetString(PyExc_TypeError, "Cannot delete the callback attribute");
+        PyErr_SetString(PyExc_TypeError, "Cannot delete the getter attribute");
         return -1;
     }
 
@@ -371,52 +258,94 @@ int Parameter_set_callback(PythonParameterObject *self, PyObject *value, void *c
         return -1;
     }
 
-    if (value == self->callback)
+    if (value == self->getter_func)
         return 0;  // No work to do
 
-    /* Changing the callback to None. */
+    /* Changing the getter to None. */
     if (value == Py_None) {
-        if (self->callback != Py_None) {
+        if (self->getter_func != Py_None) {
             /* We should not arrive here when the old value is Py_None, 
                 but prevent Py_DECREF() on at all cost. */
-            Py_XDECREF(self->callback);
+            Py_XDECREF(self->getter_func);
         }
-        self->callback = Py_None;
+        self->getter_func = Py_None;
         return 0;
     }
 
     /* We now know that 'value' is a new callable. */
 
     /* When replacing a previous callable. */
-    if (self->callback != Py_None) {
-        Py_XDECREF(self->callback);
+    if (self->getter_func != Py_None) {
+        Py_XDECREF(self->getter_func);
     }
 
     Py_INCREF(value);
-    self->callback = value;
+    self->getter_func = value;
+
+    return 0;
+}
+
+static PyObject * Parameter_get_setter(PythonGetSetParameterObject *self, void *closure) {
+    return Py_NewRef(self->setter_func);
+}
+
+int Parameter_set_setter(PythonGetSetParameterObject *self, PyObject *value, void *closure) {
+
+    if (value == NULL) {
+        PyErr_SetString(PyExc_TypeError, "Cannot delete the setter attribute");
+        return -1;
+    }
+
+    if (!is_valid_setter(value, true)) {
+        return -1;
+    }
+
+    if (value == self->setter_func)
+        return 0;  // No work to do
+
+    /* Changing the setter to None. */
+    if (value == Py_None) {
+        if (self->setter_func != Py_None) {
+            /* We should not arrive here when the old value is Py_None, 
+                but prevent Py_DECREF() on at all cost. */
+            Py_XDECREF(self->setter_func);
+        }
+        self->setter_func = Py_None;
+        return 0;
+    }
+
+    /* We now know that 'value' is a new callable. */
+
+    /* When replacing a previous callable. */
+    if (self->setter_func != Py_None) {
+        Py_XDECREF(self->setter_func);
+    }
+
+    Py_INCREF(value);
+    self->setter_func = value;
 
     return 0;
 }
 
 static PyGetSetDef PythonParameter_getsetters[] = {
-    {"keep_alive", (getter)Parameter_get_keep_alive, (setter)Parameter_set_keep_alive,
-     "Whether the Parameter should remain in the parameter list, when all Python references are lost. This makes it possible to recover the Parameter instance through list()", NULL},
-    {"callback", (getter)Parameter_get_callback, (setter)Parameter_set_callback,
-     "callback of the parameter", NULL},
+    {"getter", (getter)Parameter_get_getter, (setter)Parameter_set_getter,
+     "getter of the parameter", NULL},
+    {"setter", (getter)Parameter_get_setter, (setter)Parameter_set_setter,
+     "setter of the parameter", NULL},
     {NULL, NULL, NULL, NULL}  /* Sentinel */
 };
 
-PyTypeObject PythonParameterType = {
+PyTypeObject PythonGetSetParameterType = {
     PyVarObject_HEAD_INIT(NULL, 0)
-    .tp_name = "pycsh.PythonParameter",
-    .tp_doc = "Parameter created in Python.",
-    .tp_basicsize = sizeof(PythonParameterObject),
+    .tp_name = "pycsh.PythonGetSetParameter",
+    .tp_doc = "Parameter, with getter and or setter, created in Python.",
+    .tp_basicsize = sizeof(PythonGetSetParameterObject),
     .tp_itemsize = 0,
     .tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
     .tp_new = PythonParameter_new,
-    .tp_dealloc = (destructor)PythonParameter_dealloc,
+    .tp_dealloc = (destructor)PythonGetSetParameter_dealloc,
     .tp_getset = PythonParameter_getsetters,
     // .tp_str = (reprfunc)Parameter_str,
     // .tp_richcompare = (richcmpfunc)Parameter_richcompare,
-    .tp_base = &ParameterType,
+    .tp_base = &PythonParameterType,
 };
