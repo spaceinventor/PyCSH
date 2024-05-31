@@ -92,6 +92,8 @@ void Parameter_getter(vmem_t * vmem, uint32_t addr, void * dataout, uint32_t len
     /* Call the user Python getter */
     PyObject *value AUTO_DECREF = PyObject_CallObject(python_getter, args);
 
+    // TODO Kevin: Convert PyObject value to C value and set dataout
+
 #if 0  // TODO Kevin: Either propagate exception naturally, or set FromCause to custom getter exception.
     if (PyErr_Occurred()) {
         /* It may not be clear to the user, that the exception came from the callback,
@@ -134,6 +136,9 @@ void Parameter_setter(vmem_t * vmem, uint32_t addr, const void * datain, uint32_
     /* Create the arguments. */
     PyObject *pyoffset AUTO_DECREF = Py_BuildValue("i", offset);
     PyObject *pyval AUTO_DECREF = _pycsh_val_to_pyobject(python_param->parameter_object.parameter_object.param->type, datain);
+    if (pyval == NULL) {
+        return;
+    }
     PyObject * args AUTO_DECREF = PyTuple_Pack(3, python_param, pyoffset, pyval);
     /* Call the user Python callback */
     PyObject_CallObject(python_setter, args);
@@ -449,9 +454,11 @@ static PyObject * PythonGetSetParameter_new(PyTypeObject *type, PyObject * args,
         self->vmem_heap.restore = NULL;
         
         if (getter_func != NULL && getter_func != Py_None) {
+            self->getter_func = Py_NewRef(getter_func);
             self->vmem_heap.read = Parameter_getter;
         }
         if (setter_func != NULL && setter_func != Py_None) {
+            self->setter_func = Py_NewRef(setter_func);
             self->vmem_heap.write = Parameter_setter;
         }
         assert(self->vmem_heap.read != NULL || self->vmem_heap.write != NULL);
