@@ -59,6 +59,114 @@ static PyObject *_pycsh_val_to_pyobject(param_type_e type, const void * value) {
 }
 
 /**
+ * @brief Convert an arbritrary value to a parameter value, based on parameter type.
+ * 
+ * @param type Parameter type, to determine desired output value type from.
+ * @param value_in PyObject* value to parse.
+ * @param dataout Buffer for retrieved value.
+ * @param array_len Needed for array parameters
+ * @return int 0 for success.
+ */
+static int _pycsh_param_pyval_to_cval(param_type_e type, PyObject * value_in, void * dataout, size_t array_len) {
+
+    /* Error check switch */
+	switch (type) {
+		case PARAM_TYPE_UINT8:
+		case PARAM_TYPE_XINT8:
+		case PARAM_TYPE_UINT16:
+		case PARAM_TYPE_XINT16:
+		case PARAM_TYPE_UINT32:
+		case PARAM_TYPE_XINT32:
+		case PARAM_TYPE_UINT64:
+		case PARAM_TYPE_XINT64:
+		case PARAM_TYPE_INT8:
+		case PARAM_TYPE_INT16:
+		case PARAM_TYPE_INT32:
+		case PARAM_TYPE_INT64: {
+			if (!PyLong_Check(value_in)) {
+                PyErr_Format(PyExc_TypeError, "Cannot set int parameter as %s", value_in->ob_type->tp_name);
+                return -1;
+            }
+			break;
+		}
+		case PARAM_TYPE_FLOAT:
+		case PARAM_TYPE_DOUBLE: {
+			if (!PyFloat_Check(value_in)) {
+                PyErr_Format(PyExc_TypeError, "Cannot set float parameter as %s", value_in->ob_type->tp_name);
+                return -2;
+            }
+			break;
+		}
+		case PARAM_TYPE_STRING: {
+			if (!PyUnicode_Check(value_in)) {
+                PyErr_Format(PyExc_TypeError, "Cannot set string parameter as %s", value_in->ob_type->tp_name);
+                return -3;
+            }
+			break;
+		}
+		case PARAM_TYPE_DATA:  // TODO Kevin: No idea how data will work
+		default:  // Raise NotImplementedError when param_type remains NULL.
+			PyErr_SetString(PyExc_NotImplementedError, "Unsupported parameter type.");
+            return -4;
+			break;
+	}
+
+    // TODO Kevin: No overflow checking! But I think this is most similar to libparam
+
+    /* If we have not returned yet, then type should be valid. */
+	switch (type) {
+		case PARAM_TYPE_UINT8:
+		case PARAM_TYPE_XINT8:
+			*(uint8_t*)dataout = (uint8_t)PyLong_AsUnsignedLong(value_in);
+            break;
+		case PARAM_TYPE_UINT16:
+		case PARAM_TYPE_XINT16:
+			*(uint16_t*)dataout = (uint16_t)PyLong_AsUnsignedLong(value_in);
+            break;
+		case PARAM_TYPE_UINT32:
+		case PARAM_TYPE_XINT32:
+			*(uint32_t*)dataout = (uint32_t)PyLong_AsUnsignedLong(value_in);
+            break;
+		case PARAM_TYPE_UINT64:
+		case PARAM_TYPE_XINT64:
+			*(uint64_t*)dataout = (uint64_t)PyLong_AsUnsignedLong(value_in);
+            break;
+		case PARAM_TYPE_INT8:
+			*(int8_t*)dataout = (int8_t)PyLong_AsUnsignedLong(value_in);
+            break;
+		case PARAM_TYPE_INT16:
+			*(int16_t*)dataout = (int16_t)PyLong_AsUnsignedLong(value_in);
+            break;
+		case PARAM_TYPE_INT32:
+			*(int32_t*)dataout = (int32_t)PyLong_AsUnsignedLong(value_in);
+            break;
+		case PARAM_TYPE_INT64:
+			*(int64_t*)dataout = (int64_t)PyLong_AsUnsignedLong(value_in);
+		case PARAM_TYPE_FLOAT:
+			*(float*)dataout = (float)PyFloat_AsDouble(value_in);
+            break;
+		case PARAM_TYPE_DOUBLE:
+			*(double*)dataout = PyFloat_AsDouble(value_in);
+            break;
+        case PARAM_TYPE_DATA:
+		case PARAM_TYPE_STRING: {
+            strncpy((char*)dataout, PyUnicode_AsUTF8(value_in), array_len);
+            break;
+		}
+		default: {
+			/* Default case to make the compiler happy. Set error and return */
+			break;
+		}
+	}
+
+    if (PyErr_Occurred()) {
+        return -5;  // Probably OverflowError
+    }
+
+    return 0;
+}
+
+/**
  * @brief Shared getter for all param_t's wrapped by a Parameter instance.
  */
 void Parameter_getter(vmem_t * vmem, uint32_t addr, void * dataout, uint32_t len) {
@@ -92,7 +200,7 @@ void Parameter_getter(vmem_t * vmem, uint32_t addr, void * dataout, uint32_t len
     /* Call the user Python getter */
     PyObject *value AUTO_DECREF = PyObject_CallObject(python_getter, args);
 
-    // TODO Kevin: Convert PyObject value to C value and set dataout
+    _pycsh_param_pyval_to_cval(param->type, value, dataout, param->array_size);
 
 #if 0  // TODO Kevin: Either propagate exception naturally, or set FromCause to custom getter exception.
     if (PyErr_Occurred()) {
