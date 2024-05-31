@@ -21,33 +21,33 @@ static PyObject *_pycsh_val_to_pyobject(param_type_e type, const void * value) {
     switch (type) {
 		case PARAM_TYPE_UINT8:
 		case PARAM_TYPE_XINT8:
-			return Py_BuildValue("B", value);
+			return Py_BuildValue("B", *(uint8_t*)value);
 		case PARAM_TYPE_UINT16:
 		case PARAM_TYPE_XINT16:
-			return Py_BuildValue("H", value);
+			return Py_BuildValue("H", *(uint16_t*)value);
 		case PARAM_TYPE_UINT32:
 		case PARAM_TYPE_XINT32:
-			return Py_BuildValue("I", value);
+			return Py_BuildValue("I", *(uint32_t*)value);
 		case PARAM_TYPE_UINT64:
 		case PARAM_TYPE_XINT64:
-			return Py_BuildValue("K", value);
+			return Py_BuildValue("K", *(uint64_t*)value);
 		case PARAM_TYPE_INT8:
-			return Py_BuildValue("b", value);
+			return Py_BuildValue("b", *(int8_t*)value);
 		case PARAM_TYPE_INT16:
-			return Py_BuildValue("h", value);
+			return Py_BuildValue("h", *(int16_t*)value);
 		case PARAM_TYPE_INT32:
-			return Py_BuildValue("i", value);
+			return Py_BuildValue("i", *(int32_t*)value);
 		case PARAM_TYPE_INT64:
-			return Py_BuildValue("k", value);
+			return Py_BuildValue("k", *(int64_t*)value);
 		case PARAM_TYPE_FLOAT:
-			return Py_BuildValue("f", value);
+			return Py_BuildValue("f", *(float*)value);
 		case PARAM_TYPE_DOUBLE:
-			return Py_BuildValue("d", value);
+			return Py_BuildValue("d", *(double*)value);
 		case PARAM_TYPE_STRING: {
-			return Py_BuildValue("s", value);
+			return Py_BuildValue("s", *(char*)value);
 		}
 		case PARAM_TYPE_DATA: {
-			return Py_BuildValue("O&", value);
+			return Py_BuildValue("O&", *(char*)value);
 		}
 		default: {
 			/* Default case to make the compiler happy. Set error and return */
