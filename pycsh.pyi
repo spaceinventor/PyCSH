@@ -313,6 +313,17 @@ class PythonParameter(Parameter):
 class PythonArrayParameter(PythonParameter, ParameterArray):
     """ ParameterArray created in Python. """
 
+class PythonGetSetParameter(PythonParameter):
+    """ ParameterArray created in Python. """
+
+    def __new__(cls, id: int, name: str, type: int, mask: int | str, unit: str = None, docstr: str = None, array_size: int = 0,
+                   callback: _Callable[[Parameter, int], None] = None, host: int = None, timeout: int = None,
+                   retries: int = 0, paramver: int = 2, getter: _Callable = None, setter: _Callable = None) -> PythonGetSetParameter:
+        """  """
+
+class PythonGetSetArrayParameter(PythonGetSetParameter, PythonArrayParameter):
+    """ ParameterArray created in Python. """
+
 # PyCharm may refuse to acknowledge that a list subclass is iterable, so we explicitly state that it is.
 class ParameterList(_pylist[Parameter | ParameterArray], _Iterable):
     """

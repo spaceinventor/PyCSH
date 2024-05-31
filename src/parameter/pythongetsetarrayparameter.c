@@ -17,7 +17,7 @@ PyTypeObject * PythonGetSetArrayParameterType;
 PyTypeObject * create_pythongetsetarrayparameter_type(void) {
 
     // Dynamically create the PythonArrayParameter type with multiple inheritance
-    PyObject *bases AUTO_DECREF = PyTuple_Pack(2, (PyObject *)&PythonGetSetParameterType, (PyObject *)&PythonArrayParameterType);
+    PyObject *bases AUTO_DECREF = PyTuple_Pack(2, (PyObject *)&PythonGetSetParameterType, (PyObject *)PythonArrayParameterType);
     if (bases == NULL) {
         return NULL;  
     }
