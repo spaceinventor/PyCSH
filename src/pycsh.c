@@ -56,6 +56,8 @@
 #include "parameter/parameterarray.h"
 #include "parameter/pythonparameter.h"
 #include "parameter/pythonarrayparameter.h"
+#include "parameter/pythongetsetparameter.h"
+#include "parameter/pythongetsetarrayparameter.h"
 #include "parameter/parameterlist.h"
 
 #include "slash_command/slash_command.h"
@@ -329,6 +331,16 @@ PyMODINIT_FUNC PyInit_pycsh(void) {
 	if (PyType_Ready(PythonArrayParameterType) < 0)
 		return NULL;
 
+	if (PyType_Ready(&PythonGetSetParameterType) < 0)
+        return NULL;
+
+	/* PythonArrayParameterType must be created dynamically after
+		ParameterArrayType and PythonParameterType to support multiple inheritance. */
+	if (create_pythongetsetarrayparameter_type() == NULL)
+		return NULL;
+	if (PyType_Ready(PythonGetSetArrayParameterType) < 0)
+		return NULL;
+
 	ParameterListType.tp_base = &PyList_Type;
 	if (PyType_Ready(&ParameterListType) < 0)
 		return NULL;
@@ -395,6 +407,20 @@ PyMODINIT_FUNC PyInit_pycsh(void) {
 	Py_INCREF(PythonArrayParameterType);
     if (PyModule_AddObject(m, "PythonArrayParameter", (PyObject *) PythonArrayParameterType) < 0) {
 		Py_DECREF(PythonArrayParameterType);
+        Py_DECREF(m);
+        return NULL;
+	}
+
+	Py_INCREF(&PythonGetSetParameterType);
+	if (PyModule_AddObject(m, "PythonGetSetParameter", (PyObject *) &PythonGetSetParameterType) < 0) {
+		Py_DECREF(&PythonGetSetParameterType);
+        Py_DECREF(m);
+        return NULL;
+	}
+
+	Py_INCREF(PythonGetSetArrayParameterType);
+    if (PyModule_AddObject(m, "PythonGetSetArrayParameter", (PyObject *) PythonGetSetArrayParameterType) < 0) {
+		Py_DECREF(PythonGetSetArrayParameterType);
         Py_DECREF(m);
         return NULL;
 	}

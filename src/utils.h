@@ -28,6 +28,9 @@ void state_release_GIL(PyThreadState ** state);
 #define CLEANUP_GIL __attribute__((cleanup(cleanup_GIL)))
 #define AUTO_DECREF __attribute__((cleanup(cleanup_pyobject)))
 
+__attribute__((malloc, malloc(free, 1)))
+char *safe_strdup(const char *s);
+
 /* Source: https://pythonextensionpatterns.readthedocs.io/en/latest/super_call.html */
 PyObject * call_super_pyname_lookup(PyObject *self, PyObject *func_name, PyObject *args, PyObject *kwargs);
 
