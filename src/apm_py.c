@@ -65,9 +65,6 @@ static void python_module_path_completer(struct slash * slash, char * token) {
 	}
 }
 
-/* NOTE: It doesn't make sense for PYCSH_HAVE_APM without PYCSH_HAVE_SLASH.
-	But we allow it for now, instead of erroring. */
-
 static int py_run_cmd(struct slash *slash) {
 
 	char * func_name = "main";
@@ -173,8 +170,16 @@ static int py_apm_load_cmd(struct slash *slash) {
 
 	/* TODO Kevin: Load .py Python APMs here
 		Then run and return code from original implementation afterwards. */
+	optparse_del(parser);
 	return original_apm_load->func(slash);
 }
+#if 0
+slash_command_sub(apm, load, py_apm_load_cmd, "", "Load an APM");
+#else
+/* We use the internal slash API, so we can name the struct variable something different than the original "apm load",
+	which we can then find with extern */
+__slash_command(slash_cmd_apm_load_py, "apm load", py_apm_load_cmd, NULL, "", "Load an APM (Python or C)");
+#endif
 
 #if 0  // No need for a constructor that finds the "apm load" command, when we can just declare it extern.
 __attribute__((constructor(152))) static void store_original_apm_load(void) {
@@ -192,4 +197,19 @@ __attribute__((constructor(152))) static void store_original_apm_load(void) {
 
 __attribute__((destructor(152))) static void restore_original_apm_load(void) {
 
+	char * args = NULL;
+
+	extern struct slash_command * slash_command_find(struct slash *slash, char *line, size_t linelen, char **args);
+	struct slash_command *current_apm_load = slash_command_find(NULL, "apm load", strlen("apm load"), &args);
+	assert(current_apm_load != NULL);
+
+	/* Someone has replaced us, let's not restore anyway. */
+	if (current_apm_load != &slash_cmd_apm_load_py) {
+		return;
+	}
+
+	// We explicitly remove our command from the list, to avoid the print from slash_list_add()
+	slash_list_remove(&slash_cmd_apm_load_py);
+
+	slash_list_add(original_apm_load);
 }
