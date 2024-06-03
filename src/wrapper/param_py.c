@@ -41,10 +41,11 @@ PyObject * pycsh_param_get(PyObject * self, PyObject * args, PyObject * kwds) {
 	int offset = INT_MIN;  // Using INT_MIN as the least likely value as array Parameters should be backwards subscriptable like lists.
 	int timeout = pycsh_dfl_timeout;
 	int retries = 1;
+	int verbose = pycsh_dfl_verbose;
 
-	static char *kwlist[] = {"param_identifier", "node", "server", "paramver", "offset", "timeout", "retries", NULL};
+	static char *kwlist[] = {"param_identifier", "node", "server", "paramver", "offset", "timeout", "retries", "verbose", NULL};
 
-	if (!PyArg_ParseTupleAndKeywords(args, kwds, "O|iiiiii", kwlist, &param_identifier, &node, &server, &paramver, &offset, &timeout, &retries))
+	if (!PyArg_ParseTupleAndKeywords(args, kwds, "O|iiiiii", kwlist, &param_identifier, &node, &server, &paramver, &offset, &timeout, &retries, &verbose))
 		return NULL;  // TypeError is thrown
 
 	param_t *param = _pycsh_util_find_param_t(param_identifier, node);
@@ -59,8 +60,8 @@ PyObject * pycsh_param_get(PyObject * self, PyObject * args, PyObject * kwds) {
 
 	// _pycsh_util_get_single() and _pycsh_util_get_array() will return NULL for exceptions, which is fine with us.
 	if (param->array_size > 1 && param->type != PARAM_TYPE_STRING)
-		return _pycsh_util_get_array(param, 1, dest, timeout, retries, paramver);
-	return _pycsh_util_get_single(param, offset, 1, dest, timeout, retries, paramver);
+		return _pycsh_util_get_array(param, 1, dest, timeout, retries, paramver, verbose);
+	return _pycsh_util_get_single(param, offset, 1, dest, timeout, retries, paramver, verbose);
 }
 
 PyObject * pycsh_param_set(PyObject * self, PyObject * args, PyObject * kwds) {
@@ -75,10 +76,11 @@ PyObject * pycsh_param_set(PyObject * self, PyObject * args, PyObject * kwds) {
 	int offset = INT_MIN;  // Using INT_MIN as the least likely value as Parameter arrays should be backwards subscriptable like lists.
 	int timeout = pycsh_dfl_timeout;
 	int retries = 1;
+	int verbose = 2;  // TODO Kevin: 2 chosen over pycsh_dfl_verbose, as this is the default in CSH
 
-	static char *kwlist[] = {"param_identifier", "value", "node", "server", "paramver", "offset", "timeout", "retries", NULL};
+	static char *kwlist[] = {"param_identifier", "value", "node", "server", "paramver", "offset", "timeout", "retries", "verbose", NULL};
 	
-	if (!PyArg_ParseTupleAndKeywords(args, kwds, "OO|iiiiii", kwlist, &param_identifier, &value, &node, &server, &paramver, &offset, &timeout, &retries)) {
+	if (!PyArg_ParseTupleAndKeywords(args, kwds, "OO|iiiiiiii", kwlist, &param_identifier, &value, &node, &server, &paramver, &offset, &timeout, &retries, &verbose)) {
 		return NULL;  // TypeError is thrown
 	}
 
@@ -92,15 +94,15 @@ PyObject * pycsh_param_set(PyObject * self, PyObject * args, PyObject * kwds) {
 		dest = server;
 
 	if((PyIter_Check(value) || PySequence_Check(value)) && !PyObject_TypeCheck(value, &PyUnicode_Type)) {
-		if (_pycsh_util_set_array(param, value, dest, timeout, retries, paramver))
+		if (_pycsh_util_set_array(param, value, dest, timeout, retries, paramver, verbose))
 			return NULL;  // Raises one of many possible exceptions.
 	} else {
 #if 0  /* TODO Kevin: When should we use queues with the new cmd system? */
 		param_queue_t *usequeue = autosend ? NULL : &param_queue_set;
 #endif
-		if (_pycsh_util_set_single(param, value, offset, dest, timeout, retries, paramver, 1))
+		if (_pycsh_util_set_single(param, value, offset, dest, timeout, retries, paramver, 1, verbose))
 			return NULL;  // Raises one of many possible exceptions.
-		param_print(param, -1, NULL, 0, 2, 0);
+		param_print(param, -1, NULL, 0, verbose, 0);
 	}
 
 	Py_RETURN_NONE;

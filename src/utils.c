@@ -375,7 +375,7 @@ static int _pycsh_util_index(int seqlen, int *index) {
 /* Private interface for getting the value of single parameter
    Increases the reference count of the returned item before returning.
    Use INT_MIN for offset as no offset. */
-PyObject * _pycsh_util_get_single(param_t *param, int offset, int autopull, int host, int timeout, int retries, int paramver) {
+PyObject * _pycsh_util_get_single(param_t *param, int offset, int autopull, int host, int timeout, int retries, int paramver, int verbose) {
 
 	if (offset != INT_MIN) {
 		if (_pycsh_util_index(param->array_size, &offset))  // Validate the offset.
@@ -398,7 +398,9 @@ PyObject * _pycsh_util_get_single(param_t *param, int offset, int autopull, int 
 		}	
 	}
 
-	param_print(param, -1, NULL, 0, 0, 0);
+	if (verbose > -1) {
+		param_print(param, -1, NULL, 0, 0, 0);
+	}
 
 	switch (param->type) {
 		case PARAM_TYPE_UINT8:
@@ -474,7 +476,7 @@ PyObject * _pycsh_util_get_single(param_t *param, int offset, int autopull, int 
 
 /* Private interface for getting the value of an array parameter
    Increases the reference count of the returned tuple before returning.  */
-PyObject * _pycsh_util_get_array(param_t *param, int autopull, int host, int timeout, int retries, int paramver) {
+PyObject * _pycsh_util_get_array(param_t *param, int autopull, int host, int timeout, int retries, int paramver, int verbose) {
 
 	// Pull the value for every index using a queue (if we're allowed to),
 	// instead of pulling them individually.
@@ -502,7 +504,7 @@ PyObject * _pycsh_util_get_array(param_t *param, int autopull, int host, int tim
 	PyObject * value_tuple = PyTuple_New(param->array_size);
 
 	for (int i = 0; i < param->array_size; i++) {
-		PyObject * item = _pycsh_util_get_single(param, i, 0, host, timeout, retries, paramver);
+		PyObject * item = _pycsh_util_get_single(param, i, 0, host, timeout, retries, paramver, verbose);
 
 		if (item == NULL) {  // Something went wrong, probably a ConnectionError. Let's abandon ship.
 			Py_DECREF(value_tuple);
@@ -533,8 +535,8 @@ static PyObject * _pycsh_get_str_value(PyObject * obj) {
 		int paramver = paramobj->paramver;
 
 		PyObject * value = param->array_size > 0 ? 
-			_pycsh_util_get_array(param, 0, host, timeout, retries, paramver) :
-			_pycsh_util_get_single(param, INT_MIN, 0, host, timeout, retries, paramver);
+			_pycsh_util_get_array(param, 0, host, timeout, retries, paramver, -1) :
+			_pycsh_util_get_single(param, INT_MIN, 0, host, timeout, retries, paramver, -1);
 
 		PyObject * strvalue = PyObject_Str(value);
 		Py_DECREF(value);
@@ -599,7 +601,7 @@ static int _pycsh_typecheck_sequence(PyObject * sequence, PyTypeObject * type) {
 
 /* Private interface for setting the value of a normal parameter. 
    Use INT_MIN as no offset. */
-int _pycsh_util_set_single(param_t *param, PyObject *value, int offset, int host, int timeout, int retries, int paramver, int remote) {
+int _pycsh_util_set_single(param_t *param, PyObject *value, int offset, int host, int timeout, int retries, int paramver, int remote, int verbose) {
 	
 	if (offset != INT_MIN) {
 		if (param->type == PARAM_TYPE_STRING) {
@@ -661,7 +663,9 @@ int _pycsh_util_set_single(param_t *param, PyObject *value, int offset, int host
 				}
 		}
 
-		param_print(param, offset, NULL, 0, 2, 0);
+		if (verbose > -1) {
+			param_print(param, offset, NULL, 0, 2, 0);
+		}
 
 	} else {  // Otherwise; set local cached value.
 
@@ -683,7 +687,7 @@ int _pycsh_util_set_single(param_t *param, PyObject *value, int offset, int host
 }
 
 /* Private interface for setting the value of an array parameter. */
-int _pycsh_util_set_array(param_t *param, PyObject *value, int host, int timeout, int retries, int paramver) {
+int _pycsh_util_set_array(param_t *param, PyObject *value, int host, int timeout, int retries, int paramver, int verbose) {
 
 	// Transform lazy generators and iterators into sequences,
 	// such that their length may be retrieved in a uniform manner.
@@ -746,7 +750,7 @@ int _pycsh_util_set_array(param_t *param, PyObject *value, int host, int timeout
 		// Set local parameters immediately, use the global queue if autosend if off.
 		param_queue_t *usequeue = (!autosend ? &param_queue_set : ((param->node != 0) ? &queue : NULL));
 #endif
-		_pycsh_util_set_single(param, item, i, host, timeout, retries, paramver, 1);
+		_pycsh_util_set_single(param, item, i, host, timeout, retries, paramver, 1, verbose);
 		
 		// 'item' is a borrowed reference, so we don't need to decrement it.
 	}
