@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 from subprocess import PIPE, run
+from datetime import datetime
 
 
 def main() -> None:
@@ -18,7 +19,8 @@ def main() -> None:
         semantic_ersion += f".post{num_commits_ahead}"
 
     if ersion.endswith('+'):  # Dirty working tree
-        semantic_ersion += '.dev0'
+        now = datetime.now()
+        semantic_ersion += f".dev{now.strftime('%H%M')}"
 
     print(semantic_ersion, end='')
 
