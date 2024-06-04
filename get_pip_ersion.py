@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+""" Print the Pip compliant semantic version of the Git tag, which is without the 'v' """
 
 from __future__ import annotations
 
@@ -7,7 +8,7 @@ from subprocess import PIPE, run
 
 def main() -> None:
     ersion: str = run(['git', 'describe', '--long', '--always', '--dirty=+'], stdout=PIPE).stdout.decode()
-    ersion = ersion.lstrip('vV')
+    ersion = ersion.lstrip('vV').strip('\n\t ')
 
     semantic_ersion = ersion.split('-')[0]
 
