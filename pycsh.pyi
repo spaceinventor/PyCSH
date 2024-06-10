@@ -452,7 +452,7 @@ def get(param_identifier: _param_ident_hint, node: int = None, server: int = Non
     :return: The value of the retrieved parameter (As its Python type).
     """
 
-def set(param_identifier: _param_ident_hint, value: _param_value_hint | _Iterable[int | float], node: int = None, server: int = None, paramver: int = 2, offset: int = None, timeout: int = None, retries: int = None) -> None:
+def set(param_identifier: _param_ident_hint, value: _param_value_hint | _Iterable[int | float], node: int = None, server: int = None, paramver: int = 2, offset: int = None, timeout: int = None, retries: int = None, verbose: int = 2) -> None:
     """
     Set the value of a parameter.
 
@@ -515,6 +515,14 @@ def timeout(timeout: int = None) -> int:
     Used to get or change the default timeout.
 
     :param timeout: Integer to change the default timeout to.
+    :return: The current default timeout.
+    """
+
+def verbose(verbose: int = None) -> int:
+    """
+    Used to get or change the default parameter verbosity.
+
+    :param verbose: Integer to change the default verbosity to (initial value = -1).
     :return: The current default timeout.
     """
 

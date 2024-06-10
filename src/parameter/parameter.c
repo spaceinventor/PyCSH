@@ -186,8 +186,8 @@ static int Parameter_set_oldvalue(ParameterObject *self, PyObject *value, void *
 
 static PyObject * Parameter_get_value(ParameterObject *self, int remote) {
 	if (self->param->array_size > 1 && self->param->type != PARAM_TYPE_STRING)
-		return _pycsh_util_get_array(self->param, remote, self->host, self->timeout, self->retries, self->paramver);
-	return _pycsh_util_get_single(self->param, INT_MIN, remote, self->host, self->timeout, self->retries, self->paramver);
+		return _pycsh_util_get_array(self->param, remote, self->host, self->timeout, self->retries, self->paramver, pycsh_dfl_verbose);
+	return _pycsh_util_get_single(self->param, INT_MIN, remote, self->host, self->timeout, self->retries, self->paramver, pycsh_dfl_verbose);
 }
 
 static int Parameter_set_value(ParameterObject *self, PyObject *value, int remote) {
@@ -198,8 +198,8 @@ static int Parameter_set_value(ParameterObject *self, PyObject *value, int remot
     }
 
 	if (self->param->array_size > 1 && self->param->type != PARAM_TYPE_STRING)  // Is array parameter
-		return _pycsh_util_set_array(self->param, value, self->host, self->timeout, self->retries, self->paramver);
-	return _pycsh_util_set_single(self->param, value, INT_MIN, self->host, self->timeout, self->retries, self->paramver, remote);  // Normal parameter
+		return _pycsh_util_set_array(self->param, value, self->host, self->timeout, self->retries, self->paramver, pycsh_dfl_verbose);
+	return _pycsh_util_set_single(self->param, value, INT_MIN, self->host, self->timeout, self->retries, self->paramver, remote, pycsh_dfl_verbose);  // Normal parameter
 }
 
 static PyObject * Parameter_get_remote_value(ParameterObject *self, void *closure) {
