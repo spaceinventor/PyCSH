@@ -159,8 +159,8 @@ extern struct slash_command slash_cmd_apm_load;
 //#define original_apm_load slash_cmd_apm_load
 struct slash_command * original_apm_load = &slash_cmd_apm_load;
 
-
-int search_python_files(const char *path, const char *search_str, char ***files) {
+#if 0
+static int search_python_files(const char *path, const char *search_str, char ***files) {
     printf("Searching in path: %s\n", path);
     
     DIR *dir;
@@ -231,6 +231,15 @@ int search_python_files(const char *path, const char *search_str, char ***files)
 const char *get_python_script_path(char **files, int index) {
     return files[index];
 }
+#endif
+
+static void _close_dir(DIR ** dir) {
+	if (dir == NULL || *dir == NULL) {
+		return;
+	}
+	closedir(*dir);
+	*dir = NULL;
+}
 
 static int py_apm_load_cmd(struct slash *slash) {
 
@@ -260,94 +269,103 @@ static int py_apm_load_cmd(struct slash *slash) {
         }
         path = (char *)malloc(WALKDIR_MAX_PATH_SIZE);
         strcpy(path, home_dir);
-        strcat(path, "/Desktop/Coding/python_apm");
+        strcat(path, "/.local/lib/csh/");
     }
 	// Function to search for python files in specified path
-	char **files = NULL;
-	int lib_count = search_python_files(path, search_str, &files);
+	int lib_count = 0;
+	{
+		DIR *dir __attribute__((cleanup(_close_dir))) = opendir(path);
+		if (dir == NULL) {
+			perror("opendir");
+			return SLASH_EINVAL;
+		}
 
-	if (lib_count == 0) {
-		printf("No Python scripts found in %s\n", path);
-		free(path);
-		optparse_del(parser);
-		return SLASH_EINVAL;
-	}
-
-	PyEval_RestoreThread(main_thread_state);
-	PyThreadState *state __attribute__((cleanup(state_release_GIL))) = main_thread_state;
-
-	for (int i = 0; i < lib_count; i++) {
-		const char *script_path = get_python_script_path(files, i);
-		printf("Loading script: %s\n", script_path);
-
+		PyEval_RestoreThread(main_thread_state);
+		PyThreadState *state __attribute__((cleanup(state_release_GIL))) = main_thread_state;
 		if (main_thread_state == NULL) {
 			fprintf(stderr, "main_thread_state is NULL\n");
-			continue;
+			return SLASH_EINVAL;
 		}
 		
-		PyObject *pName = PyUnicode_DecodeFSDefault(script_path);
-		if (pName == NULL) {
-			PyErr_Print();
-			fprintf(stderr, "Failed to decode script name: %s\n", script_path);
-			continue;
-		}
+		struct dirent *entry;
+		while ((entry = readdir(dir)) != NULL)  {
+			char *filename = strrchr(entry->d_name, '/');
 
-		PyObject *pModule = PyImport_Import(pName);
-		Py_DECREF(pName);
-
-		if (pModule == NULL) {
-			PyErr_Print();
-			fprintf(stderr, "Failed to load module: %s\n", script_path);
-			continue;
-		}
-
-		PyObject *pFunc = PyObject_GetAttrString(pModule, "main");
-		if (!pFunc || !PyCallable_Check(pFunc)) {
-			if (PyErr_Occurred()) {
-				PyErr_Print();
+			/* Construct Python import string */
+			if (filename == NULL) {  // No slashes in string, maybe good enough for Python
+				filename = entry->d_name;
+			} else if (*(filename + 1) == '\0') {  		 // filename ends with a trailing slash  (i.e "dist-packeges/my_package/")
+				*filename = '\0';  						 // Remove trailing slash..., (i.e "dist-packeges/my_package")
+				filename = strrchr(entry->d_name, '/');  // and attempt to find a slash before it. (i.e "/my_package")
+				if (filename == NULL) {					 // Use full name if no other slashes are found.
+					filename = entry->d_name;
+				} else {								 // Otherwise skip the slash. (i.e "my_package")
+					filename += 1;
+				}
+			} else {
+				filename += 1;
 			}
-			fprintf(stderr, "Cannot find function \"main\" in %s\n", script_path);
-			Py_DECREF(pModule);
-			continue;
+
+			if (strcmp(filename, "__pycache__") == 0) {
+				continue;
+			}
+			
+			char *dot = strrchr(filename, '.');
+			if (dot != NULL) {
+				*dot = '\0';
+			}
+
+			{	/* Python code goes here */
+				//printf("Loading script: %s\n", filename);
+
+				PyObject *pName AUTO_DECREF = PyUnicode_DecodeFSDefault(filename);
+				if (pName == NULL) {
+					PyErr_Print();
+					fprintf(stderr, "Failed to decode script name: %s\n", filename);
+					continue;
+				}
+
+				PyObject *pModule AUTO_DECREF = PyImport_Import(pName);
+
+				if (pModule == NULL) {
+					PyErr_Clear();
+					//fprintf(stderr, "Failed to load module: %s\n", filename);
+					continue;
+				}
+				lib_count++;
+
+				PyObject *pFunc AUTO_DECREF = PyObject_GetAttrString(pModule, "main");
+				if (!pFunc || !PyCallable_Check(pFunc)) {
+					if (PyErr_Occurred()) {
+						PyErr_Print();
+					}
+					fprintf(stderr, "Cannot find function \"main\" in %s\n", filename);
+					continue;
+				}
+
+				//printf("Preparing arguments for script: %s\n", filename);
+
+				PyObject *pArgs AUTO_DECREF = PyTuple_New(0);
+				if (pArgs == NULL) {
+					PyErr_Print();
+					fprintf(stderr, "Failed to create arguments tuple\n");
+					continue;
+				}
+
+				printf("Calling main function of script: %s\n", filename);
+
+				PyObject *pValue AUTO_DECREF = PyObject_CallObject(pFunc, pArgs);
+
+				if (pValue == NULL) {
+					PyErr_Print();
+					fprintf(stderr, "Call failed for script: %s\n", filename);
+					continue;
+				}
+
+				printf("Script executed successfully: %s\n", filename);
+			}
 		}
-
-		printf("Preparing arguments for script: %s\n", script_path);
-
-		PyObject *pArgs = PyTuple_New(0);
-		if (pArgs == NULL) {
-			PyErr_Print();
-			Py_DECREF(pFunc);
-			Py_DECREF(pModule);
-			fprintf(stderr, "Failed to create arguments tuple\n");
-			continue;
-		}
-
-
-		printf("Calling main function of script: %s\n", script_path);
-
-		PyObject *pValue = PyObject_CallObject(pFunc, pArgs);
-		Py_DECREF(pArgs);
-
-		if (pValue == NULL) {
-			PyErr_Print();
-			Py_DECREF(pFunc);
-			Py_DECREF(pModule);
-			fprintf(stderr, "Call failed for script: %s\n", script_path);
-			continue;
-		}
-
-		printf("Script executed successfully: %s\n", script_path);
-
-		Py_DECREF(pFunc);
-		Py_DECREF(pValue);
-		Py_DECREF(pModule);
 	}
-
-	for (int i = 0; i < lib_count; i++) {
-		free(files[i]);
-	}
-	free(files);
-	free(path);
 
 	optparse_del(parser);
 	return original_apm_load->func(slash);
