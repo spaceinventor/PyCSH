@@ -71,11 +71,11 @@ static void python_module_path_completer(struct slash * slash, char * token) {
 
 static int py_run_cmd(struct slash *slash) {
 
-	char * func_name = "main";
+	char * func_name = "apm_init";
 
     optparse_t * parser = optparse_new("py run", "<file> [arguments...]");
     optparse_add_help(parser);
-    optparse_add_string(parser, 'f', "func", "FUNCNAME", &func_name, "Function to call in the specified file (default = 'main')");
+    optparse_add_string(parser, 'f', "func", "FUNCNAME", &func_name, "Function to call in the specified file (default = 'apm_init')");
 
     int argi = optparse_parse(parser, slash->argc - 1, (const char **) slash->argv + 1);
     if (argi < 0) {  // Must have filename
@@ -334,12 +334,10 @@ static int py_apm_load_cmd(struct slash *slash) {
 				}
 				lib_count++;
 
-				PyObject *pFunc AUTO_DECREF = PyObject_GetAttrString(pModule, "main");
+				PyObject *pFunc AUTO_DECREF = PyObject_GetAttrString(pModule, "apm_init");
 				if (!pFunc || !PyCallable_Check(pFunc)) {
-					if (PyErr_Occurred()) {
-						PyErr_Print();
-					}
-					fprintf(stderr, "Cannot find function \"main\" in %s\n", filename);
+					PyErr_Clear()
+					//fprintf(stderr, "Cannot find function \"apm_init\" in %s\n", filename); // This print is a good idea for debugging, but since the apm_init(main) is not required this print can be a bit confusing.
 					continue;
 				}
 
@@ -352,7 +350,7 @@ static int py_apm_load_cmd(struct slash *slash) {
 					continue;
 				}
 
-				printf("Calling main function of script: %s\n", filename);
+				printf("Calling apm_init function of script: %s\n", filename);
 
 				PyObject *pValue AUTO_DECREF = PyObject_CallObject(pFunc, pArgs);
 
