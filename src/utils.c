@@ -20,6 +20,8 @@
 #include "parameter/parameterlist.h"
 #include "parameter/pythonarrayparameter.h"
 
+#undef NDEBUG
+#include <assert.h>
 
 /* __attribute__(()) doesn't like to treat char** and void** interchangeably. */
 void cleanup_str(char ** obj) {
@@ -292,7 +294,7 @@ PyObject * _pycsh_Parameter_from_param(PyTypeObject *type, param_t * param, cons
  		return NULL;
 	}
 	// This parameter is already wrapped by a ParameterObject, which we may return instead.
-	PythonParameterObject * existing_parameter;
+	ParameterObject * existing_parameter;
 	if ((existing_parameter = Parameter_wraps_param(param)) != NULL) {
 		/* TODO Kevin: How should we handle when: host, timeout, retries and paramver are different for the existing parameter? */
 		return (PyObject*)Py_NewRef(existing_parameter);
@@ -354,25 +356,40 @@ PyObject * _pycsh_Parameter_from_param(PyTypeObject *type, param_t * param, cons
 }
 
 
-/* Constructs a list of Python Parameters of all known param_t returned by param_list_iterate. */
-PyObject * pycsh_util_parameter_list(void) {
+/**
+ * @brief Return a list of Parameter wrappers similar to the "list" slash command
+ * 
+ * @param node <0 for all nodes, otherwise only include parameters for the specified node.
+ * @return PyObject* Py_NewRef(list[Parameter])
+ */
+PyObject * pycsh_util_parameter_list(uint32_t mask, int node, const char * globstr) {
 
 	PyObject * list = PyObject_CallObject((PyObject *)&ParameterListType, NULL);
 
 	param_t * param;
 	param_list_iterator i = {};
 	while ((param = param_list_iterate(&i)) != NULL) {
+
+		if ((node >= 0) && (param->node != node)) {
+			continue;
+		}
+		if ((param->mask & mask) == 0) {
+			continue;
+		}
+		int strmatch(const char *str, const char *pattern, int n, int m);  // TODO Kevin: Maybe strmatch() should be in the libparam public API?
+		if ((globstr != NULL) && strmatch(param->name, globstr, strlen(param->name), strlen(globstr)) == 0) {
+			continue;
+		}
+
 		/* CSH does not specify a paramver when listing parameters,
 			so we just use 2 as the default version for the created instances. */
-		PyObject * parameter = _pycsh_Parameter_from_param(&ParameterType, param, NULL, INT_MIN, pycsh_dfl_timeout, 1, 2);
+		PyObject * parameter AUTO_DECREF = _pycsh_Parameter_from_param(&ParameterType, param, NULL, INT_MIN, pycsh_dfl_timeout, 1, 2);
 		if (parameter == NULL) {
 			Py_DECREF(list);
 			return NULL;
 		}
-		PyObject * argtuple = PyTuple_Pack(1, parameter);
-		Py_DECREF(ParameterList_append(list, argtuple));  // TODO Kevin: DECREF on None doesn't seem right here...
-		Py_DECREF(argtuple);
-		Py_DECREF(parameter);
+		PyObject * argtuple AUTO_DECREF = PyTuple_Pack(1, parameter);
+		Py_XDECREF(ParameterList_append(list, argtuple));  // TODO Kevin: DECREF on None doesn't seem right here...
 	}
 
 	return list;
