@@ -262,7 +262,7 @@ static PyObject * Parameter_getmask(ParameterObject *self, void *closure) {
 }
 
 static PyObject * Parameter_gettimestamp(ParameterObject *self, void *closure) {
-	return Py_BuildValue("I", self->param->timestamp);
+	return Py_BuildValue("I", *(self->param->timestamp));
 }
 
 static PyObject * Parameter_get_retries(ParameterObject *self, void *closure) {

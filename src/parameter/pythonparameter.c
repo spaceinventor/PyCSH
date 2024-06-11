@@ -26,9 +26,8 @@ void Parameter_callback(param_t * param, int offset) {
     assert(Parameter_wraps_param(param));
     assert(!PyErr_Occurred());  // Callback may raise an exception. But we don't want to override an existing one.
 
-    PyObject *key = PyLong_FromVoidPtr(param);
+    PyObject *key AUTO_DECREF = PyLong_FromVoidPtr(param);
     PythonParameterObject *python_param = (PythonParameterObject*)PyDict_GetItem((PyObject*)param_callback_dict, key);
-    Py_DECREF(key);
 
     /* This param_t uses the Python Parameter callback, but doesn't actually point to a Parameter.
         Perhaps it was deleted? Or perhaps it was never set correctly. */
