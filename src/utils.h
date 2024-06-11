@@ -49,8 +49,13 @@ PyObject * pycsh_util_get_type(PyObject * self, PyObject * args);
 PyObject * _pycsh_Parameter_from_param(PyTypeObject *type, param_t * param, const PyObject * callback, int host, int timeout, int retries, int paramver);
 
 
-/* Constructs a list of Python Parameters of all known param_t returned by param_list_iterate. */
-PyObject * pycsh_util_parameter_list(void);
+/**
+ * @brief Return a list of Parameter wrappers similar to the "list" slash command
+ * 
+ * @param node <0 for all nodes, otherwise only include parameters for the specified node.
+ * @return PyObject* Py_NewRef(list[Parameter])
+ */
+PyObject * pycsh_util_parameter_list(uint32_t mask, int node, const char * globstr);
 
 /* Private interface for getting the value of single parameter
    Increases the reference count of the returned item before returning.
