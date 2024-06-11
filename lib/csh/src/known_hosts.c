@@ -2,7 +2,7 @@
  * Naive, slow and simple storage of nodeid and hostname
  */
 
-#include "known_hosts.h"
+#include <csh/known_hosts.h>
 
 #include <stdio.h>
 #include <stdlib.h>

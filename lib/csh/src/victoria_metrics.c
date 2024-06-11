@@ -19,7 +19,7 @@
 #include <csp/csp.h>
 #include <param/param_queue.h>
 #include <param/param_string.h>
-#include "param_sniffer.h"
+#include <csh/param_sniffer.h>
 
 static pthread_t vm_push_thread;
 int vm_running = 0;
