@@ -302,6 +302,27 @@ static long Parameter_hash(ParameterObject *self) {
     return self->param->id;
 }
 
+static void Parameter_dealloc(ParameterObject *self) {
+
+	{   /* Remove ourselves from the callback/lookup dictionary */
+        PyObject *key AUTO_DECREF = PyLong_FromVoidPtr(self->param);
+        assert(key != NULL);
+        if (PyDict_GetItem((PyObject*)param_callback_dict, key) != NULL) {
+            PyDict_DelItem((PyObject*)param_callback_dict, key);
+        }
+    }
+
+	// Get the type of 'self' in case the user has subclassed 'Parameter'.
+    // TODO Kevin: Alternatively it might be better to always iterate from pycsh.PythonParameter.
+    PyTypeObject *baseclass = Py_TYPE(self);
+
+    // Keep iterating baseclasses until we find one that doesn't use this deallocator.
+    while ((baseclass = baseclass->tp_base)->tp_dealloc == (destructor)Parameter_dealloc && baseclass != NULL);
+
+    assert(baseclass->tp_dealloc != NULL);  // Assert that Python installs some deallocator to classes that don't specifically implement one (Whether pycsh.Parameter or object()).
+    baseclass->tp_dealloc((PyObject*)self);
+}
+
 /* 
 The Python binding 'Parameter' class exposes most of its attributes through getters, 
 as only its 'value', 'host' and 'node' are mutable, and even those are through setters.
@@ -354,7 +375,7 @@ PyTypeObject ParameterType = {
     .tp_itemsize = 0,
     .tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
     .tp_new = Parameter_new,
-    //.tp_dealloc = (destructor)Parameter_dealloc,
+    .tp_dealloc = (destructor)Parameter_dealloc,
 	.tp_getset = Parameter_getsetters,
 	// .tp_members = Parameter_members,
 	// .tp_methods = Parameter_methods,

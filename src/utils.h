@@ -72,9 +72,9 @@ int _pycsh_util_set_array(param_t *param, PyObject *value, int host, int timeout
 /**
  * @brief Check if this param_t is wrapped by a ParameterObject.
  * 
- * @return borrowed reference to the wrapping PythonParameterObject if wrapped, otherwise NULL.
+ * @return borrowed reference to the wrapping ParameterObject if wrapped, otherwise NULL.
  */
-PythonParameterObject * Parameter_wraps_param(param_t *param);
+ParameterObject * Parameter_wraps_param(param_t *param);
 
 /**
  * @brief Convert a python str og int parameter mask to the uint32_t C equivalent.

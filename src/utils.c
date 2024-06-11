@@ -229,15 +229,14 @@ PyObject * pycsh_util_get_type(PyObject * self, PyObject * args) {
 	return (PyObject *)_pycsh_misc_param_t_type(param);
 }
 
-PythonParameterObject * Parameter_wraps_param(param_t *param) {
+ParameterObject * Parameter_wraps_param(param_t *param) {
 	/* TODO Kevin: If it ever becomes possible to assert() the held state of the GIL,
 		we would definitely want to do it here. We don't want to use PyGILState_Ensure()
 		because the GIL should still be held after returning. */
     assert(param != NULL);
 
-	PyObject *key = PyLong_FromVoidPtr(param);
-    PythonParameterObject *python_param = (PythonParameterObject*)PyDict_GetItem((PyObject*)param_callback_dict, key);
-    Py_DECREF(key);
+	PyObject *key AUTO_DECREF = PyLong_FromVoidPtr(param);
+    ParameterObject *python_param = (ParameterObject*)PyDict_GetItem((PyObject*)param_callback_dict, key);
 
 	return python_param;
 }
@@ -317,10 +316,31 @@ PyObject * _pycsh_Parameter_from_param(PyTypeObject *type, param_t * param, cons
 	if (self == NULL)
 		return NULL;
 
-	PyObject *key = PyLong_FromVoidPtr(param);
-	PyDict_SetItem((PyObject*)param_callback_dict, key, (PyObject*)self);  // Allows the param_t callback to find the corresponding PythonParameterObject.
-    Py_DECREF(key);
-    Py_DECREF(self);  // param_callback_dict should hold a weak reference to self
+	{   /* Add ourselves from the callback/lookup dictionary */
+		PyObject *key AUTO_DECREF = PyLong_FromVoidPtr(param);
+		assert(key != NULL);
+		assert(!PyErr_Occurred());
+		assert(PyDict_GetItem((PyObject*)param_callback_dict, key) == NULL);
+		int set_res = PyDict_SetItem((PyObject*)param_callback_dict, key, (PyObject*)self);
+		assert(set_res == 0);  // Allows the param_t callback to find the corresponding ParameterObject.
+		assert(PyDict_GetItem((PyObject*)param_callback_dict, key) != NULL);
+		assert(!PyErr_Occurred());
+
+		assert(self);
+		assert(self->ob_base.ob_type);
+		/* The parameter linked list should maintain an eternal reference to Parameter() instances, and subclasses thereof (with the exception of PythonParameter() and its subclasses).
+			This check should ensure that: Parameter("name") is Parameter("name") == True.
+			This check doesn't apply to PythonParameter()'s, because its reference is maintained by .keep_alive */
+		int is_pythonparameter = PyObject_IsSubclass((PyObject*)(type), (PyObject*)&PythonParameterType);
+        if (is_pythonparameter < 0) {
+			assert(false);
+			return NULL;
+		}
+
+		if (is_pythonparameter) {
+			Py_DECREF(self);  // param_callback_dict should hold a weak reference to self
+		}
+	}
 
 	self->host = host;
 	self->param = param;

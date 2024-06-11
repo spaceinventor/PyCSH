@@ -171,14 +171,6 @@ static void PythonParameter_dealloc(PythonParameterObject *self) {
 
     param_list_remove_specific(((ParameterObject*)self)->param, 0, 1);
 
-    {   /* Remove ourselves from the callback/lookup dictionary */
-        PyObject *key AUTO_DECREF = PyLong_FromVoidPtr(self->parameter_object.param);
-        assert(key != NULL);
-        if (PyDict_GetItem((PyObject*)param_callback_dict, key) != NULL) {
-            PyDict_DelItem((PyObject*)param_callback_dict, key);
-        }
-    }
-
     // Get the type of 'self' in case the user has subclassed 'Parameter'.
     // TODO Kevin: Alternatively it might be better to always iterate from pycsh.PythonParameter.
     PyTypeObject *baseclass = Py_TYPE(self);
