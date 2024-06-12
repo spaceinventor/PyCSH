@@ -121,41 +121,35 @@ pycsh_sources += vcs_tag(input: files('src/version.c.in'), output: 'version.c', 
 # Add .pyi file for type-hints
 pyi = configure_file(input: 'pycsh.pyi', output: 'pycsh.pyi', copy: true)
 
-# Compile PyCSH for the versions specified in 'python3_versions'.
-# It may only be imported for these versions.
-foreach python_version : get_option('python3_versions')
+py = import('python').find_installation('python'+get_option('python3_version'), pure: false)
 
-	py = import('python').find_installation('python'+python_version, pure: false)
+if get_option('build_apm')
 
-	if get_option('build_apm')
+	# Automatically generate linker arguments for embedding a Python interpreter.
+	# Raw output should look something like: "-L/usr/lib/python3.10/config-3.10-x86_64-linux-gnu -L/usr/lib/x86_64-linux-gnu -lpython3.10 -lcrypt -ldl  -lm -lm"
+	# It should be a list when passed to Meson, so we use .split() to get:
+	# ['-L/usr/lib/python'+python_version+'/config-'+python_version+'-x86_64-linux-gnu',
+	# 		'-L/usr/lib/x86_64-linux-gnu',
+	# 		'-lpython'+python_version,
+	# 		'-lcrypt',
+	# 		'-ldl',
+	# 		'-lm']
+	python_ldflags = run_command('python'+py.language_version()+'-config', '--ldflags', '--embed').stdout().strip().split()
 
-		# Automatically generate linker arguments for embedding a Python interpreter.
-		# Raw output should look something like: "-L/usr/lib/python3.10/config-3.10-x86_64-linux-gnu -L/usr/lib/x86_64-linux-gnu -lpython3.10 -lcrypt -ldl  -lm -lm"
-		# It should be a list when passed to Meson, so we use .split() to get:
-		# ['-L/usr/lib/python'+python_version+'/config-'+python_version+'-x86_64-linux-gnu',
-		# 		'-L/usr/lib/x86_64-linux-gnu',
-		# 		'-lpython'+python_version,
-		# 		'-lcrypt',
-		# 		'-ldl',
-		# 		'-lm']
-		python_ldflags = run_command('python'+py.language_version()+'-config', '--ldflags', '--embed').stdout().strip().split()
+	# APM names must be prefixed with 'libcsh_'
+	py.extension_module('libcsh_pycsh', pycsh_sources,
+					dependencies : dependencies,
+					install : true,
+					# link_with : [static_library('python3')]
+					link_args : python_ldflags,
+					install_dir : join_paths(get_option('prefix'), 'lib', 'csh'),
+					)
+	
+else  # Not building APM
+	py.extension_module('pycsh', pycsh_sources,
+					dependencies : dependencies,
+					install : true,
+					)
+endif
 
-		# APM names must be prefixed with 'libcsh_'
-		py.extension_module('libcsh_pycsh', pycsh_sources,
-						dependencies : dependencies,
-						install : true,
-						# link_with : [static_library('python3')]
-						link_args : python_ldflags,
-						install_dir : join_paths(get_option('prefix'), 'lib', 'csh'),
-						)
-		
-	else  # Not building APM
-		py.extension_module('pycsh', pycsh_sources,
-						dependencies : dependencies,
-						install : true,
-						)
-	endif
-
-	py.install_sources(pyi)
-
-endforeach
+py.install_sources(pyi)
