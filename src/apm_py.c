@@ -309,8 +309,11 @@ static int py_apm_load_cmd(struct slash *slash) {
 			if (strcmp(filename, "__pycache__") == 0) {
 				continue;
 			}
+			if (strchr(filename, '.') == filename) {
+				continue;
+			}
 			
-			char *dot = strrchr(filename, '.');
+			char *dot = strchr(filename, '.');
 			if (dot != NULL) {
 				*dot = '\0';
 			}
