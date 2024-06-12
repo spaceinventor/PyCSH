@@ -62,6 +62,8 @@ pycsh_sources = [
 	'src/parameter/parameterarray.c',
 	'src/parameter/pythonparameter.c',
 	'src/parameter/pythonarrayparameter.c',
+	'src/parameter/pythongetsetparameter.c',
+	'src/parameter/pythongetsetarrayparameter.c',
 	'src/parameter/parameterlist.c',
 
 	# Wrapper functions
@@ -127,14 +129,18 @@ foreach python_version : get_option('python3_versions')
 	py = import('python').find_installation('python'+python_version, pure: false)
 
 	if get_option('build_apm')
-		# NOTE: It sounds as if these linker args may need changes to accomedate: compiler, linker, distribution.
-		#	If you find that they no longer work, "python3.10-config --ldflags --embed" may be used to update them.
-		python_ldflags = ['-L/usr/lib/python'+python_version+'/config-'+python_version+'-x86_64-linux-gnu', 
-				'-L/usr/lib/x86_64-linux-gnu', 
-				'-lpython'+python_version, 
-				'-lcrypt', 
-				'-ldl', 
-				'-lm']
+
+		# Automatically generate linker arguments for embedding a Python interpreter.
+		# Raw output should look something like: "-L/usr/lib/python3.10/config-3.10-x86_64-linux-gnu -L/usr/lib/x86_64-linux-gnu -lpython3.10 -lcrypt -ldl  -lm -lm"
+		# It should be a list when passed to Meson, so we use .split() to get:
+		# ['-L/usr/lib/python'+python_version+'/config-'+python_version+'-x86_64-linux-gnu',
+		# 		'-L/usr/lib/x86_64-linux-gnu',
+		# 		'-lpython'+python_version,
+		# 		'-lcrypt',
+		# 		'-ldl',
+		# 		'-lm']
+		python_ldflags = run_command('python'+py.language_version()+'-config', '--ldflags', '--embed').stdout().strip().split()
+
 		# APM names must be prefixed with 'libcsh_'
 		py.extension_module('libcsh_pycsh', pycsh_sources,
 						dependencies : dependencies,

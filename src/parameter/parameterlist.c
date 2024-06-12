@@ -43,9 +43,8 @@ PyObject * ParameterList_append(PyObject * self, PyObject * args) {
 	Finding the name in the superclass is likely not nearly as efficient 
 	as calling list.append() directly. But it is more flexible.
 	*/
-	PyObject * func_name = Py_BuildValue("s", "append");
-	Py_DECREF(call_super_pyname_lookup(self, func_name, args, NULL));
-	Py_DECREF(func_name);
+	PyObject * func_name AUTO_DECREF = Py_BuildValue("s", "append");
+	Py_XDECREF(call_super_pyname_lookup(self, func_name, args, NULL));
 
 	Py_RETURN_NONE;
 }

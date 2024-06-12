@@ -35,3 +35,4 @@ extern PyMODINIT_FUNC PyInit_pycsh(void);
 extern unsigned int pycsh_dfl_timeout;  // In milliseconds
 extern unsigned int pycsh_dfl_node;
 #endif
+extern unsigned int pycsh_dfl_verbose;

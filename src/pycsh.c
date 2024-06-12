@@ -56,6 +56,8 @@
 #include "parameter/parameterarray.h"
 #include "parameter/pythonparameter.h"
 #include "parameter/pythonarrayparameter.h"
+#include "parameter/pythongetsetparameter.h"
+#include "parameter/pythongetsetarrayparameter.h"
 #include "parameter/parameterlist.h"
 
 #include "slash_command/slash_command.h"
@@ -108,6 +110,7 @@ uint8_t csp_initialized() {
 unsigned int pycsh_dfl_node = 0;
 unsigned int pycsh_dfl_timeout = 1000;
 #endif
+unsigned int pycsh_dfl_verbose = -1;
 
 uint64_t clock_get_nsec(void) {
 	struct timespec ts;
@@ -175,11 +178,11 @@ static int _handle_stream(PyObject * stream_identifier, FILE **std_stream, FILE 
 
 static PyObject * pycsh_init(PyObject * self, PyObject * args, PyObject *kwds) {
 
-	if (_csp_initialized) {
-		PyErr_SetString(PyExc_RuntimeError,
-			"Cannot initialize multiple instances of libparam bindings. Please use a previous binding.");
-		return NULL;
-	}
+	// if (_csp_initialized) {
+	// 	PyErr_SetString(PyExc_RuntimeError,
+	// 		"Cannot initialize multiple instances of libparam bindings. Please use a previous binding.");
+	// 	return NULL;
+	// }
 
 	static char *kwlist[] = {
 		"quiet", "stdout", "stderr", NULL,
@@ -210,7 +213,7 @@ static PyObject * pycsh_init(PyObject * self, PyObject * args, PyObject *kwds) {
 	) {
 		return NULL;
 	}
-
+	#ifndef PYCSH_HAVE_APM
 	srand(time(NULL));
 
 	void serial_init(void);
@@ -230,8 +233,7 @@ static PyObject * pycsh_init(PyObject * self, PyObject * args, PyObject *kwds) {
 
 	static pthread_t onehz_handle;
 	pthread_create(&onehz_handle, NULL, &onehz_task, NULL);
-
-	/* TODO Kevin: If we include slash as a submodule, we should run the init file here. */
+	#endif 
 	
 	_csp_initialized = 1;
 	Py_RETURN_NONE;
@@ -250,6 +252,7 @@ static PyMethodDef methods[] = {
 	{"cmd_new", 	(PyCFunction)pycsh_param_cmd_new,METH_VARARGS | METH_KEYWORDS, "Create a new command"},
 	{"node", 		pycsh_slash_node, 			  	METH_VARARGS, 				  "Used to get or change the default node."},
 	{"timeout", 	pycsh_slash_timeout, 			METH_VARARGS, 		  		  "Used to get or change the default timeout."},
+	{"verbose", 	pycsh_slash_verbose, 			METH_VARARGS, 		  		  "Used to get or change the default parameter verbosity."},
 	{"queue", 		pycsh_param_cmd,			  	METH_NOARGS, 				  "Print the current command."},
 
 	/* Converted CSH commands from libparam/src/param/list/param_list_slash.c */
@@ -330,6 +333,16 @@ PyMODINIT_FUNC PyInit_pycsh(void) {
 	if (PyType_Ready(PythonArrayParameterType) < 0)
 		return NULL;
 
+	if (PyType_Ready(&PythonGetSetParameterType) < 0)
+        return NULL;
+
+	/* PythonArrayParameterType must be created dynamically after
+		ParameterArrayType and PythonParameterType to support multiple inheritance. */
+	if (create_pythongetsetarrayparameter_type() == NULL)
+		return NULL;
+	if (PyType_Ready(PythonGetSetArrayParameterType) < 0)
+		return NULL;
+
 	ParameterListType.tp_base = &PyList_Type;
 	if (PyType_Ready(&ParameterListType) < 0)
 		return NULL;
@@ -396,6 +409,20 @@ PyMODINIT_FUNC PyInit_pycsh(void) {
 	Py_INCREF(PythonArrayParameterType);
     if (PyModule_AddObject(m, "PythonArrayParameter", (PyObject *) PythonArrayParameterType) < 0) {
 		Py_DECREF(PythonArrayParameterType);
+        Py_DECREF(m);
+        return NULL;
+	}
+
+	Py_INCREF(&PythonGetSetParameterType);
+	if (PyModule_AddObject(m, "PythonGetSetParameter", (PyObject *) &PythonGetSetParameterType) < 0) {
+		Py_DECREF(&PythonGetSetParameterType);
+        Py_DECREF(m);
+        return NULL;
+	}
+
+	Py_INCREF(PythonGetSetArrayParameterType);
+    if (PyModule_AddObject(m, "PythonGetSetArrayParameter", (PyObject *) PythonGetSetArrayParameterType) < 0) {
+		Py_DECREF(PythonGetSetArrayParameterType);
         Py_DECREF(m);
         return NULL;
 	}

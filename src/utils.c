@@ -20,6 +20,8 @@
 #include "parameter/parameterlist.h"
 #include "parameter/pythonarrayparameter.h"
 
+#undef NDEBUG
+#include <assert.h>
 
 /* __attribute__(()) doesn't like to treat char** and void** interchangeably. */
 void cleanup_str(char ** obj) {
@@ -52,6 +54,14 @@ void state_release_GIL(PyThreadState ** state) {
 		return;  // We didn't have the GIL, so there's nothing to release.
 	}
     *state = PyEval_SaveThread();
+}
+
+__attribute__((malloc, malloc(free, 1)))
+char *safe_strdup(const char *s) {
+    if (s == NULL) {
+        return NULL;
+    }
+    return strdup(s);
 }
 
 /* Source: https://pythonextensionpatterns.readthedocs.io/en/latest/super_call.html */
@@ -221,15 +231,14 @@ PyObject * pycsh_util_get_type(PyObject * self, PyObject * args) {
 	return (PyObject *)_pycsh_misc_param_t_type(param);
 }
 
-PythonParameterObject * Parameter_wraps_param(param_t *param) {
+ParameterObject * Parameter_wraps_param(param_t *param) {
 	/* TODO Kevin: If it ever becomes possible to assert() the held state of the GIL,
 		we would definitely want to do it here. We don't want to use PyGILState_Ensure()
 		because the GIL should still be held after returning. */
     assert(param != NULL);
 
-	PyObject *key = PyLong_FromVoidPtr(param);
-    PythonParameterObject *python_param = (PythonParameterObject*)PyDict_GetItem((PyObject*)param_callback_dict, key);
-    Py_DECREF(key);
+	PyObject *key AUTO_DECREF = PyLong_FromVoidPtr(param);
+    ParameterObject *python_param = (ParameterObject*)PyDict_GetItem((PyObject*)param_callback_dict, key);
 
 	return python_param;
 }
@@ -285,7 +294,7 @@ PyObject * _pycsh_Parameter_from_param(PyTypeObject *type, param_t * param, cons
  		return NULL;
 	}
 	// This parameter is already wrapped by a ParameterObject, which we may return instead.
-	PythonParameterObject * existing_parameter;
+	ParameterObject * existing_parameter;
 	if ((existing_parameter = Parameter_wraps_param(param)) != NULL) {
 		/* TODO Kevin: How should we handle when: host, timeout, retries and paramver are different for the existing parameter? */
 		return (PyObject*)Py_NewRef(existing_parameter);
@@ -309,9 +318,31 @@ PyObject * _pycsh_Parameter_from_param(PyTypeObject *type, param_t * param, cons
 	if (self == NULL)
 		return NULL;
 
-	PyObject *key = PyLong_FromVoidPtr(param);
-	PyDict_SetItem((PyObject*)param_callback_dict, key, (PyObject*)self);  // Allows the param_t callback to find the corresponding PythonParameterObject.
-    Py_DECREF(key);
+	{   /* Add ourselves from the callback/lookup dictionary */
+		PyObject *key AUTO_DECREF = PyLong_FromVoidPtr(param);
+		assert(key != NULL);
+		assert(!PyErr_Occurred());
+		assert(PyDict_GetItem((PyObject*)param_callback_dict, key) == NULL);
+		int set_res = PyDict_SetItem((PyObject*)param_callback_dict, key, (PyObject*)self);
+		assert(set_res == 0);  // Allows the param_t callback to find the corresponding ParameterObject.
+		assert(PyDict_GetItem((PyObject*)param_callback_dict, key) != NULL);
+		assert(!PyErr_Occurred());
+
+		assert(self);
+		assert(self->ob_base.ob_type);
+		/* The parameter linked list should maintain an eternal reference to Parameter() instances, and subclasses thereof (with the exception of PythonParameter() and its subclasses).
+			This check should ensure that: Parameter("name") is Parameter("name") == True.
+			This check doesn't apply to PythonParameter()'s, because its reference is maintained by .keep_alive */
+		int is_pythonparameter = PyObject_IsSubclass((PyObject*)(type), (PyObject*)&PythonParameterType);
+        if (is_pythonparameter < 0) {
+			assert(false);
+			return NULL;
+		}
+
+		if (is_pythonparameter) {
+			Py_DECREF(self);  // param_callback_dict should hold a weak reference to self
+		}
+	}
 
 	self->host = host;
 	self->param = param;
@@ -325,25 +356,40 @@ PyObject * _pycsh_Parameter_from_param(PyTypeObject *type, param_t * param, cons
 }
 
 
-/* Constructs a list of Python Parameters of all known param_t returned by param_list_iterate. */
-PyObject * pycsh_util_parameter_list(void) {
+/**
+ * @brief Return a list of Parameter wrappers similar to the "list" slash command
+ * 
+ * @param node <0 for all nodes, otherwise only include parameters for the specified node.
+ * @return PyObject* Py_NewRef(list[Parameter])
+ */
+PyObject * pycsh_util_parameter_list(uint32_t mask, int node, const char * globstr) {
 
 	PyObject * list = PyObject_CallObject((PyObject *)&ParameterListType, NULL);
 
 	param_t * param;
 	param_list_iterator i = {};
 	while ((param = param_list_iterate(&i)) != NULL) {
+
+		if ((node >= 0) && (param->node != node)) {
+			continue;
+		}
+		if ((param->mask & mask) == 0) {
+			continue;
+		}
+		int strmatch(const char *str, const char *pattern, int n, int m);  // TODO Kevin: Maybe strmatch() should be in the libparam public API?
+		if ((globstr != NULL) && strmatch(param->name, globstr, strlen(param->name), strlen(globstr)) == 0) {
+			continue;
+		}
+
 		/* CSH does not specify a paramver when listing parameters,
 			so we just use 2 as the default version for the created instances. */
-		PyObject * parameter = _pycsh_Parameter_from_param(&ParameterType, param, NULL, INT_MIN, pycsh_dfl_timeout, 1, 2);
+		PyObject * parameter AUTO_DECREF = _pycsh_Parameter_from_param(&ParameterType, param, NULL, INT_MIN, pycsh_dfl_timeout, 1, 2);
 		if (parameter == NULL) {
 			Py_DECREF(list);
 			return NULL;
 		}
-		PyObject * argtuple = PyTuple_Pack(1, parameter);
-		Py_DECREF(ParameterList_append(list, argtuple));  // TODO Kevin: DECREF on None doesn't seem right here...
-		Py_DECREF(argtuple);
-		Py_DECREF(parameter);
+		PyObject * argtuple AUTO_DECREF = PyTuple_Pack(1, parameter);
+		Py_XDECREF(ParameterList_append(list, argtuple));  // TODO Kevin: DECREF on None doesn't seem right here...
 	}
 
 	return list;
@@ -366,7 +412,7 @@ static int _pycsh_util_index(int seqlen, int *index) {
 /* Private interface for getting the value of single parameter
    Increases the reference count of the returned item before returning.
    Use INT_MIN for offset as no offset. */
-PyObject * _pycsh_util_get_single(param_t *param, int offset, int autopull, int host, int timeout, int retries, int paramver) {
+PyObject * _pycsh_util_get_single(param_t *param, int offset, int autopull, int host, int timeout, int retries, int paramver, int verbose) {
 
 	if (offset != INT_MIN) {
 		if (_pycsh_util_index(param->array_size, &offset))  // Validate the offset.
@@ -389,7 +435,9 @@ PyObject * _pycsh_util_get_single(param_t *param, int offset, int autopull, int 
 		}	
 	}
 
-	param_print(param, -1, NULL, 0, 0, 0);
+	if (verbose > -1) {
+		param_print(param, -1, NULL, 0, 0, 0);
+	}
 
 	switch (param->type) {
 		case PARAM_TYPE_UINT8:
@@ -465,7 +513,7 @@ PyObject * _pycsh_util_get_single(param_t *param, int offset, int autopull, int 
 
 /* Private interface for getting the value of an array parameter
    Increases the reference count of the returned tuple before returning.  */
-PyObject * _pycsh_util_get_array(param_t *param, int autopull, int host, int timeout, int retries, int paramver) {
+PyObject * _pycsh_util_get_array(param_t *param, int autopull, int host, int timeout, int retries, int paramver, int verbose) {
 
 	// Pull the value for every index using a queue (if we're allowed to),
 	// instead of pulling them individually.
@@ -493,7 +541,7 @@ PyObject * _pycsh_util_get_array(param_t *param, int autopull, int host, int tim
 	PyObject * value_tuple = PyTuple_New(param->array_size);
 
 	for (int i = 0; i < param->array_size; i++) {
-		PyObject * item = _pycsh_util_get_single(param, i, 0, host, timeout, retries, paramver);
+		PyObject * item = _pycsh_util_get_single(param, i, 0, host, timeout, retries, paramver, verbose);
 
 		if (item == NULL) {  // Something went wrong, probably a ConnectionError. Let's abandon ship.
 			Py_DECREF(value_tuple);
@@ -524,8 +572,8 @@ static PyObject * _pycsh_get_str_value(PyObject * obj) {
 		int paramver = paramobj->paramver;
 
 		PyObject * value = param->array_size > 0 ? 
-			_pycsh_util_get_array(param, 0, host, timeout, retries, paramver) :
-			_pycsh_util_get_single(param, INT_MIN, 0, host, timeout, retries, paramver);
+			_pycsh_util_get_array(param, 0, host, timeout, retries, paramver, -1) :
+			_pycsh_util_get_single(param, INT_MIN, 0, host, timeout, retries, paramver, -1);
 
 		PyObject * strvalue = PyObject_Str(value);
 		Py_DECREF(value);
@@ -590,7 +638,7 @@ static int _pycsh_typecheck_sequence(PyObject * sequence, PyTypeObject * type) {
 
 /* Private interface for setting the value of a normal parameter. 
    Use INT_MIN as no offset. */
-int _pycsh_util_set_single(param_t *param, PyObject *value, int offset, int host, int timeout, int retries, int paramver, int remote) {
+int _pycsh_util_set_single(param_t *param, PyObject *value, int offset, int host, int timeout, int retries, int paramver, int remote, int verbose) {
 	
 	if (offset != INT_MIN) {
 		if (param->type == PARAM_TYPE_STRING) {
@@ -652,7 +700,9 @@ int _pycsh_util_set_single(param_t *param, PyObject *value, int offset, int host
 				}
 		}
 
-		param_print(param, offset, NULL, 0, 2, 0);
+		if (verbose > -1) {
+			param_print(param, offset, NULL, 0, 2, 0);
+		}
 
 	} else {  // Otherwise; set local cached value.
 
@@ -674,7 +724,7 @@ int _pycsh_util_set_single(param_t *param, PyObject *value, int offset, int host
 }
 
 /* Private interface for setting the value of an array parameter. */
-int _pycsh_util_set_array(param_t *param, PyObject *value, int host, int timeout, int retries, int paramver) {
+int _pycsh_util_set_array(param_t *param, PyObject *value, int host, int timeout, int retries, int paramver, int verbose) {
 
 	// Transform lazy generators and iterators into sequences,
 	// such that their length may be retrieved in a uniform manner.
@@ -737,7 +787,7 @@ int _pycsh_util_set_array(param_t *param, PyObject *value, int host, int timeout
 		// Set local parameters immediately, use the global queue if autosend if off.
 		param_queue_t *usequeue = (!autosend ? &param_queue_set : ((param->node != 0) ? &queue : NULL));
 #endif
-		_pycsh_util_set_single(param, item, i, host, timeout, retries, paramver, 1);
+		_pycsh_util_set_single(param, item, i, host, timeout, retries, paramver, 1, verbose);
 		
 		// 'item' is a borrowed reference, so we don't need to decrement it.
 	}

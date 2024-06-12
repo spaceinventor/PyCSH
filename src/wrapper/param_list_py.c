@@ -40,7 +40,7 @@ PyObject * pycsh_param_list(PyObject * self, PyObject * args, PyObject * kwds) {
 
     param_list_print(mask, node, globstr, verbosity);
 
-    return pycsh_util_parameter_list();
+    return pycsh_util_parameter_list(mask, node, globstr);
 }
 
 PyObject * pycsh_param_list_download(PyObject * self, PyObject * args, PyObject * kwds) {
@@ -70,7 +70,7 @@ PyObject * pycsh_param_list_download(PyObject * self, PyObject * args, PyObject 
         }
     }
 
-    return pycsh_util_parameter_list();
+    return pycsh_util_parameter_list(0xFFFFFFFF, node, NULL);
 
 }
 

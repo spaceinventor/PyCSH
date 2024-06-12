@@ -28,6 +28,9 @@ void state_release_GIL(PyThreadState ** state);
 #define CLEANUP_GIL __attribute__((cleanup(cleanup_GIL)))
 #define AUTO_DECREF __attribute__((cleanup(cleanup_pyobject)))
 
+__attribute__((malloc, malloc(free, 1)))
+char *safe_strdup(const char *s);
+
 /* Source: https://pythonextensionpatterns.readthedocs.io/en/latest/super_call.html */
 PyObject * call_super_pyname_lookup(PyObject *self, PyObject *func_name, PyObject *args, PyObject *kwargs);
 
@@ -46,32 +49,37 @@ PyObject * pycsh_util_get_type(PyObject * self, PyObject * args);
 PyObject * _pycsh_Parameter_from_param(PyTypeObject *type, param_t * param, const PyObject * callback, int host, int timeout, int retries, int paramver);
 
 
-/* Constructs a list of Python Parameters of all known param_t returned by param_list_iterate. */
-PyObject * pycsh_util_parameter_list(void);
+/**
+ * @brief Return a list of Parameter wrappers similar to the "list" slash command
+ * 
+ * @param node <0 for all nodes, otherwise only include parameters for the specified node.
+ * @return PyObject* Py_NewRef(list[Parameter])
+ */
+PyObject * pycsh_util_parameter_list(uint32_t mask, int node, const char * globstr);
 
 /* Private interface for getting the value of single parameter
    Increases the reference count of the returned item before returning.
    Use INT_MIN for offset as no offset. */
-PyObject * _pycsh_util_get_single(param_t *param, int offset, int autopull, int host, int timeout, int retries, int paramver);
+PyObject * _pycsh_util_get_single(param_t *param, int offset, int autopull, int host, int timeout, int retries, int paramver, int verbose);
 
 /* Private interface for getting the value of an array parameter
    Increases the reference count of the returned tuple before returning.  */
-PyObject * _pycsh_util_get_array(param_t *param, int autopull, int host, int timeout, int retries, int paramver);
+PyObject * _pycsh_util_get_array(param_t *param, int autopull, int host, int timeout, int retries, int paramver, int verbose);
 
 
 /* Private interface for setting the value of a normal parameter. 
    Use INT_MIN as no offset. */
-int _pycsh_util_set_single(param_t *param, PyObject *value, int offset, int host, int timeout, int retries, int paramver, int remote);
+int _pycsh_util_set_single(param_t *param, PyObject *value, int offset, int host, int timeout, int retries, int paramver, int remote, int verbose);
 
 /* Private interface for setting the value of an array parameter. */
-int _pycsh_util_set_array(param_t *param, PyObject *value, int host, int timeout, int retries, int paramver);
+int _pycsh_util_set_array(param_t *param, PyObject *value, int host, int timeout, int retries, int paramver, int verbose);
 
 /**
  * @brief Check if this param_t is wrapped by a ParameterObject.
  * 
- * @return borrowed reference to the wrapping PythonParameterObject if wrapped, otherwise NULL.
+ * @return borrowed reference to the wrapping ParameterObject if wrapped, otherwise NULL.
  */
-PythonParameterObject * Parameter_wraps_param(param_t *param);
+ParameterObject * Parameter_wraps_param(param_t *param);
 
 /**
  * @brief Convert a python str og int parameter mask to the uint32_t C equivalent.

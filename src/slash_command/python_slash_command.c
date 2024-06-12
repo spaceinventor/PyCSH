@@ -1,9 +1,3 @@
-/*
- * pythonparameter.c
- *
- * Contains the PythonParameter Parameter subclass.
- *
- */
 
 #include "python_slash_command.h"
 
@@ -330,14 +324,12 @@ int SlashCommand_func(struct slash *slash) {
     return SLASH_SUCCESS;//?
 }
 
-// Source: https://chat.openai.com
 /**
- * @brief Check that the function accepts exactly one Parameter and one integer,
- *  as specified by "void (*callback)(struct param_s * param, int offset)"
+ * @brief Check that the slash function is callable.
  * 
  * Currently also checks type-hints (if specified).
  * 
- * @param callback function to check
+ * @param function function to check
  * @param raise_exc Whether to set exception message when returning false.
  * @return true for success
  */
@@ -350,15 +342,12 @@ static bool is_valid_slash_func(const PyObject *function, bool raise_exc) {
 
     // Get the __code__ attribute of the function, and check that it is a PyCodeObject
     // TODO Kevin: Hopefully it's safe to assume that PyObject_GetAttrString() won't mutate function
-    PyCodeObject *func_code = (PyCodeObject*)PyObject_GetAttrString((PyObject*)function, "__code__");
-    if (!func_code || !PyCode_Check(func_code)) {
+    PyObject *func_code AUTO_DECREF = PyObject_GetAttrString((PyObject*)function, "__code__");
+    if (!func_code || !PyCode_Check((PyCodeObject *)func_code)) {
         if (raise_exc)
             PyErr_SetString(PyExc_TypeError, "Provided function must be callable");
         return false;
     }
-
-    // Cleanup
-    Py_DECREF(func_code);
 
     return true;
 }
@@ -426,13 +415,6 @@ static int PythonSlashCommand_set_keep_alive(PythonSlashCommandObject *self, PyO
     }
 
     return 0;
-}
-
-static char *safe_strdup(const char *s) {
-    if (s == NULL) {
-        return NULL;
-    }
-    return strdup(s);
 }
 
 /* Internal API for creating a new PythonSlashCommandObject. */
@@ -550,7 +532,7 @@ static void PythonSlashCommand_dealloc(PythonSlashCommandObject *self) {
     free((char*)self->command_heap.args);
     //self->command_heap.name = NULL;
     //((char*)self->command_heap.args) = NULL;
-    // Get the type of 'self' in case the user has subclassed 'Parameter'.
+    // Get the type of 'self' in case the user has subclassed 'SlashCommand'.
     Py_TYPE(self)->tp_free((PyObject *) self);
 }
 
@@ -587,7 +569,7 @@ static PyObject * PythonSlashCommand_call(PythonSlashCommandObject *self, PyObje
     return PyObject_Call(self->py_slash_func, args, kwds);
 }
 
-static PyGetSetDef PythonParameter_getsetters[] = {
+static PyGetSetDef PythonSlashCommand_getsetters[] = {
     {"keep_alive", (getter)PythonSlashCommand_get_keep_alive, (setter)PythonSlashCommand_set_keep_alive,
      "Whether the slash command should remain in the command list, when all Python references are lost", NULL},
     {"function", (getter)PythonSlashCommand_get_function, (setter)PythonSlashCommand_set_func,
@@ -605,7 +587,7 @@ PyTypeObject PythonSlashCommandType = {
     .tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
     .tp_new = PythonSlashCommand_new,
     .tp_dealloc = (destructor)PythonSlashCommand_dealloc,
-    .tp_getset = PythonParameter_getsetters,
+    .tp_getset = PythonSlashCommand_getsetters,
     // .tp_str = (reprfunc)SlashCommand_str,
     // .tp_richcompare = (richcmpfunc)SlashCommand_richcompare,
     .tp_base = &SlashCommandType,

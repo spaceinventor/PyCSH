@@ -57,21 +57,7 @@ static PyObject * Parameter_str(ParameterObject *self) {
 	return Py_BuildValue("s", buf);
 }
 
-static void Parameter_dealloc(ParameterObject *self) {
-	/* Whether or not we keep self->param in the list, it should not point to a freed 'self' */
-	PyObject *key = PyLong_FromVoidPtr(self->param);
-	if (PyDict_GetItem((PyObject*)param_callback_dict, key) != NULL)
-		PyDict_DelItem((PyObject*)param_callback_dict, key);
-	Py_DECREF(key);
-
-	param_list_remove_specific(self->param, 0, 1);  // TODO Kevin: I'm not sure if we should remove our parameter from the list :/
-
-	// Get the type of 'self' in case the user has subclassed 'Parameter'.
-	Py_TYPE(self)->tp_free((PyObject *) self);
-}
-
 /* May perform black magic and return a ParameterArray instead of the specified type. */
-__attribute__((malloc, malloc(Parameter_dealloc, 1)))
 static PyObject * Parameter_new(PyTypeObject *type, PyObject *args, PyObject *kwds) {
 
 	static char *kwlist[] = {"param_identifier", "node", "host", "paramver", "timeout", "retries", NULL};
@@ -200,8 +186,8 @@ static int Parameter_set_oldvalue(ParameterObject *self, PyObject *value, void *
 
 static PyObject * Parameter_get_value(ParameterObject *self, int remote) {
 	if (self->param->array_size > 1 && self->param->type != PARAM_TYPE_STRING)
-		return _pycsh_util_get_array(self->param, remote, self->host, self->timeout, self->retries, self->paramver);
-	return _pycsh_util_get_single(self->param, INT_MIN, remote, self->host, self->timeout, self->retries, self->paramver);
+		return _pycsh_util_get_array(self->param, remote, self->host, self->timeout, self->retries, self->paramver, pycsh_dfl_verbose);
+	return _pycsh_util_get_single(self->param, INT_MIN, remote, self->host, self->timeout, self->retries, self->paramver, pycsh_dfl_verbose);
 }
 
 static int Parameter_set_value(ParameterObject *self, PyObject *value, int remote) {
@@ -212,8 +198,8 @@ static int Parameter_set_value(ParameterObject *self, PyObject *value, int remot
     }
 
 	if (self->param->array_size > 1 && self->param->type != PARAM_TYPE_STRING)  // Is array parameter
-		return _pycsh_util_set_array(self->param, value, self->host, self->timeout, self->retries, self->paramver);
-	return _pycsh_util_set_single(self->param, value, INT_MIN, self->host, self->timeout, self->retries, self->paramver, remote);  // Normal parameter
+		return _pycsh_util_set_array(self->param, value, self->host, self->timeout, self->retries, self->paramver, pycsh_dfl_verbose);
+	return _pycsh_util_set_single(self->param, value, INT_MIN, self->host, self->timeout, self->retries, self->paramver, remote, pycsh_dfl_verbose);  // Normal parameter
 }
 
 static PyObject * Parameter_get_remote_value(ParameterObject *self, void *closure) {
@@ -276,7 +262,7 @@ static PyObject * Parameter_getmask(ParameterObject *self, void *closure) {
 }
 
 static PyObject * Parameter_gettimestamp(ParameterObject *self, void *closure) {
-	return Py_BuildValue("I", self->param->timestamp);
+	return Py_BuildValue("I", *(self->param->timestamp));
 }
 
 static PyObject * Parameter_get_retries(ParameterObject *self, void *closure) {
@@ -314,6 +300,27 @@ static int Parameter_set_retries(ParameterObject *self, PyObject *value, void *c
 static long Parameter_hash(ParameterObject *self) {
 	/* Use the ID of the parameter as the hash, as it is assumed unique. */
     return self->param->id;
+}
+
+static void Parameter_dealloc(ParameterObject *self) {
+
+	{   /* Remove ourselves from the callback/lookup dictionary */
+        PyObject *key AUTO_DECREF = PyLong_FromVoidPtr(self->param);
+        assert(key != NULL);
+        if (PyDict_GetItem((PyObject*)param_callback_dict, key) != NULL) {
+            PyDict_DelItem((PyObject*)param_callback_dict, key);
+        }
+    }
+
+	// Get the type of 'self' in case the user has subclassed 'Parameter'.
+    // TODO Kevin: Alternatively it might be better to always iterate from pycsh.PythonParameter.
+    PyTypeObject *baseclass = Py_TYPE(self);
+
+    // Keep iterating baseclasses until we find one that doesn't use this deallocator.
+    while ((baseclass = baseclass->tp_base)->tp_dealloc == (destructor)Parameter_dealloc && baseclass != NULL);
+
+    assert(baseclass->tp_dealloc != NULL);  // Assert that Python installs some deallocator to classes that don't specifically implement one (Whether pycsh.Parameter or object()).
+    baseclass->tp_dealloc((PyObject*)self);
 }
 
 /* 

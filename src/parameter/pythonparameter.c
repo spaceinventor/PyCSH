@@ -26,9 +26,8 @@ void Parameter_callback(param_t * param, int offset) {
     assert(Parameter_wraps_param(param));
     assert(!PyErr_Occurred());  // Callback may raise an exception. But we don't want to override an existing one.
 
-    PyObject *key = PyLong_FromVoidPtr(param);
+    PyObject *key AUTO_DECREF = PyLong_FromVoidPtr(param);
     PythonParameterObject *python_param = (PythonParameterObject*)PyDict_GetItem((PyObject*)param_callback_dict, key);
-    Py_DECREF(key);
 
     /* This param_t uses the Python Parameter callback, but doesn't actually point to a Parameter.
         Perhaps it was deleted? Or perhaps it was never set correctly. */
@@ -48,13 +47,10 @@ void Parameter_callback(param_t * param, int offset) {
 
     assert(PyCallable_Check(python_callback));
     /* Create the arguments. */
-    PyObject *pyoffset = Py_BuildValue("i", offset);
-    PyObject * args = PyTuple_Pack(2, python_param, pyoffset);
+    PyObject *pyoffset AUTO_DECREF = Py_BuildValue("i", offset);
+    PyObject * args AUTO_DECREF = PyTuple_Pack(2, python_param, pyoffset);
     /* Call the user Python callback */
-    PyObject_CallObject(python_callback, args);
-    /* Cleanup */
-    Py_DECREF(args);
-    Py_DECREF(pyoffset);
+    PyObject *value AUTO_DECREF = PyObject_CallObject(python_callback, args);
 
     if (PyErr_Occurred()) {
         /* It may not be clear to the user, that the exception came from the callback,
@@ -76,7 +72,7 @@ void Parameter_callback(param_t * param, int offset) {
  * @param raise_exc Whether to set exception message when returning false.
  * @return true for success
  */
-static bool is_valid_callback(const PyObject *callback, bool raise_exc) {
+bool is_valid_callback(const PyObject *callback, bool raise_exc) {
 
     /*We currently allow both NULL and Py_None,
             as those are valid to have on PythonParameterObject */
@@ -165,8 +161,67 @@ static bool is_valid_callback(const PyObject *callback, bool raise_exc) {
     return true;
 }
 
+static void PythonParameter_dealloc(PythonParameterObject *self) {
+
+    if (self->callback != NULL && self->callback != Py_None) {
+        Py_XDECREF(self->callback);
+        self->callback = NULL;
+    }
+
+    param_list_remove_specific(((ParameterObject*)self)->param, 0, 1);
+
+    // Get the type of 'self' in case the user has subclassed 'Parameter'.
+    // TODO Kevin: Alternatively it might be better to always iterate from pycsh.PythonParameter.
+    PyTypeObject *baseclass = Py_TYPE(self);
+
+    // Keep iterating baseclasses until we find one that doesn't use this deallocator.
+    while ((baseclass = baseclass->tp_base)->tp_dealloc == (destructor)PythonParameter_dealloc && baseclass != NULL);
+
+    assert(baseclass->tp_dealloc != NULL);  // Assert that Python installs some deallocator to classes that don't specifically implement one (Whether pycsh.Parameter or object()).
+    baseclass->tp_dealloc((PyObject*)self);
+}
+
+static int Parameter_set_callback(PythonParameterObject *self, PyObject *value, void *closure) {
+
+    if (value == NULL) {
+        PyErr_SetString(PyExc_TypeError, "Cannot delete the callback attribute");
+        return -1;
+    }
+
+    if (!is_valid_callback(value, true)) {
+        return -1;
+    }
+
+    if (value == self->callback)
+        return 0;  // No work to do
+
+    /* Changing the callback to None. */
+    if (value == Py_None) {
+        if (self->callback != Py_None) {
+            /* We should not arrive here when the old value is Py_None, 
+                but prevent Py_DECREF() on at all cost. */
+            Py_XDECREF(self->callback);
+        }
+        self->callback = Py_None;
+        return 0;
+    }
+
+    /* We now know that 'value' is a new callable. */
+
+    /* When replacing a previous callable. */
+    if (self->callback != Py_None) {
+        Py_XDECREF(self->callback);
+    }
+
+    Py_INCREF(value);
+    self->callback = value;
+
+    return 0;
+}
+
 /* Internal API for creating a new PythonParameterObject. */
-static PythonParameterObject * Parameter_create_new(PyTypeObject *type, uint16_t id, param_type_e param_type, uint32_t mask, char * name, char * unit, char * docstr, int array_size, const PyObject * callback, int host, int timeout, int retries, int paramver) {
+__attribute__((malloc, malloc(PythonParameter_dealloc, 1)))
+PythonParameterObject * Parameter_create_new(PyTypeObject *type, uint16_t id, param_type_e param_type, uint32_t mask, char * name, char * unit, char * docstr, int array_size, const PyObject * callback, int host, int timeout, int retries, int paramver) {
 
     /* Check for valid parameter type. param_list_create_remote() should always return NULL for errors,
         but this allows us to raise a specific exception. */
@@ -260,16 +315,6 @@ static PythonParameterObject * Parameter_create_new(PyTypeObject *type, uint16_t
     return self;
 }
 
-static void PythonParameter_dealloc(PythonParameterObject *self) {
-    if (self->callback != NULL && self->callback != Py_None) {
-        Py_XDECREF(self->callback);
-        self->callback = NULL;
-    }
-    param_list_remove_specific(((ParameterObject*)self)->param, 0, 1);
-    // Get the type of 'self' in case the user has subclassed 'Parameter'.
-    Py_TYPE(self)->tp_free((PyObject *) self);
-}
-
 static PyObject * PythonParameter_new(PyTypeObject *type, PyObject * args, PyObject * kwds) {
 
     uint16_t id;
@@ -341,44 +386,6 @@ static PyObject * Parameter_get_callback(PythonParameterObject *self, void *clos
     return Py_NewRef(self->callback);
 }
 
-int Parameter_set_callback(PythonParameterObject *self, PyObject *value, void *closure) {
-
-    if (value == NULL) {
-        PyErr_SetString(PyExc_TypeError, "Cannot delete the callback attribute");
-        return -1;
-    }
-
-    if (!is_valid_callback(value, true)) {
-        return -1;
-    }
-
-    if (value == self->callback)
-        return 0;  // No work to do
-
-    /* Changing the callback to None. */
-    if (value == Py_None) {
-        if (self->callback != Py_None) {
-            /* We should not arrive here when the old value is Py_None, 
-                but prevent Py_DECREF() on at all cost. */
-            Py_XDECREF(self->callback);
-        }
-        self->callback = Py_None;
-        return 0;
-    }
-
-    /* We now know that 'value' is a new callable. */
-
-    /* When replacing a previous callable. */
-    if (self->callback != Py_None) {
-        Py_XDECREF(self->callback);
-    }
-
-    Py_INCREF(value);
-    self->callback = value;
-
-    return 0;
-}
-
 static PyGetSetDef PythonParameter_getsetters[] = {
     {"keep_alive", (getter)Parameter_get_keep_alive, (setter)Parameter_set_keep_alive,
      "Whether the Parameter should remain in the parameter list, when all Python references are lost. This makes it possible to recover the Parameter instance through list()", NULL},
@@ -391,7 +398,7 @@ PyTypeObject PythonParameterType = {
     PyVarObject_HEAD_INIT(NULL, 0)
     .tp_name = "pycsh.PythonParameter",
     .tp_doc = "Parameter created in Python.",
-    .tp_basicsize = sizeof(PythonParameterType),
+    .tp_basicsize = sizeof(PythonParameterObject),
     .tp_itemsize = 0,
     .tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
     .tp_new = PythonParameter_new,

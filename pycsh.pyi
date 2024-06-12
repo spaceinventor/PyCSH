@@ -313,6 +313,17 @@ class PythonParameter(Parameter):
 class PythonArrayParameter(PythonParameter, ParameterArray):
     """ ParameterArray created in Python. """
 
+class PythonGetSetParameter(PythonParameter):
+    """ ParameterArray created in Python. """
+
+    def __new__(cls, id: int, name: str, type: int, mask: int | str, unit: str = None, docstr: str = None, array_size: int = 0,
+                   callback: _Callable[[Parameter, int], None] = None, host: int = None, timeout: int = None,
+                   retries: int = 0, paramver: int = 2, getter: _Callable = None, setter: _Callable = None) -> PythonGetSetParameter:
+        """  """
+
+class PythonGetSetArrayParameter(PythonGetSetParameter, PythonArrayParameter):
+    """ ParameterArray created in Python. """
+
 # PyCharm may refuse to acknowledge that a list subclass is iterable, so we explicitly state that it is.
 class ParameterList(_pylist[Parameter | ParameterArray], _Iterable):
     """
@@ -441,7 +452,7 @@ def get(param_identifier: _param_ident_hint, node: int = None, server: int = Non
     :return: The value of the retrieved parameter (As its Python type).
     """
 
-def set(param_identifier: _param_ident_hint, value: _param_value_hint | _Iterable[int | float], node: int = None, server: int = None, paramver: int = 2, offset: int = None, timeout: int = None, retries: int = None) -> None:
+def set(param_identifier: _param_ident_hint, value: _param_value_hint | _Iterable[int | float], node: int = None, server: int = None, paramver: int = 2, offset: int = None, timeout: int = None, retries: int = None, verbose: int = 2) -> None:
     """
     Set the value of a parameter.
 
@@ -504,6 +515,14 @@ def timeout(timeout: int = None) -> int:
     Used to get or change the default timeout.
 
     :param timeout: Integer to change the default timeout to.
+    :return: The current default timeout.
+    """
+
+def verbose(verbose: int = None) -> int:
+    """
+    Used to get or change the default parameter verbosity.
+
+    :param verbose: Integer to change the default verbosity to (initial value = -1).
     :return: The current default timeout.
     """
 
