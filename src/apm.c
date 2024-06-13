@@ -13,24 +13,21 @@
 static int py_iter_sys_path(void) {
 
 	// Import the sys module
-    PyObject* sys_module = PyImport_ImportModule("sys");
+    PyObject* sys_module AUTO_DECREF = PyImport_ImportModule("sys");
     if (sys_module == NULL) {
 		fprintf(stderr, "Failed to import sys module\n");
 		return -1;
 	}
 	// Get the sys.path attribute
-	PyObject* sys_path = PyObject_GetAttrString(sys_module, "path");
+	PyObject* sys_path AUTO_DECREF = PyObject_GetAttrString(sys_module, "path");
 	if (sys_path == NULL) {
 		fprintf(stderr, "Failed to get sys.path attribute\n");
-		Py_DECREF(sys_module);
 		return -2;
 	}
 
 	// Check if sys.path is a list
 	if (!PyList_Check(sys_path)) {
 		// Decrement the refcounts
-		Py_DECREF(sys_path);
-		Py_DECREF(sys_module);
 		fprintf(stderr, "sys.path is not a list\n");
 		return -3;
 	}
@@ -52,12 +49,6 @@ static int py_iter_sys_path(void) {
 		}
 	}
 
-	// Decrement the reference count of sys.path
-	Py_DECREF(sys_path);
-
-	// Decrement the reference count of the sys module
-	Py_DECREF(sys_module);
-
 	return 0;
 }
 
@@ -70,17 +61,16 @@ static int py_iter_sys_path(void) {
  */
 static int append_pyapm_paths(void) {
 	// Import the sys module
-    PyObject* sys_module = PyImport_ImportModule("sys");
+    PyObject* sys_module AUTO_DECREF = PyImport_ImportModule("sys");
     if (sys_module == NULL) {
         printf("Failed to import sys module\n");
         return -1;
     }
 
     // Get the sys.path attribute
-    PyObject* sys_path = PyObject_GetAttrString(sys_module, "path");
+    PyObject* sys_path AUTO_DECREF = PyObject_GetAttrString(sys_module, "path");
     if (sys_path == NULL) {
         printf("Failed to get sys.path attribute\n");
-        Py_DECREF(sys_module);
         return -2;
     }
 
@@ -89,45 +79,35 @@ static int append_pyapm_paths(void) {
     if (home == NULL) {
         printf("HOME environment variable not set\n");
     } else {
-        PyObject* home_path = PyUnicode_FromString(home);
+        PyObject* home_path AUTO_DECREF = PyUnicode_FromString(home);
         if (home_path == NULL) {
             printf("Failed to create Python object for HOME directory\n");
         } else {
             PyList_Append(sys_path, home_path);
-            Py_DECREF(home_path);
         }
     }
 
     // Append $HOME/.local/lib/csh to sys.path
     const char* local_lib_csh = "/.local/lib/csh"; // assuming it's appended to $HOME
-    PyObject* local_lib_csh_path = PyUnicode_FromString(local_lib_csh);
+    PyObject* local_lib_csh_path AUTO_DECREF = PyUnicode_FromString(local_lib_csh);
     if (local_lib_csh_path == NULL) {
         printf("Failed to create Python object for $HOME/.local/lib/csh\n");
     } else {
-        PyObject* full_path = PyUnicode_FromFormat("%s%s", home, local_lib_csh);
+        PyObject* full_path AUTO_DECREF = PyUnicode_FromFormat("%s%s", home, local_lib_csh);
         if (full_path == NULL) {
             printf("Failed to create Python object for $HOME/.local/lib/csh\n");
-            Py_DECREF(local_lib_csh_path);
         } else {
             PyList_Append(sys_path, full_path);
-            Py_DECREF(full_path);
-            Py_DECREF(local_lib_csh_path);
         }
     }
 
     // Append CWD to sys.path
-    PyObject* cwd_path = PyUnicode_FromString(".");
+    PyObject* cwd_path AUTO_DECREF = PyUnicode_FromString(".");
     if (cwd_path == NULL) {
         printf("Failed to create Python object for current working directory\n");
     } else {
         PyList_Append(sys_path, cwd_path);
-        Py_DECREF(cwd_path);
     }
-
-    // Decrement the reference count of sys_path
-    Py_DECREF(sys_path);
-    // Decrement the reference count of the sys module
-    Py_DECREF(sys_module);
 
     return 0;
 }
@@ -206,7 +186,7 @@ int apm_init(void) {
 #if 0
 static void py_print__str__(PyObject *obj) {
 	// Get the string representation of the object
-    PyObject* str_repr = PyObject_Str(obj);
+    PyObject* str_repr AUTO_DECREF = PyObject_Str(obj);
     if (str_repr == NULL) {
 		fprintf(stderr, "Failed to get string representation\n");
 		return;
@@ -220,9 +200,6 @@ static void py_print__str__(PyObject *obj) {
 	} else {
 		fprintf(stderr, "Failed to convert string representation to C string\n");
 	}
-
-	// Decrement the reference count of the string representation
-	Py_DECREF(str_repr);
 }
 #endif
 
@@ -313,12 +290,14 @@ static int py_run_cmd(struct slash *slash) {
 	PyEval_RestoreThread(main_thread_state);
     PyThreadState * state __attribute__((cleanup(state_release_GIL))) = main_thread_state;
 
-	PyObject *pName = PyUnicode_DecodeFSDefault(slash->argv[argi]);
-    /* Error checking of pName left out */
+	PyObject *pName AUTO_DECREF = PyUnicode_DecodeFSDefault(slash->argv[argi]);
+	if (pName == NULL) {
+		PyErr_Print();
+		fprintf(stderr, "Failed to decode module name %s\n", slash->argv[argi]);
+		return SLASH_EINVAL;
+	}
 
-    PyObject *pModule = PyImport_Import(pName);
-    Py_DECREF(pName);
-
+    PyObject *pModule AUTO_DECREF = PyImport_Import(pName);
     if (pModule == NULL) {
 		PyErr_Print();
         fprintf(stderr, "Failed to load \"%s\"\n", slash->argv[argi]);
@@ -326,7 +305,7 @@ static int py_run_cmd(struct slash *slash) {
         return SLASH_EINVAL;
 	}
 
-	PyObject *pFunc = PyObject_GetAttrString(pModule, func_name);
+	PyObject *pFunc AUTO_DECREF = PyObject_GetAttrString(pModule, func_name);
 	/* pFunc is a new reference */
 
 	if (!pFunc || !PyCallable_Check(pFunc)) {
@@ -337,12 +316,10 @@ static int py_run_cmd(struct slash *slash) {
 		return SLASH_EINVAL;
 	}
 
-	PyObject *pArgs = PyTuple_New((slash->argc - argi)-1);
+	PyObject *pArgs AUTO_DECREF = PyTuple_New((slash->argc - argi)-1);
 	for (int i = argi+1; i < slash->argc; i++) {
-		PyObject *pValue = PyUnicode_FromString(slash->argv[i]);
+		PyObject *pValue = PyUnicode_FromString(slash->argv[i]);  // pValue will have its reference stolen, so no DECREF
 		if (!pValue) {
-			Py_DECREF(pArgs);
-			Py_DECREF(pModule);
 			fprintf(stderr, "Cannot convert argument\n");
 			optparse_del(parser);
 			return SLASH_EINVAL;
@@ -351,21 +328,14 @@ static int py_run_cmd(struct slash *slash) {
 		PyTuple_SetItem(pArgs, i-argi-1, pValue);
 	}
 
-	PyObject *pValue = PyObject_CallObject(pFunc, pArgs);
-	Py_DECREF(pArgs);
+	PyObject *pValue AUTO_DECREF = PyObject_CallObject(pFunc, pArgs);
 
 	if (pValue == NULL) {
-		Py_DECREF(pFunc);
-		Py_DECREF(pModule);
 		PyErr_Print();
 		fprintf(stderr,"Call failed\n");
 		optparse_del(parser);
 		return SLASH_EINVAL;
 	}
-
-	Py_DECREF(pFunc);
-	Py_DECREF(pValue);
-	Py_DECREF(pModule);
 
 	optparse_del(parser);
 	return SLASH_SUCCESS;

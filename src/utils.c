@@ -571,12 +571,11 @@ static PyObject * _pycsh_get_str_value(PyObject * obj) {
 		int retries = paramobj->retries;
 		int paramver = paramobj->paramver;
 
-		PyObject * value = param->array_size > 0 ? 
+		PyObject * value AUTO_DECREF = param->array_size > 0 ? 
 			_pycsh_util_get_array(param, 0, host, timeout, retries, paramver, -1) :
 			_pycsh_util_get_single(param, INT_MIN, 0, host, timeout, retries, paramver, -1);
 
 		PyObject * strvalue = PyObject_Str(value);
-		Py_DECREF(value);
 		return strvalue;
 	}
 	else  // Otherwise use __str__.
@@ -588,13 +587,11 @@ static PyObject * _pycsh_typeconvert(PyObject * strvalue, PyTypeObject * type, i
 	// TODO Kevin: Using this to check the types of object is likely against
 	// PEP 20 -- The Zen of Python: "Explicit is better than implicit"
 
-	PyObject * valuetuple = PyTuple_Pack(1, strvalue);
+	PyObject * valuetuple AUTO_DECREF = PyTuple_Pack(1, strvalue);
 	PyObject * converted_value = PyObject_CallObject((PyObject *)type, valuetuple);
 	if (converted_value == NULL) {
-		Py_DECREF(valuetuple);  // converted_value is NULL, so we don't decrements its refcount.
 		return NULL;  // We assume failed conversions to have set an exception string.
 	}
-	Py_DECREF(valuetuple);
 	if (check_only) {
 		Py_DECREF(converted_value);
 		Py_RETURN_NONE;
@@ -652,35 +649,34 @@ int _pycsh_util_set_single(param_t *param, PyObject *value, int offset, int host
 		offset = -1;
 
 	char valuebuf[128] __attribute__((aligned(16))) = { };
-	// Stringify the value object
-	PyObject * strvalue = _pycsh_get_str_value(value);
-	switch (param->type) {
-		case PARAM_TYPE_XINT8:
-		case PARAM_TYPE_XINT16:
-		case PARAM_TYPE_XINT32:
-		case PARAM_TYPE_XINT64:
-			// If the destination parameter is expecting a hexadecimal value
-			// and the Python object value is of Long type (int), then we need
-			// to do a conversion here. Otherwise if the Python value is a string
-			// type, then we must expect hexadecimal digits only (including 0x)
-			if (Py_IS_TYPE(value, &PyLong_Type)) {
-				// Convert the integer value to hexadecimal digits
-				char tmp[64];
-				snprintf(tmp,64,"0x%lX", PyLong_AsUnsignedLong(value));
-				// Convert the hexadecimal C-string into a Python string object
-				PyObject *py_long_str = PyUnicode_FromString(tmp);
-				// De-reference the original strvalue before assigning a new
-				Py_DECREF(strvalue);
-				strvalue = py_long_str;
-			}
-			break;
+ 	{   // Stringify the value object
+		PyObject * strvalue AUTO_DECREF = _pycsh_get_str_value(value);
+		switch (param->type) {
+			case PARAM_TYPE_XINT8:
+			case PARAM_TYPE_XINT16:
+			case PARAM_TYPE_XINT32:
+			case PARAM_TYPE_XINT64:
+				// If the destination parameter is expecting a hexadecimal value
+				// and the Python object value is of Long type (int), then we need
+				// to do a conversion here. Otherwise if the Python value is a string
+				// type, then we must expect hexadecimal digits only (including 0x)
+				if (Py_IS_TYPE(value, &PyLong_Type)) {
+					// Convert the integer value to hexadecimal digits
+					char tmp[64];
+					snprintf(tmp,64,"0x%lX", PyLong_AsUnsignedLong(value));
+					// Convert the hexadecimal C-string into a Python string object
+					PyObject *py_long_str = PyUnicode_FromString(tmp);
+					// De-reference the original strvalue before assigning a new
+					Py_DECREF(strvalue);
+					strvalue = py_long_str;
+				}
+				break;
 
-		default:
-			break;
+			default:
+				break;
+		}
+		param_str_to_value(param->type, (char*)PyUnicode_AsUTF8(strvalue), valuebuf);
 	}
-
-	param_str_to_value(param->type, (char*)PyUnicode_AsUTF8(strvalue), valuebuf);
-	Py_DECREF(strvalue);
 
 	int dest = (host != INT_MIN ? host : param->node);
 
@@ -732,9 +728,8 @@ int _pycsh_util_set_array(param_t *param, PyObject *value, int host, int timeout
 	// especially for very large sequences.
 	if (!PySequence_Check(value)) {
 		if (PyIter_Check(value)) {
-			PyObject * temptuple = PyTuple_Pack(1, value);
+			PyObject * temptuple AUTO_DECREF = PyTuple_Pack(1, value);
 			value = PyObject_CallObject((PyObject *)&PyTuple_Type, temptuple);
-			Py_DECREF(temptuple);
 		} else {
 			PyErr_SetString(PyExc_TypeError, "Provided argument must be iterable.");
 			return -1;

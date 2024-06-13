@@ -199,7 +199,7 @@ static int Parameter_set_callback(PythonParameterObject *self, PyObject *value, 
     if (value == Py_None) {
         if (self->callback != Py_None) {
             /* We should not arrive here when the old value is Py_None, 
-                but prevent Py_DECREF() on at all cost. */
+                but prevent Py_DECREF() on it at all cost. */
             Py_XDECREF(self->callback);
         }
         self->callback = Py_None;

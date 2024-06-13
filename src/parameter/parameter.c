@@ -118,12 +118,10 @@ static int Parameter_set_node(ParameterObject *self, PyObject *value, void *clos
 	uint16_t node;
 
 	// This is pretty stupid, but seems to be the easiest way to convert a long to short using Python.
-	PyObject * value_tuple = PyTuple_Pack(1, value);
+	PyObject * value_tuple AUTO_DECREF = PyTuple_Pack(1, value);
 	if (!PyArg_ParseTuple(value_tuple, "H", &node)) {
-		Py_DECREF(value_tuple);
 		return -1;
 	}
-	Py_DECREF(value_tuple);
 
 	param_t * param = param_list_find_id(node, self->param->id);
 

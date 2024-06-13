@@ -180,22 +180,19 @@ static int ParameterList_init(ParameterListObject *self, PyObject *args, PyObjec
 	if (PyList_Type.tp_init((PyObject *) self, PyTuple_Pack(0), kwds) < 0)
         return -1;
 
-	PyObject *iter = PyObject_GetIter(iterobj);
+	PyObject *iter AUTO_DECREF = PyObject_GetIter(iterobj);
 	PyObject *item;
 
 	while ((item = PyIter_Next(iter)) != NULL) {
 
-		PyObject * valuetuple = PyTuple_Pack(1, item);
+		PyObject * valuetuple AUTO_DECREF = PyTuple_Pack(1, item);
 		ParameterList_append((PyObject *)self, valuetuple);
-		Py_DECREF(valuetuple);
 
 		Py_DECREF(item);
 
 		if (PyErr_Occurred())  // Likely to happen when we fail to append an object.
 			return -1;
 	}
-
-	Py_DECREF(iter);
 
     return 0;
 }

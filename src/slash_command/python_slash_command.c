@@ -37,14 +37,12 @@ int pycsh_parse_slash_args(const struct slash *slash, PyObject **args_out, PyObj
     // Create a tuple and dit to hold *args and **kwargs.
     /* TODO Kevin: Support args_out and kwargs_out already being partially filled i.e not NULL,
         may be a bit complicated by the fact that we use _PyTuple_Resize() */
-    PyObject* args_tuple = PyTuple_New(slash->argc < 0 ? 0 : slash->argc);
-    PyObject* kwargs_dict = PyDict_New();
+    PyObject* args_tuple AUTO_DECREF = PyTuple_New(slash->argc < 0 ? 0 : slash->argc);
+    PyObject* kwargs_dict AUTO_DECREF = PyDict_New();
 
     if (args_tuple == NULL || kwargs_dict == NULL) {
         // Handle memory allocation failure
         PyErr_SetString(PyExc_MemoryError, "Failed to allocate memory for args list or kwargs dictionary");
-        Py_XDECREF(args_tuple);
-        Py_XDECREF(kwargs_dict);
         return -1;
     }
 
@@ -60,10 +58,9 @@ int pycsh_parse_slash_args(const struct slash *slash, PyObject **args_out, PyObj
             if (py_arg == NULL) {
                 // Handle memory allocation failure
                 PyErr_SetString(PyExc_MemoryError, "Failed to allocate memory for positional argument");
-                Py_DECREF(args_tuple);
-                Py_DECREF(kwargs_dict);
                 return -1;
             }
+            assert(parsed_positional_args < slash->argc);
             PyTuple_SET_ITEM(args_tuple, parsed_positional_args++, py_arg);  // Add the argument to the args_out list
             continue; // Skip processing for keyword arguments
         }
@@ -73,8 +70,6 @@ int pycsh_parse_slash_args(const struct slash *slash, PyObject **args_out, PyObj
         if (equal_sign == NULL) {
             // Invalid format for keyword argument
             PyErr_SetString(PyExc_ValueError, "Invalid format for keyword argument");
-            Py_DECREF(args_tuple);
-            Py_DECREF(kwargs_dict);
             return -1;
         }
 
@@ -83,15 +78,11 @@ int pycsh_parse_slash_args(const struct slash *slash, PyObject **args_out, PyObj
         const char* value = equal_sign + 1;
         
         // Create Python objects for key and value
-        PyObject* py_key = PyUnicode_FromString(key);
-        PyObject* py_value = PyUnicode_FromString(value);
+        PyObject* py_key AUTO_DECREF = PyUnicode_FromString(key);
+        PyObject* py_value AUTO_DECREF = PyUnicode_FromString(value);
         if (py_key == NULL || py_value == NULL) {
             // Handle memory allocation failure
             PyErr_SetString(PyExc_MemoryError, "Failed to allocate memory for key or value");
-            Py_XDECREF(py_key);
-            Py_XDECREF(py_value);
-            Py_DECREF(args_tuple);
-            Py_DECREF(kwargs_dict);
             return -1;
         }
 
@@ -99,31 +90,29 @@ int pycsh_parse_slash_args(const struct slash *slash, PyObject **args_out, PyObj
         if (PyDict_SetItem(kwargs_dict, py_key, py_value) != 0) {
             // Handle dictionary insertion failure
             PyErr_SetString(PyExc_RuntimeError, "Failed to add key-value pair to kwargs dictionary");
-            Py_DECREF(args_tuple);
-            Py_DECREF(kwargs_dict);
             return -1;
         }
 
         /* Reccnt should be 2 after we have added to the dict. */
         assert(py_key->ob_refcnt != 1);
         assert(py_value->ob_refcnt != 1);
-
-        Py_XDECREF(py_key);
-        Py_XDECREF(py_value);
     }
 
-    // Resize tuple to actual length
+    /* Resize tuple to actual length, which should only ever shrink it from a maximal value of slash->argc */
     if (_PyTuple_Resize(&args_tuple, parsed_positional_args) < 0) {
         // Handle tuple resizing failure
         PyErr_SetString(PyExc_RuntimeError, "Failed to resize tuple for positional arguments");
-        Py_DECREF(args_tuple);
-        Py_DECREF(kwargs_dict);
         return -1;
     }
 
-    // Assign the args and kwargs variables
+    /* Assign the args and kwargs variables */
     *args_out = args_tuple;
     *kwargs_out = kwargs_dict;
+
+    /* Don't let AUTO_DECREF decrement *args and **kwargs, now that they are new references.
+        This could just as well have been done with Py_INCREF() */
+    args_tuple = NULL;
+    kwargs_dict = NULL;
 
     return 0;
 }
@@ -293,19 +282,15 @@ int SlashCommand_func(struct slash *slash) {
     }
 
     /* Create the arguments. */
-    PyObject *py_args = NULL;
-    PyObject *py_kwargs = NULL;
+    PyObject *py_args AUTO_DECREF = NULL;
+    PyObject *py_kwargs AUTO_DECREF = NULL;
     if (pycsh_parse_slash_args(slash, &py_args, &py_kwargs) != 0) {
         PyErr_Print();
         return SLASH_EINVAL;
     }
     
     /* Call the user provided Python function */
-    PyObject * value = PyObject_Call(python_func, py_args, py_kwargs);
-
-    /* Cleanup */
-    Py_XDECREF(value);
-    Py_DECREF(py_args);
+    PyObject * value AUTO_DECREF = PyObject_Call(python_func, py_args, py_kwargs);
 
     if (PyErr_Occurred()) {
         PyErr_Print();
