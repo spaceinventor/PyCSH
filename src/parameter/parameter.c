@@ -118,12 +118,10 @@ static int Parameter_set_node(ParameterObject *self, PyObject *value, void *clos
 	uint16_t node;
 
 	// This is pretty stupid, but seems to be the easiest way to convert a long to short using Python.
-	PyObject * value_tuple = PyTuple_Pack(1, value);
+	PyObject * value_tuple AUTO_DECREF = PyTuple_Pack(1, value);
 	if (!PyArg_ParseTuple(value_tuple, "H", &node)) {
-		Py_DECREF(value_tuple);
 		return -1;
 	}
-	Py_DECREF(value_tuple);
 
 	param_t * param = param_list_find_id(node, self->param->id);
 
@@ -262,7 +260,7 @@ static PyObject * Parameter_getmask(ParameterObject *self, void *closure) {
 }
 
 static PyObject * Parameter_gettimestamp(ParameterObject *self, void *closure) {
-	return Py_BuildValue("I", self->param->timestamp);
+	return Py_BuildValue("I", *(self->param->timestamp));
 }
 
 static PyObject * Parameter_get_retries(ParameterObject *self, void *closure) {
@@ -300,6 +298,27 @@ static int Parameter_set_retries(ParameterObject *self, PyObject *value, void *c
 static long Parameter_hash(ParameterObject *self) {
 	/* Use the ID of the parameter as the hash, as it is assumed unique. */
     return self->param->id;
+}
+
+static void Parameter_dealloc(ParameterObject *self) {
+
+	{   /* Remove ourselves from the callback/lookup dictionary */
+        PyObject *key AUTO_DECREF = PyLong_FromVoidPtr(self->param);
+        assert(key != NULL);
+        if (PyDict_GetItem((PyObject*)param_callback_dict, key) != NULL) {
+            PyDict_DelItem((PyObject*)param_callback_dict, key);
+        }
+    }
+
+	// Get the type of 'self' in case the user has subclassed 'Parameter'.
+    // TODO Kevin: Alternatively it might be better to always iterate from pycsh.PythonParameter.
+    PyTypeObject *baseclass = Py_TYPE(self);
+
+    // Keep iterating baseclasses until we find one that doesn't use this deallocator.
+    while ((baseclass = baseclass->tp_base)->tp_dealloc == (destructor)Parameter_dealloc && baseclass != NULL);
+
+    assert(baseclass->tp_dealloc != NULL);  // Assert that Python installs some deallocator to classes that don't specifically implement one (Whether pycsh.Parameter or object()).
+    baseclass->tp_dealloc((PyObject*)self);
 }
 
 /* 
@@ -354,7 +373,7 @@ PyTypeObject ParameterType = {
     .tp_itemsize = 0,
     .tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
     .tp_new = Parameter_new,
-    //.tp_dealloc = (destructor)Parameter_dealloc,
+    .tp_dealloc = (destructor)Parameter_dealloc,
 	.tp_getset = Parameter_getsetters,
 	// .tp_members = Parameter_members,
 	// .tp_methods = Parameter_methods,

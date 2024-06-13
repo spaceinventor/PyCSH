@@ -43,9 +43,8 @@ PyObject * ParameterList_append(PyObject * self, PyObject * args) {
 	Finding the name in the superclass is likely not nearly as efficient 
 	as calling list.append() directly. But it is more flexible.
 	*/
-	PyObject * func_name = Py_BuildValue("s", "append");
-	Py_DECREF(call_super_pyname_lookup(self, func_name, args, NULL));
-	Py_DECREF(func_name);
+	PyObject * func_name AUTO_DECREF = Py_BuildValue("s", "append");
+	Py_XDECREF(call_super_pyname_lookup(self, func_name, args, NULL));
 
 	Py_RETURN_NONE;
 }
@@ -181,22 +180,19 @@ static int ParameterList_init(ParameterListObject *self, PyObject *args, PyObjec
 	if (PyList_Type.tp_init((PyObject *) self, PyTuple_Pack(0), kwds) < 0)
         return -1;
 
-	PyObject *iter = PyObject_GetIter(iterobj);
+	PyObject *iter AUTO_DECREF = PyObject_GetIter(iterobj);
 	PyObject *item;
 
 	while ((item = PyIter_Next(iter)) != NULL) {
 
-		PyObject * valuetuple = PyTuple_Pack(1, item);
+		PyObject * valuetuple AUTO_DECREF = PyTuple_Pack(1, item);
 		ParameterList_append((PyObject *)self, valuetuple);
-		Py_DECREF(valuetuple);
 
 		Py_DECREF(item);
 
 		if (PyErr_Occurred())  // Likely to happen when we fail to append an object.
 			return -1;
 	}
-
-	Py_DECREF(iter);
 
     return 0;
 }

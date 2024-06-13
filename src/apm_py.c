@@ -339,7 +339,7 @@ static int py_apm_load_cmd(struct slash *slash) {
 
 				PyObject *pFunc AUTO_DECREF = PyObject_GetAttrString(pModule, "apm_init");
 				if (!pFunc || !PyCallable_Check(pFunc)) {
-					PyErr_Clear()
+					PyErr_Clear();
 					//fprintf(stderr, "Cannot find function \"apm_init\" in %s\n", filename); // This print is a good idea for debugging, but since the apm_init(main) is not required this print can be a bit confusing.
 					continue;
 				}

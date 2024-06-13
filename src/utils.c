@@ -20,6 +20,8 @@
 #include "parameter/parameterlist.h"
 #include "parameter/pythonarrayparameter.h"
 
+#undef NDEBUG
+#include <assert.h>
 
 /* __attribute__(()) doesn't like to treat char** and void** interchangeably. */
 void cleanup_str(char ** obj) {
@@ -229,15 +231,14 @@ PyObject * pycsh_util_get_type(PyObject * self, PyObject * args) {
 	return (PyObject *)_pycsh_misc_param_t_type(param);
 }
 
-PythonParameterObject * Parameter_wraps_param(param_t *param) {
+ParameterObject * Parameter_wraps_param(param_t *param) {
 	/* TODO Kevin: If it ever becomes possible to assert() the held state of the GIL,
 		we would definitely want to do it here. We don't want to use PyGILState_Ensure()
 		because the GIL should still be held after returning. */
     assert(param != NULL);
 
-	PyObject *key = PyLong_FromVoidPtr(param);
-    PythonParameterObject *python_param = (PythonParameterObject*)PyDict_GetItem((PyObject*)param_callback_dict, key);
-    Py_DECREF(key);
+	PyObject *key AUTO_DECREF = PyLong_FromVoidPtr(param);
+    ParameterObject *python_param = (ParameterObject*)PyDict_GetItem((PyObject*)param_callback_dict, key);
 
 	return python_param;
 }
@@ -293,7 +294,7 @@ PyObject * _pycsh_Parameter_from_param(PyTypeObject *type, param_t * param, cons
  		return NULL;
 	}
 	// This parameter is already wrapped by a ParameterObject, which we may return instead.
-	PythonParameterObject * existing_parameter;
+	ParameterObject * existing_parameter;
 	if ((existing_parameter = Parameter_wraps_param(param)) != NULL) {
 		/* TODO Kevin: How should we handle when: host, timeout, retries and paramver are different for the existing parameter? */
 		return (PyObject*)Py_NewRef(existing_parameter);
@@ -317,10 +318,31 @@ PyObject * _pycsh_Parameter_from_param(PyTypeObject *type, param_t * param, cons
 	if (self == NULL)
 		return NULL;
 
-	PyObject *key = PyLong_FromVoidPtr(param);
-	PyDict_SetItem((PyObject*)param_callback_dict, key, (PyObject*)self);  // Allows the param_t callback to find the corresponding PythonParameterObject.
-    Py_DECREF(key);
-    Py_DECREF(self);  // param_callback_dict should hold a weak reference to self
+	{   /* Add ourselves from the callback/lookup dictionary */
+		PyObject *key AUTO_DECREF = PyLong_FromVoidPtr(param);
+		assert(key != NULL);
+		assert(!PyErr_Occurred());
+		assert(PyDict_GetItem((PyObject*)param_callback_dict, key) == NULL);
+		int set_res = PyDict_SetItem((PyObject*)param_callback_dict, key, (PyObject*)self);
+		assert(set_res == 0);  // Allows the param_t callback to find the corresponding ParameterObject.
+		assert(PyDict_GetItem((PyObject*)param_callback_dict, key) != NULL);
+		assert(!PyErr_Occurred());
+
+		assert(self);
+		assert(self->ob_base.ob_type);
+		/* The parameter linked list should maintain an eternal reference to Parameter() instances, and subclasses thereof (with the exception of PythonParameter() and its subclasses).
+			This check should ensure that: Parameter("name") is Parameter("name") == True.
+			This check doesn't apply to PythonParameter()'s, because its reference is maintained by .keep_alive */
+		int is_pythonparameter = PyObject_IsSubclass((PyObject*)(type), (PyObject*)&PythonParameterType);
+        if (is_pythonparameter < 0) {
+			assert(false);
+			return NULL;
+		}
+
+		if (is_pythonparameter) {
+			Py_DECREF(self);  // param_callback_dict should hold a weak reference to self
+		}
+	}
 
 	self->host = host;
 	self->param = param;
@@ -334,25 +356,40 @@ PyObject * _pycsh_Parameter_from_param(PyTypeObject *type, param_t * param, cons
 }
 
 
-/* Constructs a list of Python Parameters of all known param_t returned by param_list_iterate. */
-PyObject * pycsh_util_parameter_list(void) {
+/**
+ * @brief Return a list of Parameter wrappers similar to the "list" slash command
+ * 
+ * @param node <0 for all nodes, otherwise only include parameters for the specified node.
+ * @return PyObject* Py_NewRef(list[Parameter])
+ */
+PyObject * pycsh_util_parameter_list(uint32_t mask, int node, const char * globstr) {
 
 	PyObject * list = PyObject_CallObject((PyObject *)&ParameterListType, NULL);
 
 	param_t * param;
 	param_list_iterator i = {};
 	while ((param = param_list_iterate(&i)) != NULL) {
+
+		if ((node >= 0) && (param->node != node)) {
+			continue;
+		}
+		if ((param->mask & mask) == 0) {
+			continue;
+		}
+		int strmatch(const char *str, const char *pattern, int n, int m);  // TODO Kevin: Maybe strmatch() should be in the libparam public API?
+		if ((globstr != NULL) && strmatch(param->name, globstr, strlen(param->name), strlen(globstr)) == 0) {
+			continue;
+		}
+
 		/* CSH does not specify a paramver when listing parameters,
 			so we just use 2 as the default version for the created instances. */
-		PyObject * parameter = _pycsh_Parameter_from_param(&ParameterType, param, NULL, INT_MIN, pycsh_dfl_timeout, 1, 2);
+		PyObject * parameter AUTO_DECREF = _pycsh_Parameter_from_param(&ParameterType, param, NULL, INT_MIN, pycsh_dfl_timeout, 1, 2);
 		if (parameter == NULL) {
 			Py_DECREF(list);
 			return NULL;
 		}
-		PyObject * argtuple = PyTuple_Pack(1, parameter);
-		Py_DECREF(ParameterList_append(list, argtuple));  // TODO Kevin: DECREF on None doesn't seem right here...
-		Py_DECREF(argtuple);
-		Py_DECREF(parameter);
+		PyObject * argtuple AUTO_DECREF = PyTuple_Pack(1, parameter);
+		Py_XDECREF(ParameterList_append(list, argtuple));  // TODO Kevin: DECREF on None doesn't seem right here...
 	}
 
 	return list;
@@ -534,12 +571,11 @@ static PyObject * _pycsh_get_str_value(PyObject * obj) {
 		int retries = paramobj->retries;
 		int paramver = paramobj->paramver;
 
-		PyObject * value = param->array_size > 0 ? 
+		PyObject * value AUTO_DECREF = param->array_size > 0 ? 
 			_pycsh_util_get_array(param, 0, host, timeout, retries, paramver, -1) :
 			_pycsh_util_get_single(param, INT_MIN, 0, host, timeout, retries, paramver, -1);
 
 		PyObject * strvalue = PyObject_Str(value);
-		Py_DECREF(value);
 		return strvalue;
 	}
 	else  // Otherwise use __str__.
@@ -551,13 +587,11 @@ static PyObject * _pycsh_typeconvert(PyObject * strvalue, PyTypeObject * type, i
 	// TODO Kevin: Using this to check the types of object is likely against
 	// PEP 20 -- The Zen of Python: "Explicit is better than implicit"
 
-	PyObject * valuetuple = PyTuple_Pack(1, strvalue);
+	PyObject * valuetuple AUTO_DECREF = PyTuple_Pack(1, strvalue);
 	PyObject * converted_value = PyObject_CallObject((PyObject *)type, valuetuple);
 	if (converted_value == NULL) {
-		Py_DECREF(valuetuple);  // converted_value is NULL, so we don't decrements its refcount.
 		return NULL;  // We assume failed conversions to have set an exception string.
 	}
-	Py_DECREF(valuetuple);
 	if (check_only) {
 		Py_DECREF(converted_value);
 		Py_RETURN_NONE;
@@ -615,35 +649,34 @@ int _pycsh_util_set_single(param_t *param, PyObject *value, int offset, int host
 		offset = -1;
 
 	char valuebuf[128] __attribute__((aligned(16))) = { };
-	// Stringify the value object
-	PyObject * strvalue = _pycsh_get_str_value(value);
-	switch (param->type) {
-		case PARAM_TYPE_XINT8:
-		case PARAM_TYPE_XINT16:
-		case PARAM_TYPE_XINT32:
-		case PARAM_TYPE_XINT64:
-			// If the destination parameter is expecting a hexadecimal value
-			// and the Python object value is of Long type (int), then we need
-			// to do a conversion here. Otherwise if the Python value is a string
-			// type, then we must expect hexadecimal digits only (including 0x)
-			if (Py_IS_TYPE(value, &PyLong_Type)) {
-				// Convert the integer value to hexadecimal digits
-				char tmp[64];
-				snprintf(tmp,64,"0x%lX", PyLong_AsUnsignedLong(value));
-				// Convert the hexadecimal C-string into a Python string object
-				PyObject *py_long_str = PyUnicode_FromString(tmp);
-				// De-reference the original strvalue before assigning a new
-				Py_DECREF(strvalue);
-				strvalue = py_long_str;
-			}
-			break;
+ 	{   // Stringify the value object
+		PyObject * strvalue AUTO_DECREF = _pycsh_get_str_value(value);
+		switch (param->type) {
+			case PARAM_TYPE_XINT8:
+			case PARAM_TYPE_XINT16:
+			case PARAM_TYPE_XINT32:
+			case PARAM_TYPE_XINT64:
+				// If the destination parameter is expecting a hexadecimal value
+				// and the Python object value is of Long type (int), then we need
+				// to do a conversion here. Otherwise if the Python value is a string
+				// type, then we must expect hexadecimal digits only (including 0x)
+				if (Py_IS_TYPE(value, &PyLong_Type)) {
+					// Convert the integer value to hexadecimal digits
+					char tmp[64];
+					snprintf(tmp,64,"0x%lX", PyLong_AsUnsignedLong(value));
+					// Convert the hexadecimal C-string into a Python string object
+					PyObject *py_long_str = PyUnicode_FromString(tmp);
+					// De-reference the original strvalue before assigning a new
+					Py_DECREF(strvalue);
+					strvalue = py_long_str;
+				}
+				break;
 
-		default:
-			break;
+			default:
+				break;
+		}
+		param_str_to_value(param->type, (char*)PyUnicode_AsUTF8(strvalue), valuebuf);
 	}
-
-	param_str_to_value(param->type, (char*)PyUnicode_AsUTF8(strvalue), valuebuf);
-	Py_DECREF(strvalue);
 
 	int dest = (host != INT_MIN ? host : param->node);
 
@@ -695,9 +728,8 @@ int _pycsh_util_set_array(param_t *param, PyObject *value, int host, int timeout
 	// especially for very large sequences.
 	if (!PySequence_Check(value)) {
 		if (PyIter_Check(value)) {
-			PyObject * temptuple = PyTuple_Pack(1, value);
+			PyObject * temptuple AUTO_DECREF = PyTuple_Pack(1, value);
 			value = PyObject_CallObject((PyObject *)&PyTuple_Type, temptuple);
-			Py_DECREF(temptuple);
 		} else {
 			PyErr_SetString(PyExc_TypeError, "Provided argument must be iterable.");
 			return -1;

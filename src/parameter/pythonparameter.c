@@ -26,9 +26,8 @@ void Parameter_callback(param_t * param, int offset) {
     assert(Parameter_wraps_param(param));
     assert(!PyErr_Occurred());  // Callback may raise an exception. But we don't want to override an existing one.
 
-    PyObject *key = PyLong_FromVoidPtr(param);
+    PyObject *key AUTO_DECREF = PyLong_FromVoidPtr(param);
     PythonParameterObject *python_param = (PythonParameterObject*)PyDict_GetItem((PyObject*)param_callback_dict, key);
-    Py_DECREF(key);
 
     /* This param_t uses the Python Parameter callback, but doesn't actually point to a Parameter.
         Perhaps it was deleted? Or perhaps it was never set correctly. */
@@ -171,14 +170,6 @@ static void PythonParameter_dealloc(PythonParameterObject *self) {
 
     param_list_remove_specific(((ParameterObject*)self)->param, 0, 1);
 
-    {   /* Remove ourselves from the callback/lookup dictionary */
-        PyObject *key AUTO_DECREF = PyLong_FromVoidPtr(self->parameter_object.param);
-        assert(key != NULL);
-        if (PyDict_GetItem((PyObject*)param_callback_dict, key) != NULL) {
-            PyDict_DelItem((PyObject*)param_callback_dict, key);
-        }
-    }
-
     // Get the type of 'self' in case the user has subclassed 'Parameter'.
     // TODO Kevin: Alternatively it might be better to always iterate from pycsh.PythonParameter.
     PyTypeObject *baseclass = Py_TYPE(self);
@@ -208,7 +199,7 @@ static int Parameter_set_callback(PythonParameterObject *self, PyObject *value, 
     if (value == Py_None) {
         if (self->callback != Py_None) {
             /* We should not arrive here when the old value is Py_None, 
-                but prevent Py_DECREF() on at all cost. */
+                but prevent Py_DECREF() on it at all cost. */
             Py_XDECREF(self->callback);
         }
         self->callback = Py_None;
