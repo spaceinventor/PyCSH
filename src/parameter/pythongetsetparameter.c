@@ -7,6 +7,10 @@
 
 #include "pythongetsetparameter.h"
 
+// It is recommended to always define PY_SSIZE_T_CLEAN before including Python.h
+#define PY_SSIZE_T_CLEAN
+#include <Python.h>
+
 #include "structmember.h"
 
 #include <param/param.h>
@@ -297,9 +301,13 @@ static bool is_valid_setter(const PyObject *setter, bool raise_exc) {
     if (setter == NULL)
         return true;
 
+    // Suppress the incompatible pointer type warning when AUTO_DECREF is used on subclasses of PyObject*
+    #pragma GCC diagnostic push
+    #pragma GCC diagnostic ignored "-Wincompatible-pointer-types"
+
     // Get the __code__ attribute of the function, and check that it is a PyCodeObject
     // TODO Kevin: Hopefully it's safe to assume that PyObject_GetAttrString() won't mutate callback
-    PyCodeObject *func_code = (PyCodeObject*)PyObject_GetAttrString((PyObject*)setter, "__code__");
+    PyCodeObject *func_code AUTO_DECREF = (PyCodeObject*)PyObject_GetAttrString((PyObject*)setter, "__code__");
     if (!func_code || !PyCode_Check(func_code)) {
         if (raise_exc)
             PyErr_SetString(PyExc_TypeError, "Provided callback must be callable");
@@ -312,24 +320,24 @@ static bool is_valid_setter(const PyObject *setter, bool raise_exc) {
     if (func_code->co_argcount != 3) {
         if (raise_exc)
             PyErr_SetString(PyExc_TypeError, "Provided setter must accept exactly 3 arguments");
-        Py_DECREF(func_code);
         return false;
     }
 
     // Get the __annotations__ attribute of the function
     // TODO Kevin: Hopefully it's safe to assume that PyObject_GetAttrString() won't mutate callback
-    PyDictObject *func_annotations = (PyDictObject *)PyObject_GetAttrString((PyObject*)setter, "__annotations__");
+    PyDictObject *func_annotations AUTO_DECREF = (PyDictObject *)PyObject_GetAttrString((PyObject*)setter, "__annotations__");
     assert(PyDict_Check(func_annotations));
     if (!func_annotations) {
-        Py_DECREF(func_code);
         return true;  // It's okay to not specify type-hints for the callback.
     }
 
+    // Re-enable the warning
+    #pragma GCC diagnostic pop
+
     // Get the parameters annotation
-    PyObject *param_names = func_code->co_varnames;
+    // PyCode_GetVarnames() exists and should be exposed, but it doesn't appear to be in any visible header.
+    PyObject *param_names AUTO_DECREF = PyObject_GetAttrString((PyObject*)func_code, "co_varnames");// PyCode_GetVarnames(func_code);
     if (!param_names) {
-        Py_DECREF(func_code);
-        Py_DECREF(func_annotations);
         return true;  // Function parameters have not been annotated, this is probably okay.
     }
 
@@ -338,8 +346,6 @@ static bool is_valid_setter(const PyObject *setter, bool raise_exc) {
         // TODO Kevin: Not sure what exception to set here.
         if (raise_exc)
             PyErr_Format(PyExc_TypeError, "param_names type \"%s\" %p", param_names->ob_type->tp_name, param_names);
-        Py_DECREF(func_code);
-        Py_DECREF(func_annotations);
         return false;  // Not sure when this fails, but it's probably bad if it does.
     }
 
@@ -352,8 +358,6 @@ static bool is_valid_setter(const PyObject *setter, bool raise_exc) {
         if (param_type != NULL && !PyObject_IsSubclass((PyObject *)param_type, (PyObject *)expected_param_type)) {
             if (raise_exc)
                 PyErr_Format(PyExc_TypeError, "First callback parameter should be type-hinted as Parameter (or subclass). (not %s)", param_type->tp_name);
-            Py_DECREF(func_code);
-            Py_DECREF(func_annotations);
             return false;
         }
 
@@ -366,15 +370,9 @@ static bool is_valid_setter(const PyObject *setter, bool raise_exc) {
         if (param_type != NULL && !PyObject_IsSubclass((PyObject *)param_type, (PyObject *)&PyLong_Type)) {
             if (raise_exc)
                 PyErr_Format(PyExc_TypeError, "Second callback parameter should be type-hinted as int offset. (not %s)", param_type->tp_name);
-            Py_DECREF(func_code);
-            Py_DECREF(func_annotations);
             return false;
         }
     }
-
-    // Cleanup
-    Py_DECREF(func_code);
-    Py_DECREF(func_annotations);
 
     return true;
 }

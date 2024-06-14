@@ -7,6 +7,10 @@
 
 #include "pythonparameter.h"
 
+// It is recommended to always define PY_SSIZE_T_CLEAN before including Python.h
+#define PY_SSIZE_T_CLEAN
+#include <Python.h>
+
 #include "structmember.h"
 
 #include <param/param.h>
@@ -116,7 +120,8 @@ bool is_valid_callback(const PyObject *callback, bool raise_exc) {
     }
 
     // Get the parameters annotation
-    PyObject *param_names = func_code->co_varnames;
+    // PyCode_GetVarnames() exists and should be exposed, but it doesn't appear to be in any visible header.
+    PyObject *param_names AUTO_DECREF = PyObject_GetAttrString((PyObject*)func_code, "co_varnames");// PyCode_GetVarnames(func_code);
     if (!param_names) {
         return true;  // Function parameters have not been annotated, this is probably okay.
     }
