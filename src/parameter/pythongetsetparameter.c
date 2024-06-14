@@ -14,6 +14,8 @@
 #include "../pycsh.h"
 #include "../utils.h"
 
+#include "pycshconfig.h"
+
 
 PythonGetSetParameterObject *python_wraps_vmem(const vmem_t * vmem);
 
@@ -136,16 +138,16 @@ static int _pycsh_param_pyval_to_cval(param_type_e type, PyObject * value_in, vo
 			*(uint64_t*)dataout = (uint64_t)PyLong_AsUnsignedLong(value_in);
             break;
 		case PARAM_TYPE_INT8:
-			*(int8_t*)dataout = (int8_t)PyLong_AsUnsignedLong(value_in);
+			*(int8_t*)dataout = (int8_t)PyLong_AsLong(value_in);
             break;
 		case PARAM_TYPE_INT16:
-			*(int16_t*)dataout = (int16_t)PyLong_AsUnsignedLong(value_in);
+			*(int16_t*)dataout = (int16_t)PyLong_AsLong(value_in);
             break;
 		case PARAM_TYPE_INT32:
-			*(int32_t*)dataout = (int32_t)PyLong_AsUnsignedLong(value_in);
+			*(int32_t*)dataout = (int32_t)PyLong_AsLong(value_in);
             break;
 		case PARAM_TYPE_INT64:
-			*(int64_t*)dataout = (int64_t)PyLong_AsUnsignedLong(value_in);
+			*(int64_t*)dataout = (int64_t)PyLong_AsLong(value_in);
 		case PARAM_TYPE_FLOAT:
 			*(float*)dataout = (float)PyFloat_AsDouble(value_in);
             break;
@@ -206,13 +208,14 @@ void Parameter_getter(vmem_t * vmem, uint32_t addr, void * dataout, uint32_t len
 
     _pycsh_param_pyval_to_cval(param->type, value, dataout, param->array_size-offset);
 
-#if 0  // TODO Kevin: Either propagate exception naturally, or set FromCause to custom getter exception.
+#if PYCSH_HAVE_APM  // TODO Kevin: This is pretty ugly, but we can't let the error propagate when building for APM, as there is no one but us to catch it.
     if (PyErr_Occurred()) {
         /* It may not be clear to the user, that the exception came from the callback,
             we therefore chain unto the existing exception, for better clarity. */
         /* _PyErr_FormatFromCause() seems simpler than PyException_SetCause() and PyException_SetContext() */
         // TODO Kevin: It seems exceptions raised in the CSP thread are ignored.
-        _PyErr_FormatFromCause(PyExc_ParamCallbackError, "Error calling Python callback");
+        //_PyErr_FormatFromCause(PyExc_ParamCallbackError, "Error calling Python callback");
+        PyErr_Print();
     }
 #endif
 }

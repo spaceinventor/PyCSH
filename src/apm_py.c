@@ -331,7 +331,7 @@ static int py_apm_load_cmd(struct slash *slash) {
 				PyObject *pModule AUTO_DECREF = PyImport_Import(pName);
 
 				if (pModule == NULL) {
-					PyErr_Clear();
+					PyErr_Print();
 					//fprintf(stderr, "Failed to load module: %s\n", filename);
 					continue;
 				}

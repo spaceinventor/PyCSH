@@ -318,7 +318,7 @@ class PythonGetSetParameter(PythonParameter):
 
     def __new__(cls, id: int, name: str, type: int, mask: int | str, unit: str = None, docstr: str = None, array_size: int = 0,
                    callback: _Callable[[Parameter, int], None] = None, host: int = None, timeout: int = None,
-                   retries: int = 0, paramver: int = 2, getter: _Callable = None, setter: _Callable = None) -> PythonGetSetParameter:
+                   retries: int = 0, paramver: int = 2, getter: _Callable[[Parameter, int], _Any] = None, setter: _Callable[[Parameter, int, _Any], None] = None) -> PythonGetSetParameter:
         """  """
 
 class PythonGetSetArrayParameter(PythonGetSetParameter, PythonArrayParameter):
