@@ -140,27 +140,101 @@ bool is_valid_callback(const PyObject *callback, bool raise_exc) {
         return false;  // Not sure when this fails, but it's probably bad if it does.
     }
 
+    PyObject *typing_module_name AUTO_DECREF = PyUnicode_FromString("typing");
+    if (!typing_module_name) {
+        return false;
+    }
+
+    PyObject *typing_module AUTO_DECREF = PyImport_Import(typing_module_name);
+    if (!typing_module) {
+        if (raise_exc)
+            PyErr_SetString(PyExc_ImportError, "Failed to import typing module");
+        return false;
+    }
+
+#if 1
+    PyObject *get_type_hints AUTO_DECREF = PyObject_GetAttrString(typing_module, "get_type_hints");
+    if (!get_type_hints) {
+        if (raise_exc)
+            PyErr_SetString(PyExc_ImportError, "Failed to get 'get_type_hints()' function");
+        return false;
+    }
+    assert(PyCallable_Check(get_type_hints));
+
+
+    PyObject *type_hint_dict AUTO_DECREF = PyObject_CallFunctionObjArgs(get_type_hints, callback, NULL);
+
+#else
+
+    PyObject *get_type_hints_name AUTO_DECREF = PyUnicode_FromString("get_type_hints");
+    if (!get_type_hints_name) {
+        return false;
+    }
+
+    PyObject *type_hint_dict AUTO_DECREF = PyObject_CallMethodObjArgs(typing_module, get_type_hints_name, callback, NULL);
+    if (!type_hint_dict) {
+        if (raise_exc)
+            PyErr_SetString(PyExc_ImportError, "Failed to get type hints of callback");
+        return false;
+    }
+#endif
+
     // TODO Kevin: Perhaps issue warnings for type-hint errors, instead of errors.
-    {  // Checking first parameter type-hint
-        const char *param_name = PyUnicode_AsUTF8(PyTuple_GetItem(param_names, 0));
-        PyTypeObject *param_type = (PyTypeObject *)PyDict_GetItemString((PyObject*)func_annotations, param_name);
-        PyTypeObject *expected_param_type = &ParameterType;
-        // param_type will be NULL when not type_hinted
-        if (param_type != NULL && !PyObject_IsSubclass((PyObject *)param_type, (PyObject *)expected_param_type)) {
+    {   // Checking first parameter type-hint
+
+        // co_varnames may be too short for our index, if the signature has *args, but that's okay.
+        if (PyTuple_Size(param_names)-1 <= 0) {
+            return true;
+        }
+
+        PyObject *param_name = PyTuple_GetItem(param_names, 0);
+        if (!param_name) {
             if (raise_exc)
-                PyErr_Format(PyExc_TypeError, "First callback parameter should be type-hinted as Parameter (or subclass). (not %s)", param_type->tp_name);
+                PyErr_SetString(PyExc_IndexError, "Could not get first parameter name");
             return false;
+        }
+
+        PyObject *param_annotation = PyDict_GetItem(type_hint_dict, param_name);
+        if (param_annotation != NULL && param_annotation != Py_None) {
+            if (!PyType_Check(param_annotation)) {
+                if (raise_exc)
+                    PyErr_Format(PyExc_TypeError, "First parameter annotation is %s, which is not a type", param_annotation->ob_type->tp_name);
+                return false;
+            }
+            if (!PyObject_IsSubclass(param_annotation, (PyObject *)&ParameterType)) {
+                if (raise_exc)
+                    PyErr_Format(PyExc_TypeError, "First callback parameter should be type-hinted as Parameter (or subclass). (not %s)", param_annotation->ob_type->tp_name);
+                return false;
+            }
         }
     }
 
-    {  // Checking second parameter type-hint
-        const char *param_name = PyUnicode_AsUTF8(PyTuple_GetItem(param_names, 1));
-        PyTypeObject *param_type = (PyTypeObject*)PyDict_GetItemString((PyObject*)func_annotations, param_name);
-        // param_type will be NULL when not type_hinted
-        if (param_type != NULL && !PyObject_IsSubclass((PyObject *)param_type, (PyObject *)&PyLong_Type)) {
+    {   // Checking second parameter type-hint
+
+        // co_varnames may be too short for our index, if the signature has *args, but that's okay.
+        if (PyTuple_Size(param_names)-1 <= 1) {
+            return true;
+        }
+
+        PyObject *param_name = PyTuple_GetItem(param_names, 1);
+        if (!param_name) {
             if (raise_exc)
-                PyErr_Format(PyExc_TypeError, "Second callback parameter should be type-hinted as int offset. (not %s)", param_type->tp_name);
+                PyErr_SetString(PyExc_IndexError, "Could not get first parameter name");
             return false;
+        }
+
+        PyObject *param_annotation = PyDict_GetItem(type_hint_dict, param_name);
+        if (param_annotation != NULL && param_annotation != Py_None) {
+            if (!PyType_Check(param_annotation)) {
+                if (raise_exc)
+                    PyErr_Format(PyExc_TypeError, "Second parameter annotation is %s, which is not a type", param_annotation->ob_type->tp_name);
+                return false;
+            }
+            if (!PyObject_IsSubclass(param_annotation, (PyObject *)&PyLong_Type)) {
+                if (raise_exc)
+                    PyErr_Format(PyExc_TypeError, "Second callback parameter should be type-hinted as int offset. (not %s)", param_annotation->ob_type->tp_name);
+                return false;
+            }
         }
     }
 
