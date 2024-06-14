@@ -314,12 +314,18 @@ static bool is_valid_setter(const PyObject *setter, bool raise_exc) {
         return false;
     }
 
-    // Check that number of parameters is exactly 2
-    /* func_code->co_argcount doesn't account for *args,
-        but that's okay as it should always be empty as we only supply 2 arguments. */
-    if (func_code->co_argcount != 3) {
+    int accepted_pos_args = pycsh_get_num_accepted_pos_args(setter, raise_exc);
+    if (accepted_pos_args < 3) {
         if (raise_exc)
-            PyErr_SetString(PyExc_TypeError, "Provided setter must accept exactly 3 arguments");
+            PyErr_SetString(PyExc_TypeError, "Provided callback must accept at least 3 positional arguments");
+        return false;
+    }
+
+    // Check for too many required arguments
+    int num_non_default_pos_args = pycsh_get_num_required_args(setter, raise_exc);
+    if (num_non_default_pos_args > 3) {
+        if (raise_exc)
+            PyErr_SetString(PyExc_TypeError, "Provided callback must not require more than 3 positional arguments");
         return false;
     }
 

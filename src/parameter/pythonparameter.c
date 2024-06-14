@@ -98,12 +98,18 @@ bool is_valid_callback(const PyObject *callback, bool raise_exc) {
         return false;
     }
 
-    // Check that number of parameters is exactly 2
-    /* func_code->co_argcount doesn't account for *args,
-        but that's okay as it should always be empty as we only supply 2 arguments. */
-    if (func_code->co_argcount != 2) {
+    int accepted_pos_args = pycsh_get_num_accepted_pos_args(callback, raise_exc);
+    if (accepted_pos_args < 2) {
         if (raise_exc)
-            PyErr_SetString(PyExc_TypeError, "Provided callback must accept exactly 2 arguments");
+            PyErr_SetString(PyExc_TypeError, "Provided callback must accept at least 2 positional arguments");
+        return false;
+    }
+
+    // Check for too many required arguments
+    int num_non_default_pos_args = pycsh_get_num_required_args(callback, raise_exc);
+    if (num_non_default_pos_args > 2) {
+        if (raise_exc)
+            PyErr_SetString(PyExc_TypeError, "Provided callback must not require more than 2 positional arguments");
         return false;
     }
 

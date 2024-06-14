@@ -128,6 +128,61 @@ finally:
 }
 
 
+int pycsh_get_num_accepted_pos_args(const PyObject *function, bool raise_exc) {
+
+	// Suppress the incompatible pointer type warning when AUTO_DECREF is used on subclasses of PyObject*
+    #pragma GCC diagnostic push
+    #pragma GCC diagnostic ignored "-Wincompatible-pointer-types"
+    PyCodeObject *func_code AUTO_DECREF = (PyCodeObject*)PyObject_GetAttrString((PyObject*)function, "__code__");
+	// Re-enable the warning
+    #pragma GCC diagnostic pop
+
+    if (!func_code || !PyCode_Check(func_code)) {
+        if (raise_exc)
+            PyErr_SetString(PyExc_TypeError, "Provided function must be callable");
+        return -1;
+    }
+
+    // Check if the function accepts *args
+    int accepts_varargs = (func_code->co_flags & CO_VARARGS) ? 1 : 0;
+
+    // Return INT_MAX if *args is present
+    if (accepts_varargs) {
+        return INT_MAX;
+    }
+
+    // Number of positional arguments excluding *args
+    int num_pos_args = func_code->co_argcount;
+    return num_pos_args;
+}
+
+
+// Source: https://chatgpt.com
+int pycsh_get_num_required_args(const PyObject *function, bool raise_exc) {
+
+	// Suppress the incompatible pointer type warning when AUTO_DECREF is used on subclasses of PyObject*
+    #pragma GCC diagnostic push
+    #pragma GCC diagnostic ignored "-Wincompatible-pointer-types"
+    PyCodeObject *func_code AUTO_DECREF = (PyCodeObject*)PyObject_GetAttrString((PyObject*)function, "__code__");
+	// Re-enable the warning
+    #pragma GCC diagnostic pop
+
+    if (!func_code || !PyCode_Check(func_code)) {
+        if (raise_exc)
+            PyErr_SetString(PyExc_TypeError, "Provided callback must be callable");
+        return -1;
+    }
+
+    int num_required_pos_args = func_code->co_argcount - func_code->co_kwonlyargcount;
+
+    PyObject *defaults AUTO_DECREF = PyObject_GetAttrString((PyObject*)function, "__defaults__");
+    Py_ssize_t num_defaults = (defaults && PyTuple_Check(defaults)) ? PyTuple_Size(defaults) : 0;
+
+    int num_non_default_pos_args = num_required_pos_args - (int)num_defaults;
+    return num_non_default_pos_args;
+}
+
+
 /* Retrieves a param_t from either its name, id or wrapper object.
    May raise TypeError or ValueError, returned value will be NULL in either case. */
 param_t * _pycsh_util_find_param_t(PyObject * param_identifier, int node) {
