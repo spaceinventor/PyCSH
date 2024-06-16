@@ -23,20 +23,18 @@
 #undef NDEBUG
 #include <assert.h>
 
-/* __attribute__(()) doesn't like to treat char** and void** interchangeably. */
-void cleanup_str(char ** obj) {
+void cleanup_free(void *const* obj) {
     if (*obj == NULL) {
         return;
 	}
     free(*obj);
-    *obj = NULL;
+	/* Setting *obj=NULL should never have a visible effect when using __attribute__((cleanup()).
+		But accepting a *const* allows for more use cases. */
+    //*obj = NULL;  // 
 }
-void cleanup_free(void ** obj) {
-    if (*obj == NULL) {
-        return;
-	}
-    free(*obj);
-    *obj = NULL;
+/* __attribute__(()) doesn't like to treat char** and void** interchangeably. */
+void cleanup_str(char *const* obj) {
+    cleanup_free((void *const*)obj);
 }
 void cleanup_GIL(PyGILState_STATE * gstate) {
 	//printf("AAA %d\n", PyGILState_Check());

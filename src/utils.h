@@ -16,8 +16,8 @@
 #include <param/param_queue.h>
 #include "parameter/pythonparameter.h"
 
-void cleanup_str(char ** obj);
-void cleanup_free(void ** obj);
+void cleanup_free(void *const* obj);
+void cleanup_str(char *const* obj);
 void cleanup_GIL(PyGILState_STATE * gstate);
 void cleanup_pyobject(PyObject **obj);
 

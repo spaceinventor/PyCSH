@@ -9,10 +9,13 @@
 #include <dirent.h>
 #include <sys/stat.h>
 #include <pwd.h>
+#include <dlfcn.h>
 #include "utils.h"
 #include "slash_command/python_slash_command.h"
 
 #define WALKDIR_MAX_PATH_SIZE 256
+
+#define DEFAULT_INIT_FUNCTION "apm_init"
 
 static bool path_is_file(const char * path) {
 	struct stat s;
@@ -69,13 +72,198 @@ static void python_module_path_completer(struct slash * slash, char * token) {
 	}
 }
 
+static void _dlclose_cleanup(void ** handle) {
+	if (*handle == NULL || handle == NULL) {
+		return;
+	}
+
+	dlclose(*handle);
+}
+
+// Source: Mostly https://chatgpt.com
+static PyObject * pycsh_integrate_pymod(const char * const _filepath) {
+	void *handle __attribute__((cleanup(_dlclose_cleanup))) = dlopen(_filepath, RTLD_NOW | RTLD_GLOBAL);
+    if (!handle) {
+        fprintf(stderr, "Error loading shared object file: %s\n", dlerror());
+        return NULL;
+    }
+
+    // Construct the initialization function name: PyInit_<module_name>
+    char * const filepath CLEANUP_STR = safe_strdup(_filepath);
+	char *filename = strrchr(filepath, '/');
+    if (!filename) {
+        filename = filepath;
+    } else {
+        filename++;
+    }
+    char *dot = strchr(filename, '.');
+    if (dot) {
+        *dot = '\0';
+    }
+
+    size_t init_func_name_len = strlen("PyInit_") + strlen(filename) + 1;
+    char init_func_name[init_func_name_len];
+    snprintf(init_func_name, init_func_name_len, "PyInit_%s", filename);
+
+    typedef PyObject* (*PyInitFunc)(void);
+    PyInitFunc init_func = (PyInitFunc)dlsym(handle, init_func_name);
+
+    if (!init_func) {
+        fprintf(stderr, "Error finding initialization function: %s\n", dlerror());
+        return NULL;
+    }
+
+    PyObject *module AUTO_DECREF = init_func();
+    if (!module) {
+        PyErr_Print();
+        return NULL;
+    }
+
+#if 1
+	/* TODO Kevin: Are we responsible for adding to sys.modules?
+		Or will PyModule_Create() do that for us? */
+
+    // Add the module to sys.modules
+    if (PyDict_SetItemString(PyImport_GetModuleDict(), filename, module) < 0) {
+        return NULL;
+    }
+#endif
+
+	/* Currently init_func() will be called and executed successfully,
+		but attempting to PyObject_GetAttrString() on the returned module causes a segmentation fault.
+		For future reference, here is some reading material on how Python handles the import on Unixes:
+		- https://stackoverflow.com/questions/25678174/how-does-module-loading-work-in-cpython */
+    return Py_NewRef(module);
+}
+
+/**
+ * @brief Handle loading of both .py and .so (APM) modules
+ * 
+ * @param filepath 
+ * @return PyObject* new reference to the imported module
+ */
+static PyObject * pycsh_load_pymod(const char * const _filepath, const char * const init_function, int verbose) {
+
+	if (_filepath == NULL) {
+		return NULL;
+	}
+
+	char * const filepath CLEANUP_STR = safe_strdup(_filepath);
+	char *filename = strrchr(filepath, '/');
+
+	/* Construct Python import string */
+	if (filename == NULL) {  // No slashes in string, maybe good enough for Python
+		filename = filepath;
+	} else if (*(filename + 1) == '\0') {  		 // filename ends with a trailing slash  (i.e "dist-packeges/my_package/")
+		*filename = '\0';  						 // Remove trailing slash..., (i.e "dist-packeges/my_package")
+		filename = strrchr(filepath, '/');  	 // and attempt to find a slash before it. (i.e "/my_package")
+		if (filename == NULL) {					 // Use full name if no other slashes are found.
+			filename = filepath;
+		} else {								 // Otherwise skip the slash. (i.e "my_package")
+			filename += 1;
+		}
+	} else {
+		filename += 1;
+	}
+
+	if (strcmp(filename, "__pycache__") == 0) {
+		return NULL;
+	}
+	if (*filename == '.') {  // Exclude hidden files, . and ..
+		return NULL;
+	}
+	
+	char *dot = strchr(filename, '.');
+	if (dot != NULL) {
+		*dot = '\0';
+	}
+
+	// We probably shouldn't load ourselves, although a const string approach likely isn't the best guard.
+	if (strcmp("libcsh_pycsh", filename) == 0) {
+		return NULL;
+	}
+
+	{	/* Python code goes here */
+		//printf("Loading script: %s\n", filename);
+
+		PyObject *pName AUTO_DECREF = PyUnicode_DecodeFSDefault(filename);
+		if (pName == NULL) {
+			PyErr_Print();
+			fprintf(stderr, "Failed to decode script name: %s\n", filename);
+			return NULL;
+		}
+
+		PyObject *pModule AUTO_DECREF;
+
+		/* Check for .so extension */
+		int filepath_len = strlen(_filepath);
+		if (filepath_len >= 3 && strcmp(_filepath + filepath_len - 3, ".so") == 0) {
+			/* Assume this .so file is a Python module that should link with us.
+				If it isn't a Python module, then this call will fail,
+				after which the original "apm load" will attempt to import it.
+				If it is an independent module, that should link with us,
+				then is should've been imported with a normal Python "import" ya dummy :) */
+			pModule = pycsh_integrate_pymod(_filepath);
+		} else {
+			pModule = PyImport_Import(pName);
+		}
+
+		if (pModule == NULL) {
+			PyErr_Print();
+			//fprintf(stderr, "Failed to load module: %s\n", filename);
+			return NULL;
+		}
+
+		if (init_function == NULL) {
+			if (verbose) {
+				printf("Skipping init function for module '%s'", filename);
+			}
+			return Py_NewRef(pModule);
+		}
+
+		// TODO Kevin: Consider the consequences of throwing away the module when failing to call init function.
+
+		PyObject *pFunc AUTO_DECREF = PyObject_GetAttrString(pModule, init_function);
+		if (!pFunc || !PyCallable_Check(pFunc)) {
+			PyErr_Clear();
+			//fprintf(stderr, "Cannot find function \"apm_init\" in %s\n", filename); // This print is a good idea for debugging, but since the apm_init(main) is not required this print can be a bit confusing.
+			return NULL;
+		}
+
+		//printf("Preparing arguments for script: %s\n", filename);
+
+		PyObject *pArgs AUTO_DECREF = PyTuple_New(0);
+		if (pArgs == NULL) {
+			PyErr_Print();
+			fprintf(stderr, "Failed to create arguments tuple\n");
+			return NULL;
+		}
+
+		if (verbose)
+			printf("Calling '%s.%s()'\n", filename, init_function);
+
+		PyObject *pValue AUTO_DECREF = PyObject_CallObject(pFunc, pArgs);
+
+		if (pValue == NULL) {
+			PyErr_Print();
+			fprintf(stderr, "Call failed for: %s.%s\n", filename, init_function);
+			return NULL;
+		}
+
+		if (verbose)
+			printf("Script executed successfully: %s.%s()\n", filename, init_function);
+
+		return Py_NewRef(pModule);
+	}
+}
+
 static int py_run_cmd(struct slash *slash) {
 
-	char * func_name = "apm_init";
+	char * func_name = DEFAULT_INIT_FUNCTION;
 
     optparse_t * parser = optparse_new("py run", "<file> [arguments...]");
     optparse_add_help(parser);
-    optparse_add_string(parser, 'f', "func", "FUNCNAME", &func_name, "Function to call in the specified file (default = 'apm_init')");
+    optparse_add_string(parser, 'f', "func", "FUNCNAME", &func_name, "Function to call in the specified file (default = '"DEFAULT_INIT_FUNCTION"')");
 
     int argi = optparse_parse(parser, slash->argc - 1, (const char **) slash->argv + 1);
     if (argi < 0) {  // Must have filename
@@ -93,59 +281,7 @@ static int py_run_cmd(struct slash *slash) {
 	PyEval_RestoreThread(main_thread_state);
     PyThreadState * state __attribute__((cleanup(state_release_GIL))) = main_thread_state;
 
-	PyObject *pName = PyUnicode_DecodeFSDefault(slash->argv[argi]);
-    /* Error checking of pName left out */
-
-    PyObject *pModule = PyImport_Import(pName);
-    Py_DECREF(pName);
-
-    if (pModule == NULL) {
-		PyErr_Print();
-        fprintf(stderr, "Failed to load \"%s\"\n", slash->argv[argi]);
-		optparse_del(parser);
-        return SLASH_EINVAL;
-	}
-
-	PyObject *pFunc = PyObject_GetAttrString(pModule, func_name);
-	/* pFunc is a new reference */
-
-	if (!pFunc || !PyCallable_Check(pFunc)) {
-		if (PyErr_Occurred())
-			PyErr_Print();
-		fprintf(stderr, "Cannot find function \"%s\"\n", func_name);
-		optparse_del(parser);
-		return SLASH_EINVAL;
-	}
-
-	PyObject *pArgs = PyTuple_New((slash->argc - argi)-1);
-	for (int i = argi+1; i < slash->argc; i++) {
-		PyObject *pValue = PyUnicode_FromString(slash->argv[i]);
-		if (!pValue) {
-			Py_DECREF(pArgs);
-			Py_DECREF(pModule);
-			fprintf(stderr, "Cannot convert argument\n");
-			optparse_del(parser);
-			return SLASH_EINVAL;
-		}
-		/* pValue reference stolen here: */
-		PyTuple_SetItem(pArgs, i-argi-1, pValue);
-	}
-
-	PyObject *pValue = PyObject_CallObject(pFunc, pArgs);
-	Py_DECREF(pArgs);
-
-	if (pValue == NULL) {
-		Py_DECREF(pFunc);
-		Py_DECREF(pModule);
-		PyErr_Print();
-		fprintf(stderr,"Call failed\n");
-		optparse_del(parser);
-		return SLASH_EINVAL;
-	}
-
-	Py_DECREF(pFunc);
-	Py_DECREF(pValue);
-	Py_DECREF(pModule);
+	Py_XDECREF(pycsh_load_pymod(slash->argv[argi], func_name, 1));
 
 	optparse_del(parser);
 	return SLASH_SUCCESS;
@@ -153,85 +289,10 @@ static int py_run_cmd(struct slash *slash) {
 slash_command_sub_completer(py, run, py_run_cmd, python_module_path_completer, "<file> [arguments...]", "Run a Python script with an importable PyCSH from this APM");
 
 
-
-
 extern struct slash_command slash_cmd_apm_load;
 //#define original_apm_load slash_cmd_apm_load
 struct slash_command * original_apm_load = &slash_cmd_apm_load;
 
-#if 0
-static int search_python_files(const char *path, const char *search_str, char ***files) {
-    printf("Searching in path: %s\n", path);
-    
-    DIR *dir;
-    struct dirent *entry;
-    int count = 0;
-    int capacity = 10; // Initial capacity for the files array
-
-    *files = (char **)malloc(capacity * sizeof(char *));
-    if (*files == NULL) {
-        perror("malloc");
-        return -1;
-    }
-
-    dir = opendir(path);
-    if (dir == NULL) {
-        perror("opendir");
-        free(*files);
-        *files = NULL;
-        return -1;
-    }
-
-    while ((entry = readdir(dir)) != NULL) {
-        if (entry->d_type == DT_REG) { // If the entry is a regular file
-            char *dot = strrchr(entry->d_name, '.');
-
-            if (dot && strcmp(dot, ".py") == 0) { // Check for .py extension
-                if (search_str == NULL || strstr(entry->d_name, search_str) != NULL) {
-                    if (count >= capacity) {
-                        capacity *= 2;
-                        char **new_files = (char **)realloc(*files, capacity * sizeof(char *));
-                        if (new_files == NULL) {
-                            perror("realloc");
-                            closedir(dir);
-                            for (int i = 0; i < count; i++) {
-                                free((*files)[i]);
-                            }
-                            free(*files);
-                            *files = NULL;
-                            return -1;
-                        }
-                        *files = new_files;
-                    }
-                    // Allocate memory for the filename without ".py"
-                    size_t len = dot - entry->d_name; // Length of the filename without the extension
-                    (*files)[count] = (char *)malloc(len + 1); // +1 for null terminator
-                    if ((*files)[count] == NULL) {
-                        perror("malloc");
-                        closedir(dir);
-                        for (int i = 0; i < count; i++) {
-                            free((*files)[i]);
-                        }
-                        free(*files);
-                        *files = NULL;
-                        return -1;
-                    }
-                    strncpy((*files)[count], entry->d_name, len);
-                    (*files)[count][len] = '\0'; // Null-terminate the string
-                    count++;
-                }
-            }
-        }
-    }
-    closedir(dir);
-
-    return count;
-}
-
-const char *get_python_script_path(char **files, int index) {
-    return files[index];
-}
-#endif
 
 static void _close_dir(DIR ** dir) {
 	if (dir == NULL || *dir == NULL) {
@@ -289,81 +350,13 @@ static int py_apm_load_cmd(struct slash *slash) {
 		
 		struct dirent *entry;
 		while ((entry = readdir(dir)) != NULL)  {
-			char *filename = strrchr(entry->d_name, '/');
-
-			/* Construct Python import string */
-			if (filename == NULL) {  // No slashes in string, maybe good enough for Python
-				filename = entry->d_name;
-			} else if (*(filename + 1) == '\0') {  		 // filename ends with a trailing slash  (i.e "dist-packeges/my_package/")
-				*filename = '\0';  						 // Remove trailing slash..., (i.e "dist-packeges/my_package")
-				filename = strrchr(entry->d_name, '/');  // and attempt to find a slash before it. (i.e "/my_package")
-				if (filename == NULL) {					 // Use full name if no other slashes are found.
-					filename = entry->d_name;
-				} else {								 // Otherwise skip the slash. (i.e "my_package")
-					filename += 1;
-				}
-			} else {
-				filename += 1;
-			}
-
-			if (strcmp(filename, "__pycache__") == 0) {
-				continue;
-			}
-			if (strchr(filename, '.') == filename) {
-				continue;
-			}
-			
-			char *dot = strchr(filename, '.');
-			if (dot != NULL) {
-				*dot = '\0';
-			}
-
-			{	/* Python code goes here */
-				//printf("Loading script: %s\n", filename);
-
-				PyObject *pName AUTO_DECREF = PyUnicode_DecodeFSDefault(filename);
-				if (pName == NULL) {
-					PyErr_Print();
-					fprintf(stderr, "Failed to decode script name: %s\n", filename);
-					continue;
-				}
-
-				PyObject *pModule AUTO_DECREF = PyImport_Import(pName);
-
-				if (pModule == NULL) {
-					PyErr_Print();
-					//fprintf(stderr, "Failed to load module: %s\n", filename);
-					continue;
-				}
+			int fullpath_len = strnlen(path, WALKDIR_MAX_PATH_SIZE) + strnlen(entry->d_name, WALKDIR_MAX_PATH_SIZE);
+			char fullpath[fullpath_len+1];
+			strncpy(fullpath, path, fullpath_len);
+			strncat(fullpath, entry->d_name, fullpath_len-strnlen(path, WALKDIR_MAX_PATH_SIZE)-1);
+			PyObject * pymod AUTO_DECREF = pycsh_load_pymod(fullpath, DEFAULT_INIT_FUNCTION, 1);
+			if (pymod != NULL) {
 				lib_count++;
-
-				PyObject *pFunc AUTO_DECREF = PyObject_GetAttrString(pModule, "apm_init");
-				if (!pFunc || !PyCallable_Check(pFunc)) {
-					PyErr_Clear();
-					//fprintf(stderr, "Cannot find function \"apm_init\" in %s\n", filename); // This print is a good idea for debugging, but since the apm_init(main) is not required this print can be a bit confusing.
-					continue;
-				}
-
-				//printf("Preparing arguments for script: %s\n", filename);
-
-				PyObject *pArgs AUTO_DECREF = PyTuple_New(0);
-				if (pArgs == NULL) {
-					PyErr_Print();
-					fprintf(stderr, "Failed to create arguments tuple\n");
-					continue;
-				}
-
-				printf("Calling apm_init function of script: %s\n", filename);
-
-				PyObject *pValue AUTO_DECREF = PyObject_CallObject(pFunc, pArgs);
-
-				if (pValue == NULL) {
-					PyErr_Print();
-					fprintf(stderr, "Call failed for script: %s\n", filename);
-					continue;
-				}
-
-				printf("Script executed successfully: %s\n", filename);
 			}
 		}
 	}
