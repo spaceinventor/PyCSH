@@ -68,6 +68,7 @@ pycsh_sources = [
 
 	# Wrapper functions
 	'src/wrapper/py_csp.c',
+	'src/wrapper/apm_py.c',
 	'src/wrapper/slash_py.c',
 	'src/wrapper/param_py.c',
 	'src/wrapper/dflopt_py.c',
@@ -78,11 +79,14 @@ pycsh_sources = [
 
 	# Utilities
 	'src/utils.c',
+	'src/apm/apm_utils.c',
 ]
 
 if get_option('build_apm')
 	pycsh_sources += [
-		'src/apm.c',
+		# apm.c will start the Python interpreter,
+		#	which we aren't interested in when building a normal Python C extension.
+		'src/apm/apm.c',
 	]
 else
 	pycsh_sources += [
@@ -111,7 +115,9 @@ if slash_dep.found()
 		]
 	else
 		pycsh_sources += [
-			'src/apm_py.c',
+			# apm_slash.c currently only supports extending the CSH "apm load" slash command.
+			#	So don't build our version when the original isn't present.
+			'src/apm/apm_slash.c',
 		]
 	endif
 	conf.set('PYCSH_HAVE_SLASH', slash_dep.found())

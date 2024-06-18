@@ -64,6 +64,7 @@
 #include "slash_command/python_slash_command.h"
 
 #include "wrapper/py_csp.h"
+#include "wrapper/apm_py.h"
 #include "wrapper/param_py.h"
 #include "wrapper/slash_py.h"
 #include "wrapper/dflopt_py.h"
@@ -285,6 +286,7 @@ static PyMethodDef methods[] = {
 	{"switch", 	(PyCFunction)slash_csp_switch,   METH_VARARGS | METH_KEYWORDS, "Reboot into the specified firmware slot."},
 	{"program", (PyCFunction)pycsh_csh_program,  METH_VARARGS | METH_KEYWORDS, "Upload new firmware to a module."},
 	{"sps", 	(PyCFunction)slash_sps,   		 METH_VARARGS | METH_KEYWORDS, "Switch -> Program -> Switch"},
+	{"apm_load",(PyCFunction)pycsh_apm_load,   	 METH_VARARGS | METH_KEYWORDS, "Loads both .py and .so APMs"},
 
 	/* Wrappers for src/csp_init_cmd.c */
 	{"csp_init", 	(PyCFunction)pycsh_csh_csp_init,   METH_VARARGS | METH_KEYWORDS, "Initialize CSP"},

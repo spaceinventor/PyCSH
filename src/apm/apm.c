@@ -4,10 +4,10 @@
 #include <Python.h>
 
 // Slash is conditionally included by pycsh.h
-#include "pycsh.h"
-#include "utils.h"
+#include "../pycsh.h"
+#include "../utils.h"
 #include "pycshconfig.h"
-#include "slash_command/python_slash_command.h"
+#include "../slash_command/python_slash_command.h"
 
 
 static int py_iter_sys_path(void) {
@@ -182,23 +182,3 @@ int apm_init(void) {
 
 	return 0;
 }
-
-#if 0
-static void py_print__str__(PyObject *obj) {
-	// Get the string representation of the object
-    PyObject* str_repr AUTO_DECREF = PyObject_Str(obj);
-    if (str_repr == NULL) {
-		fprintf(stderr, "Failed to get string representation\n");
-		return;
-	}
-
-	// Convert the string representation to a C string
-	const char* c_str_repr = PyUnicode_AsUTF8(str_repr);
-	if (c_str_repr != NULL) {
-		// Print the string representation
-		printf("String representation: %s\n", c_str_repr);
-	} else {
-		fprintf(stderr, "Failed to convert string representation to C string\n");
-	}
-}
-#endif

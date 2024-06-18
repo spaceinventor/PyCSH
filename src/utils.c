@@ -9,6 +9,7 @@
 
 #include "utils.h"
 
+#include <dirent.h>
 #include <param/param_server.h>
 #include <param/param_client.h>
 #include <param/param_string.h>
@@ -35,6 +36,13 @@ void cleanup_free(void *const* obj) {
 /* __attribute__(()) doesn't like to treat char** and void** interchangeably. */
 void cleanup_str(char *const* obj) {
     cleanup_free((void *const*)obj);
+}
+void _close_dir(DIR *const* dir) {
+	if (dir == NULL || *dir == NULL) {
+		return;
+	}
+	closedir(*dir);
+	//*dir = NULL;
 }
 void cleanup_GIL(PyGILState_STATE * gstate) {
 	//printf("AAA %d\n", PyGILState_Check());
@@ -316,7 +324,7 @@ PyObject * _pycsh_Parameter_from_param(PyTypeObject *type, param_t * param, cons
 	if (self == NULL)
 		return NULL;
 
-	{   /* Add ourselves from the callback/lookup dictionary */
+	{   /* Add ourselves to the callback/lookup dictionary */
 		PyObject *key AUTO_DECREF = PyLong_FromVoidPtr(param);
 		assert(key != NULL);
 		assert(!PyErr_Occurred());
