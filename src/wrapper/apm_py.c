@@ -14,7 +14,6 @@
 
 #include "../apm/apm.h"
 #include "../utils.h"
-#include "../slash_command/python_slash_command.h"
 
 #include "../pycsh.h"
 

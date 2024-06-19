@@ -10,7 +10,6 @@
 #include <sys/stat.h>
 #include <dlfcn.h>
 #include "../utils.h"
-#include "../slash_command/python_slash_command.h"
 
 
 static void _dlclose_cleanup(void *const* handle) {

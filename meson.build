@@ -50,7 +50,9 @@ else
 	dependencies += curl_dep
 endif
 
-
+# TODO Kevin: Perhaps let us inspire by the meson.build,
+#	they check for the presence of the python.h header.
+#	- https://github.com/numpy/numpy/blob/main/meson.build#L44
 
 pycsh_sources = [
 
@@ -69,7 +71,6 @@ pycsh_sources = [
 	# Wrapper functions
 	'src/wrapper/py_csp.c',
 	'src/wrapper/apm_py.c',
-	'src/wrapper/slash_py.c',
 	'src/wrapper/param_py.c',
 	'src/wrapper/dflopt_py.c',
 	'src/wrapper/csp_init_py.c',

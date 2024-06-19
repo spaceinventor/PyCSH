@@ -60,8 +60,10 @@
 #include "parameter/pythongetsetarrayparameter.h"
 #include "parameter/parameterlist.h"
 
+#ifdef PYCSH_HAVE_SLASH
 #include "slash_command/slash_command.h"
 #include "slash_command/python_slash_command.h"
+#endif
 
 #include "wrapper/py_csp.h"
 #include "wrapper/apm_py.h"
@@ -107,9 +109,14 @@ uint8_t csp_initialized() {
 }
 
 #ifndef PYCSH_HAVE_SLASH
-unsigned int pycsh_dfl_node = 0;
-unsigned int pycsh_dfl_timeout = 1000;
+unsigned int slash_dfl_node = 0;
+unsigned int slash_dfl_timeout = 1000;
+#else
+#include <slash/dflopt.h>
+// TODO Kevin: Will alias work from/with the dflopt header?
 #endif
+extern unsigned int __attribute__ ((alias ("slash_dfl_node"))) pycsh_dfl_node;
+extern unsigned int __attribute__ ((alias ("slash_dfl_timeout"))) pycsh_dfl_timeout;
 unsigned int pycsh_dfl_verbose = -1;
 
 uint64_t clock_get_nsec(void) {
