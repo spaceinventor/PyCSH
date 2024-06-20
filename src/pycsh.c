@@ -109,14 +109,12 @@ uint8_t csp_initialized() {
 }
 
 #ifndef PYCSH_HAVE_SLASH
+// TODO Kevin: Building as APM without slash, will provide its own default node/timeout, which is very much not ideal.
 unsigned int slash_dfl_node = 0;
 unsigned int slash_dfl_timeout = 1000;
 #else
 #include <slash/dflopt.h>
-// TODO Kevin: Will alias work from/with the dflopt header?
 #endif
-extern unsigned int __attribute__ ((alias ("slash_dfl_node"))) pycsh_dfl_node;
-extern unsigned int __attribute__ ((alias ("slash_dfl_timeout"))) pycsh_dfl_timeout;
 unsigned int pycsh_dfl_verbose = -1;
 
 uint64_t clock_get_nsec(void) {

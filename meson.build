@@ -132,6 +132,9 @@ pycsh_sources += vcs_tag(input: files('src/version.c.in'), output: 'version.c', 
 # Add .pyi file for type-hints
 pyi = configure_file(input: 'pycsh.pyi', output: 'pycsh.pyi', copy: true)
 
+# Also __init__.py that ensures we can expose CSH symbols/dependencies.
+__init__py = configure_file(input: '__init__.py', output: '__init__.py', copy: true)
+
 py = import('python').find_installation('python'+get_option('python3_version'), pure: false)
 
 if get_option('build_apm')
@@ -159,8 +162,12 @@ if get_option('build_apm')
 else  # Not building APM
 	py.extension_module('pycsh', pycsh_sources,
 					dependencies : dependencies,
+					subdir : 'pycsh',
 					install : true,
 					)
-endif
 
-py.install_sources(pyi)
+	# TODO Kevin: Is there any sense in also installing sources when building for APM?
+	#	We will probably always build both anyway, and linters will look in dist-packages/
+	#	rather than ~/.local/lib/csh/
+	py.install_sources([pyi, __init__py], subdir: 'pycsh')
+endif
