@@ -496,49 +496,79 @@ PyObject * _pycsh_util_get_single(param_t *param, int offset, int autopull, int 
 
 	switch (param->type) {
 		case PARAM_TYPE_UINT8:
-		case PARAM_TYPE_XINT8:
-			if (offset != -1)
-				return Py_BuildValue("B", param_get_uint8_array(param, offset));
-			return Py_BuildValue("B", param_get_uint8(param));
+		case PARAM_TYPE_XINT8: {
+			uint8_t val = (offset != -1) ? param_get_uint8_array(param, offset) : param_get_uint8(param);
+			if (PyErr_Occurred()) {  // Error may occur during Parameter_getter()
+				return NULL;
+			}
+			return Py_BuildValue("B", val);
+		}
 		case PARAM_TYPE_UINT16:
-		case PARAM_TYPE_XINT16:
-			if (offset != -1)
-				return Py_BuildValue("H", param_get_uint16_array(param, offset));
-			return Py_BuildValue("H", param_get_uint16(param));
+		case PARAM_TYPE_XINT16: {
+			uint16_t val = (offset != -1) ? param_get_uint16_array(param, offset) :  param_get_uint16(param);
+			if (PyErr_Occurred()) {  // Error may occur during Parameter_getter()
+				return NULL;
+			}
+			return Py_BuildValue("H", val);
+		}
 		case PARAM_TYPE_UINT32:
-		case PARAM_TYPE_XINT32:
-			if (offset != -1)
-				return Py_BuildValue("I", param_get_uint32_array(param, offset));
-			return Py_BuildValue("I", param_get_uint32(param));
+		case PARAM_TYPE_XINT32: {
+			uint32_t val = (offset != -1) ? param_get_uint32_array(param, offset) :  param_get_uint32(param);
+			if (PyErr_Occurred()) {  // Error may occur during Parameter_getter()
+				return NULL;
+			}
+			return Py_BuildValue("I", val);
+		}
 		case PARAM_TYPE_UINT64:
-		case PARAM_TYPE_XINT64:
-			if (offset != -1)
-				return Py_BuildValue("K", param_get_uint64_array(param, offset));
-			return Py_BuildValue("K", param_get_uint64(param));
-		case PARAM_TYPE_INT8:
-			if (offset != -1)
-				return Py_BuildValue("b", param_get_int8_array(param, offset));
-			return Py_BuildValue("b", param_get_int8(param));
-		case PARAM_TYPE_INT16:
-			if (offset != -1)
-				return Py_BuildValue("h", param_get_int16_array(param, offset));
-			return Py_BuildValue("h", param_get_int16(param));
-		case PARAM_TYPE_INT32:
-			if (offset != -1)
-				return Py_BuildValue("i", param_get_int32_array(param, offset));
-			return Py_BuildValue("i", param_get_int32(param));
-		case PARAM_TYPE_INT64:
-			if (offset != -1)
-				return Py_BuildValue("k", param_get_int64_array(param, offset));
-			return Py_BuildValue("k", param_get_int64(param));
-		case PARAM_TYPE_FLOAT:
-			if (offset != -1)
-				return Py_BuildValue("f", param_get_float_array(param, offset));
-			return Py_BuildValue("f", param_get_float(param));
-		case PARAM_TYPE_DOUBLE:
-			if (offset != -1)
-				return Py_BuildValue("d", param_get_double_array(param, offset));
-			return Py_BuildValue("d", param_get_double(param));
+		case PARAM_TYPE_XINT64: {
+			uint64_t val = (offset != -1) ? param_get_uint64_array(param, offset) :  param_get_uint64(param);
+			if (PyErr_Occurred()) {  // Error may occur during Parameter_getter()
+				return NULL;
+			}
+			return Py_BuildValue("K", val);
+		}
+		case PARAM_TYPE_INT8: {
+			int8_t val = (offset != -1) ? param_get_int8_array(param, offset) : param_get_int8(param);
+			if (PyErr_Occurred()) {  // Error may occur during Parameter_getter()
+				return NULL;
+			}
+			return Py_BuildValue("b", val);	
+		}
+		case PARAM_TYPE_INT16: {
+			int16_t val = (offset != -1) ? param_get_int16_array(param, offset) :  param_get_int16(param);
+			if (PyErr_Occurred()) {  // Error may occur during Parameter_getter()
+				return NULL;
+			}
+			return Py_BuildValue("h", val);	
+		}
+		case PARAM_TYPE_INT32: {
+			int32_t val = (offset != -1) ? param_get_int32_array(param, offset) :  param_get_int32(param);
+			if (PyErr_Occurred()) {  // Error may occur during Parameter_getter()
+				return NULL;
+			}
+			return Py_BuildValue("i", val);	
+		}
+		case PARAM_TYPE_INT64: {
+			int64_t val = (offset != -1) ? param_get_int64_array(param, offset) :  param_get_int64(param);
+			if (PyErr_Occurred()) {  // Error may occur during Parameter_getter()
+				return NULL;
+			}
+			return Py_BuildValue("k", val);	
+		}
+		case PARAM_TYPE_FLOAT: {
+			float val = (offset != -1) ? param_get_float_array(param, offset) : param_get_float(param);
+			if (PyErr_Occurred()) {  // Error may occur during Parameter_getter()
+				return NULL;
+			}
+			return Py_BuildValue("f", val);	
+		}
+		case PARAM_TYPE_DOUBLE: {
+			double val = (offset != -1) ? param_get_double_array(param, offset) : param_get_double(param);
+			if (PyErr_Occurred()) {  // Error may occur during Parameter_getter()
+				return NULL;
+			}
+			return Py_BuildValue("d", val);	
+		}
 		case PARAM_TYPE_STRING: {
 			char buf[param->array_size];
 			param_get_string(param, &buf, param->array_size);
