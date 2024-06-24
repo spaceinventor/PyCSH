@@ -166,7 +166,7 @@ static int py_apm_load_cmd(struct slash *slash) {
 			int fullpath_len = strnlen(path, WALKDIR_MAX_PATH_SIZE) + strnlen(entry->d_name, WALKDIR_MAX_PATH_SIZE);
 			char fullpath[fullpath_len+1];
 			strncpy(fullpath, path, fullpath_len);
-			strncat(fullpath, entry->d_name, fullpath_len-strnlen(path, WALKDIR_MAX_PATH_SIZE)-1);
+			strncat(fullpath, entry->d_name, fullpath_len-strnlen(path, WALKDIR_MAX_PATH_SIZE));
 			PyObject * pymod AUTO_DECREF = pycsh_load_pymod(fullpath, DEFAULT_INIT_FUNCTION, 1);
 			if (pymod == NULL) {
 				PyErr_Print();
