@@ -52,3 +52,8 @@ except (ImportError, ModuleNotFoundError, OSError):
 # Import everything from the pycsh namespace,
 # because ideally this __init__.py would just be the .so file.
 from pycsh import *
+
+try:
+    from .pycsh import *
+except ImportError:
+    pass
