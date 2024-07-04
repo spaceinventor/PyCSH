@@ -3,6 +3,7 @@
 
 import sys as _sys
 from types import ModuleType as _ModuleType
+from posixpath import expanduser as _expanduser
 
 
 def _import_pycsh(package_dir: str = None) -> _ModuleType:
@@ -22,7 +23,7 @@ def _import_pycsh(package_dir: str = None) -> _ModuleType:
     # Get the directory of the current __init__.py file
     if package_dir is None:
         package_dir = os.path.dirname(__file__)
-        package_dir = '/home/kevin/.local/lib/python3.10/site-packages/pycsh/'
+        package_dir = f"{_expanduser('~')}/.local/lib/python3.10/site-packages/pycsh/"
 
     # Construct the full path to the shared object file
     so_filepath = os.path.join(package_dir, so_filename)
