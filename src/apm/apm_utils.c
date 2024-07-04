@@ -83,11 +83,11 @@ static PyObject * pycsh_integrate_pymod(const char * const _filepath) {
  * 	so it can be required by "py run" but optional by "apm load".
  * 
  * @param _filepath Specific Python APM to load/import.
- * @param init_function Optional init function to call after importing. Set to NULL to skip.
+ * @param init_function_name Optional init function to call after importing. Set to NULL to skip.
  * @param verbose Whether to printf() 
  * @return PyObject* new reference to the imported module
  */
-PyObject * pycsh_load_pymod(const char * const _filepath, const char * const init_function, int verbose) {
+PyObject * pycsh_load_pymod(const char * const _filepath, const char * const init_function_name, int verbose) {
 
 	if (_filepath == NULL) {
 		return NULL;
@@ -154,12 +154,12 @@ PyObject * pycsh_load_pymod(const char * const _filepath, const char * const ini
 		}
 
 		if (pModule == NULL) {
-			PyErr_Print();
+			//PyErr_Print();
 			//fprintf(stderr, "Failed to load module: %s\n", filename);
 			return NULL;
 		}
 
-		if (init_function == NULL) {
+		if (init_function_name == NULL) {
 			if (verbose) {
 				printf("Skipping init function for module '%s'", filename);
 			}
@@ -168,10 +168,16 @@ PyObject * pycsh_load_pymod(const char * const _filepath, const char * const ini
 
 		// TODO Kevin: Consider the consequences of throwing away the module when failing to call init function.
 
-		PyObject *pFunc AUTO_DECREF = PyObject_GetAttrString(pModule, init_function);
-		if (!pFunc || !PyCallable_Check(pFunc)) {
+		PyObject *init_function AUTO_DECREF = PyObject_GetAttrString(pModule, init_function_name);
+		if (init_function == NULL) {
 			PyErr_Clear();
-			//fprintf(stderr, "Cannot find function \"%s()\" in %s\n", init_function, filename); // This print is a good idea for debugging, but since the apm_init(main) is not required this print can be a bit confusing.
+			printf("Skipping missing init function '%s()' in module '%s'", init_function_name, filename);
+			//fprintf(stderr, "Cannot find function \"%s()\" in %s\n", init_function_name, filename); // This print is a good idea for debugging, but since the apm_init(main) is not required this print can be a bit confusing.
+			return Py_NewRef(pModule);
+		}
+
+		if (!PyCallable_Check(init_function)) {
+			PyErr_Format(PyExc_TypeError, "init function '%s()' for module '%s' is not callable");
 			return NULL;
 		}
 
@@ -185,18 +191,18 @@ PyObject * pycsh_load_pymod(const char * const _filepath, const char * const ini
 		}
 
 		if (verbose)
-			printf("Calling '%s.%s()'\n", filename, init_function);
+			printf("Calling '%s.%s()'\n", filename, init_function_name);
 
-		PyObject *pValue AUTO_DECREF = PyObject_CallObject(pFunc, pArgs);
+		PyObject *pValue AUTO_DECREF = PyObject_CallObject(init_function, pArgs);
 
 		if (pValue == NULL) {
 			PyErr_Print();
-			fprintf(stderr, "Call failed for: %s.%s\n", filename, init_function);
+			fprintf(stderr, "Call failed for: %s.%s\n", filename, init_function_name);
 			return NULL;
 		}
 
 		if (verbose)
-			printf("Script executed successfully: %s.%s()\n", filename, init_function);
+			printf("Script executed successfully: %s.%s()\n", filename, init_function_name);
 
 		return Py_NewRef(pModule);
 	}
