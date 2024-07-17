@@ -112,7 +112,7 @@ static PyObject * ParameterList_push(ParameterListObject *self, PyObject *args, 
 	if (!PyArg_ParseTupleAndKeywords(args, kwds, "I|IIi", kwlist, &node, &timeout, &hwid, &paramver))
 		return NULL;  // TypeError is thrown
 
-	void * queuebuffer = malloc(PARAM_SERVER_MTU);
+	void * queuebuffer CLEANUP_FREE = malloc(PARAM_SERVER_MTU);
 	param_queue_t queue = { };
 	param_queue_init(&queue, queuebuffer, PARAM_SERVER_MTU, 0, PARAM_QUEUE_TYPE_SET, paramver);
 
@@ -126,26 +126,26 @@ static PyObject * ParameterList_push(ParameterListObject *self, PyObject *args, 
 		PyObject *item = PySequence_Fast_GET_ITEM(self, i);
 
 		if(!item) {
-            Py_DECREF(args);
-			free(queuebuffer);
 			PyErr_SetString(PyExc_RuntimeError, "Iterator went outside the bounds of the list.");
             return NULL;
         }
 
-		if (PyObject_TypeCheck(item, &ParameterType)) {  // Sanity check
-			// TODO Kevin: Naively adding the buffer may not work.
-			param_queue_add(&queue, ((ParameterObject *)item)->param, -1, ((ParameterObject *)item)->param->addr);
-		} else
+		if (!PyObject_TypeCheck(item, &ParameterType)) {  // Sanity check
 			fprintf(stderr, "Skipping non-parameter object (of type: %s) in Parameter list.", item->ob_type->tp_name);
+			continue;
+		}
+
+		if (param_queue_add(&queue, ((ParameterObject *)item)->param, -1, ((ParameterObject *)item)->param->addr) < 0) {
+			PyErr_SetString(PyExc_MemoryError, "Queue full");
+			return NULL;
+		}
 	}
 
 	if (param_push_queue(&queue, 1, node, timeout, hwid, false) < 0) {
 		PyErr_SetString(PyExc_ConnectionError, "No response.");
-		free(queuebuffer);
 		return NULL;
 	}
 
-	free(queuebuffer);
 	Py_RETURN_NONE;
 }
 
