@@ -54,16 +54,16 @@ static PyObject * ParameterList_pull(ParameterListObject *self, PyObject *args, 
 	
 	CSP_INIT_CHECK()
 
-	unsigned int host = 0;
+	unsigned int node = pycsh_dfl_node;
 	unsigned int timeout = pycsh_dfl_timeout;
 	int paramver = 2;
 
-	static char *kwlist[] = {"host", "timeout", "paramver", NULL};
+	static char *kwlist[] = {"node", "timeout", "paramver", NULL};
 
-	if (!PyArg_ParseTupleAndKeywords(args, kwds, "I|Ii", kwlist, &host, &timeout, &paramver))
+	if (!PyArg_ParseTupleAndKeywords(args, kwds, "|IIi", kwlist, &node, &timeout, &paramver))
 		return NULL;  // TypeError is thrown
 
-	void * queuebuffer = malloc(PARAM_SERVER_MTU);
+	void * queuebuffer CLEANUP_FREE = malloc(PARAM_SERVER_MTU);
 	param_queue_t queue = { };
 	param_queue_init(&queue, queuebuffer, PARAM_SERVER_MTU, 0, PARAM_QUEUE_TYPE_GET, paramver);
 
@@ -74,26 +74,27 @@ static PyObject * ParameterList_pull(ParameterListObject *self, PyObject *args, 
 		PyObject *item = PySequence_Fast_GET_ITEM(self, i);
 
 		if(!item) {
-            Py_DECREF(args);
-			free(queuebuffer);
 			PyErr_SetString(PyExc_RuntimeError, "Iterator went outside the bounds of the list.");
             return NULL;
         }
 
-		if (PyObject_TypeCheck(item, &ParameterType))  // Sanity check
-			param_queue_add(&queue, ((ParameterObject *)item)->param, -1, NULL);
-		else
+		if (!PyObject_TypeCheck(item, &ParameterType)) {  // Sanity check
 			fprintf(stderr, "Skipping non-parameter object (of type: %s) in Parameter list.", item->ob_type->tp_name);
+			continue;
+		}
+
+		if (param_queue_add(&queue, ((ParameterObject *)item)->param, -1, NULL) < 0) {
+			PyErr_SetString(PyExc_MemoryError, "Queue full");
+			return NULL;
+		}
 
 	}
 
-	if (param_pull_queue(&queue, CSP_PRIO_NORM, 0, host, timeout)) {
+	if (param_pull_queue(&queue, CSP_PRIO_NORM, 0, node, timeout)) {
 		PyErr_SetString(PyExc_ConnectionError, "No response.");
-		free(queuebuffer);
 		return 0;
 	}
 
-	free(queuebuffer);
 	Py_RETURN_NONE;
 }
 
@@ -102,14 +103,14 @@ static PyObject * ParameterList_push(ParameterListObject *self, PyObject *args, 
 
 	CSP_INIT_CHECK()
 	
-	unsigned int node = 0;
+	unsigned int node = pycsh_dfl_node;
 	unsigned int timeout = pycsh_dfl_timeout;
 	uint32_t hwid = 0;
 	int paramver = 2;
 
 	static char *kwlist[] = {"node", "timeout", "hwid", "paramver", NULL};
 
-	if (!PyArg_ParseTupleAndKeywords(args, kwds, "I|IIi", kwlist, &node, &timeout, &hwid, &paramver))
+	if (!PyArg_ParseTupleAndKeywords(args, kwds, "|IIIi", kwlist, &node, &timeout, &hwid, &paramver))
 		return NULL;  // TypeError is thrown
 
 	void * queuebuffer CLEANUP_FREE = malloc(PARAM_SERVER_MTU);
