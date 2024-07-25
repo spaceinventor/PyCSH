@@ -345,14 +345,14 @@ class ParameterList(_pylist[Parameter | ParameterArray], _Iterable):
         :raises TypeError: When attempting to append a non-Parameter object.
         """
 
-    def pull(self, host: int, timeout: int = None) -> None:
+    def pull(self, node: int = None, timeout: int = None, paramver: int = 2) -> None:
         """
         Pulls all Parameters in the list as a single request.
 
         :raises ConnectionError: When no response is received.
         """
 
-    def push(self, node: int, timeout: int = None, hwid: int = None, paramver: int = 2) -> None:
+    def push(self, node: int = None, timeout: int = None, hwid: int = None, paramver: int = 2) -> None:
         """
         Pushes all Parameters in the list in a single packet.
 
