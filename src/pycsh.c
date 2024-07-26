@@ -60,6 +60,8 @@
 #include "parameter/pythongetsetarrayparameter.h"
 #include "parameter/parameterlist.h"
 
+#include "csp_classes/ident.h"
+
 #include "slash_command/slash_command.h"
 #include "slash_command/python_slash_command.h"
 
@@ -347,6 +349,10 @@ PyMODINIT_FUNC PyInit_pycsh(void) {
 		return NULL;
 
 
+	if (PyType_Ready(&IdentType) < 0)
+        return NULL;
+
+
 #ifdef PYCSH_HAVE_SLASH
 	if (PyType_Ready(&SlashCommandType) < 0)
         return NULL;
@@ -431,6 +437,14 @@ PyMODINIT_FUNC PyInit_pycsh(void) {
 		Py_DECREF(&ParameterListType);
 		Py_DECREF(m);
 		return NULL;
+	}
+
+
+	Py_INCREF(&IdentType);
+	if (PyModule_AddObject(m, "Ident", (PyObject *) &IdentType) < 0) {
+		Py_DECREF(&IdentType);
+        Py_DECREF(m);
+        return NULL;
 	}
 
 
