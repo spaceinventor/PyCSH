@@ -68,6 +68,14 @@ static void Ident_dealloc(IdentObject *self) {
 	Py_TYPE(self)->tp_free((PyObject *) self);
 }
 
+static void csp_conn_cleanup(csp_conn_t ** conn) {
+	csp_close(*conn);
+}
+
+static void csp_buffer_cleanup(csp_packet_t ** packet) {
+	csp_buffer_free(*packet);
+}
+
 __attribute__((malloc, malloc(Ident_dealloc, 1)))
 static PyObject * Ident_new(PyTypeObject *type, PyObject *args, PyObject *kwds) {
 
@@ -84,27 +92,33 @@ static PyObject * Ident_new(PyTypeObject *type, PyObject *args, PyObject *kwds) 
 	struct csp_cmp_message msg;
     msg.type = CSP_CMP_REQUEST;
     msg.code = CSP_CMP_IDENT;
-    int size = sizeof(msg.type) + sizeof(msg.code) + sizeof(msg.ident);
+    const int size = sizeof(msg.type) + sizeof(msg.code) + sizeof(msg.ident);
 
-    csp_conn_t * conn;
+    csp_conn_t * conn __attribute__((cleanup(csp_conn_cleanup))) = NULL;
     csp_packet_t * packet;
+
     Py_BEGIN_ALLOW_THREADS;
-    conn = csp_connect(CSP_PRIO_NORM, node, CSP_CMP, timeout, CSP_O_CRC32);
+    	conn = csp_connect(CSP_PRIO_NORM, node, CSP_CMP, timeout, CSP_O_CRC32);
+    Py_END_ALLOW_THREADS;
+
     if (conn == NULL) {
+        PyErr_SetString(PyExc_ConnectionError, "Failed to connect to node");
         return NULL;
     }
 
     packet = csp_buffer_get(size);
     if (packet == NULL) {
-        csp_close(conn);
+		PyErr_SetString(PyExc_MemoryError, "Failed to allocate CSP buffer");
         return NULL;
     }
 
-    /* Copy the request */
-    memcpy(packet->data, &msg, size);
-    packet->length = size;
+	Py_BEGIN_ALLOW_THREADS;
 
-    csp_send(conn, packet);
+		/* Copy the request */
+		memcpy(packet->data, &msg, size);
+		packet->length = size;
+
+		csp_send(conn, packet);
     Py_END_ALLOW_THREADS;
 
     PyObject * reply_tuple = PyTuple_New(0);
@@ -113,14 +127,10 @@ static PyObject * Ident_new(PyTypeObject *type, PyObject *args, PyObject *kwds) 
 		return NULL;  // Let's just assume that Python has set some a MemoryError exception here
 	}
 
-	// static void csp_buffer_cleanup(csp_packet_t ** packet) {
-	// 	csp_buffer_free(*packet);
-	// }
-
     while((packet = csp_read(conn, timeout)) != NULL) {
 
-		// Using attribute, so we don't forget to free
-		// csp_packet_t *__packet __attribute__((cleanup(csp_buffer_cleanup))) = packet;
+		/* Using __attribute__, so we don't forget to free */
+		csp_packet_t *__packet __attribute__((cleanup(csp_buffer_cleanup))) = packet;
 
         memcpy(&msg, packet->data, packet->length < size ? packet->length : size);
 		if (msg.code != CSP_CMP_IDENT) {
@@ -149,12 +159,50 @@ static PyObject * Ident_new(PyTypeObject *type, PyObject *args, PyObject *kwds) 
 		self->date = PyUnicode_FromStringAndSize(msg.ident.date, CSP_CMP_IDENT_DATE_LEN);
 		self->time = PyUnicode_FromStringAndSize(msg.ident.time, CSP_CMP_IDENT_TIME_LEN);
 
-		// TODO Kevin: Set self->datetime
-
 		if (!(self->hostname && self->model && self->revision && self->date && self->time)) {
 			PyErr_SetString(PyExc_MemoryError, "Failed to allocate memory for ident strings");
 			// TODO Kevin: Maybe we can return the objects we managed to create?
 			return NULL;
+		}
+
+		{  /* Build and assign self->datetime */
+			PyObject *datetime_module AUTO_DECREF = PyImport_ImportModule("datetime");
+			if (!datetime_module) {
+				return NULL;
+			}
+
+			PyObject *datetime_class AUTO_DECREF = PyObject_GetAttrString(datetime_module, "datetime");
+			if (!datetime_class) {
+				return NULL;
+			}
+
+			PyObject *datetime_strptime AUTO_DECREF = PyObject_GetAttrString(datetime_class, "strptime");
+			if (!datetime_strptime) {
+				return NULL;
+			}
+
+			//PyObject *datetime_str AUTO_DECREF = PyUnicode_FromFormat("%U %U", self->date, self->time);
+			PyObject *datetime_str AUTO_DECREF = PyUnicode_FromFormat("%s %s", msg.ident.date, msg.ident.time);
+			if (!datetime_str) {
+				return NULL;
+			}
+
+			PyObject *format_str AUTO_DECREF = PyUnicode_FromString("%b %d %Y %H:%M:%S");
+			if (!format_str) {
+				return NULL;
+			}
+
+			PyObject *datetime_args AUTO_DECREF = PyTuple_Pack(2, datetime_str, format_str);
+			if (!datetime_args) {
+				return NULL;
+			}
+
+			PyObject *datetime_obj AUTO_DECREF = PyObject_CallObject(datetime_strptime, datetime_args);
+			if (!datetime_obj) {
+				return NULL;
+			}
+
+			self->datetime = datetime_obj;  // Steal the reference from PyObject_CallObject()
 		}
 
 		PyTuple_SET_ITEM(reply_tuple, reply_index, (PyObject*)self);
@@ -162,12 +210,8 @@ static PyObject * Ident_new(PyTypeObject *type, PyObject *args, PyObject *kwds) 
 		known_hosts_add(packet->id.src, msg.ident.hostname, override);
     }
 
-    csp_close(conn);
-
     return reply_tuple;
 }
-
-
 
 
 static long Ident_hash(IdentObject *self) {
