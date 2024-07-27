@@ -52,7 +52,15 @@ static PyObject * Ident_richcompare(PyObject *self, PyObject *other, int op) {
 }
 
 static PyObject * Ident_str(IdentObject *self) {
-	return PyUnicode_FromFormat("\nIDENT %hu\n  %s\n  %s\n  %s\n  %s %s\n", self->id.src, PyUnicode_AsUTF8(self->hostname), PyUnicode_AsUTF8(self->model), PyUnicode_AsUTF8(self->revision), PyUnicode_AsUTF8(self->date), PyUnicode_AsUTF8(self->time));
+	return PyUnicode_FromFormat(
+        "\nIDENT %d\n  %U\n  %U\n  %U\n  %U %U\n",
+        self->id.src,
+        self->hostname,
+        self->model,
+        self->revision,
+        self->date,
+        self->time
+    );
 }
 
 static void Ident_dealloc(IdentObject *self) {
