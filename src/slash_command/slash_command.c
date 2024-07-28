@@ -18,7 +18,7 @@
 #include "../utils.h"
 
 
-/* 1 for success. Compares the wrapped param_t for parameters, otherwise 0. Assumes self to be a SlashCommandObject. */
+/* 1 for success. Compares the wrapped slash_command (struct) between two SlashCommands, otherwise 0. Assumes self to be a SlashCommandObject. */
 static int SlashCommand_equal(PyObject *self, PyObject *other) {
 	if (PyObject_TypeCheck(other, &SlashCommandType))
 		return ((SlashCommandObject *)self)->command == ((SlashCommandObject *)other)->command;

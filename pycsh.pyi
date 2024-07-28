@@ -15,6 +15,7 @@ from typing import \
     Iterable as _Iterable, \
     Literal as _Literal, \
     Callable as _Callable
+from datetime import datetime as _datetime
 
 _param_value_hint = int | float | str
 _param_type_hint = _param_value_hint | bytearray
@@ -429,6 +430,47 @@ class PythonSlashCommand(SlashCommand):
         """
 
 
+class Ident:
+    """
+    Convenient wrapper class for 'ident' replies. Allows for easy iteration of multiple responses:
+
+    for reply in Ident(16383):
+        print(f"{reply.hostname}@{reply.node}")
+    """
+
+    node: int
+    "Node of the 'module' that replied, which may differ from the targeted node in case of broadcast"
+    hostname: str
+    model: str
+    revision: str
+    "Revision of the 'module' that replied, which typically indicates software version"
+
+    # CSP doesn't seem to require these dates to be compilation dates,
+    # but they always seem to be so in practice.
+    date: str
+    "Typically compilation date, i.e: 'Jun 18 2024'"
+    time: str
+    "Typically compilation time, i.e: '14:06:09'"
+    datetime: _datetime
+    "Datetime object constructed from: Ident.date + Ident.time"
+
+    def __new__(cls, node: int = None, timeout: int = None, override: bool = False) -> tuple[Ident]:
+        """
+        Provide a node to 'ident' and receive an iterable of all replies.
+
+        :param node: Address of which to request identity, defaults to environment node.
+        :param timeout: Timeout in ms to wait for reply.
+        :param override: Whether to override the "known hosts" hostname of the responding module.
+
+        :raises RuntimeError: When called before .init().
+
+        :returns: A list of Ident instances based on replies to the specified node (which may be a broadcast)
+        """
+
+    def __str__(self) -> str:
+        """ Will return a string formatted as slash will print an ident reply """
+
+
 _param_ident_hint = int | str | Parameter  # Types accepted for finding a param_t
 
 
@@ -596,11 +638,11 @@ def ident(node: int = None, timeout: int = None, override: bool = False) -> str:
     """
     Print the identity of the specified node.
 
-    :param node: Address of subsystem.
+    :param node: Address of which to request identity, defaults to environment node.
     :param timeout: Timeout in ms to wait for reply.
+    :param override: Whether to override the "known hosts" hostname of the responding module.
 
     :raises RuntimeError: When called before .init().
-    :raises ConnectionError: When no response is received.
     """
 
 def reboot(node: int = None) -> None:
