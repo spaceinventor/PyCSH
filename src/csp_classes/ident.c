@@ -205,7 +205,7 @@ static PyObject * Ident_new(PyTypeObject *type, PyObject *args, PyObject *kwds) 
 				return NULL;
 			}
 
-			PyObject *datetime_obj AUTO_DECREF = PyObject_CallObject(datetime_strptime, datetime_args);
+			PyObject *datetime_obj = PyObject_CallObject(datetime_strptime, datetime_args);
 			if (!datetime_obj) {
 				return NULL;
 			}
@@ -227,32 +227,60 @@ static long Ident_hash(IdentObject *self) {
 }
 
 #if 0
-static PyObject * Ident_get_name(IdentObject *self, void *closure) {
-	return Py_BuildValue("s", self->command->name);
+static PyObject * Ident_get_node(IdentObject *self, void *closure) {
+	return Py_BuildValue("i", self->id.src);
+}
+
+static PyObject * Ident_get_hostname(IdentObject *self, void *closure) {
+	return Py_NewRef(self->hostname);
+}
+
+static PyObject * Ident_get_model(IdentObject *self, void *closure) {
+	return Py_NewRef(self->model);
+}
+
+static PyObject * Ident_get_revision(IdentObject *self, void *closure) {
+	return Py_NewRef(self->revision);
+}
+
+static PyObject * Ident_get_date(IdentObject *self, void *closure) {
+	return Py_NewRef(self->date);
+}
+
+static PyObject * Ident_get_time(IdentObject *self, void *closure) {
+	return Py_NewRef(self->time);
+}
+
+static PyObject * Ident_get_datetime(IdentObject *self, void *closure) {
+	return Py_NewRef(self->datetime);
 }
 
 static PyGetSetDef Ident_getsetters[] = {
 
-	{"name", (getter)Ident_get_name, NULL,
-     "Returns the name of the wrapped slash_command.", NULL},
-    {"args", (getter)Idents_get_args, NULL,
-     "The args string of the slash_command.", NULL},
+	{"node", (getter)Ident_get_node, NULL, "Returns the node of Ident reply", NULL},
+	{"hostname", (getter)Ident_get_hostname, NULL, "Returns the hostname of Ident reply", NULL},
+	{"model", (getter)Ident_get_model, NULL, "Returns the model of Ident reply", NULL},
+	{"revision", (getter)Ident_get_revision, NULL, "Returns the revision of Ident reply", NULL},
+	{"date", (getter)Ident_get_date, NULL, "Returns the date of Ident reply", NULL},
+	{"time", (getter)Ident_get_time, NULL, "Returns the time of Ident reply", NULL},
+	{"datetime", (getter)Ident_get_datetime, NULL, "Returns the datetime of Ident reply", NULL},
+	 
     {NULL, NULL, NULL, NULL}  /* Sentinel */
 };
-#endif
-
+#else
 static PyMemberDef Ident_members[] = {
 	/* Using T_OBJECT in case we decide to detect empty strings in the ident reply in the future.
 		We will then set the IdentObject fields to NULL/Py_None, so None can be returned to Python. */
-    {"node", T_OBJECT, offsetof(IdentObject, id.src), READONLY},
-    {"hostname", T_OBJECT, offsetof(IdentObject, id.src), READONLY},
-    {"model", T_OBJECT, offsetof(IdentObject, id.src), READONLY},
-    {"revision", T_OBJECT, offsetof(IdentObject, id.src), READONLY},
-    {"date", T_OBJECT, offsetof(IdentObject, id.src), READONLY},
-    {"time", T_OBJECT, offsetof(IdentObject, id.src), READONLY},
-    {"datetime", T_OBJECT, offsetof(IdentObject, id.src), READONLY},
+    {"node", T_USHORT, offsetof(IdentObject, id.src), READONLY, "Node of Ident reply"},
+    {"hostname", T_OBJECT, offsetof(IdentObject, hostname), READONLY, "Hostname of Ident reply"},
+    {"model", T_OBJECT, offsetof(IdentObject, model), READONLY, "Model of Ident reply"},
+    {"revision", T_OBJECT, offsetof(IdentObject, revision), READONLY, "Revision of Ident reply"},
+    {"date", T_OBJECT, offsetof(IdentObject, date), READONLY, "Date of Ident reply"},
+    {"time", T_OBJECT, offsetof(IdentObject, time), READONLY, "Time of Ident reply"},
+    {"datetime", T_OBJECT, offsetof(IdentObject, datetime), READONLY, "Datetime of Ident reply"},
     {NULL}  /* Sentinel */
 };
+#endif
 
 PyTypeObject IdentType = {
     PyVarObject_HEAD_INIT(NULL, 0)

@@ -452,7 +452,7 @@ class Ident:
     time: str
     "Typically compilation time, i.e: '14:06:09'"
     datetime: _datetime
-    "Datetime object parsed from: Ident.date + Ident.time"
+    "Datetime object constructed from: Ident.date + Ident.time"
 
     def __new__(cls, node: int = None, timeout: int = None, override: bool = False) -> tuple[Ident]:
         """
