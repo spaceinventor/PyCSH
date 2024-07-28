@@ -145,7 +145,7 @@ static PyObject * Ident_new(PyTypeObject *type, PyObject *args, PyObject *kwds) 
 			continue;
 		}
 
-		Py_ssize_t reply_index = PyTuple_GET_SIZE(reply_tuple);
+		const Py_ssize_t reply_index = PyTuple_GET_SIZE(reply_tuple);
 		/* Resize tuple to fit reply, this could probably be done more efficiently. */
 		if (_PyTuple_Resize(&reply_tuple, reply_index+1) < 0) {
 			// Handle tuple resizing failure
@@ -205,6 +205,7 @@ static PyObject * Ident_new(PyTypeObject *type, PyObject *args, PyObject *kwds) 
 				return NULL;
 			}
 
+			// No AUTO_DECREF because self->datetime needs the reference.
 			PyObject *datetime_obj = PyObject_CallObject(datetime_strptime, datetime_args);
 			if (!datetime_obj) {
 				return NULL;

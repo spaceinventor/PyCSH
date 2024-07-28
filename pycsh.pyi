@@ -470,6 +470,9 @@ class Ident:
     def __str__(self) -> str:
         """ Will return a string formatted as slash will print an ident reply """
 
+    def __hash__(self) -> int:
+        """ Uses all Ident fields to generate a hash """
+
 
 _param_ident_hint = int | str | Parameter  # Types accepted for finding a param_t
 
