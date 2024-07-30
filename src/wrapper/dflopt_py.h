@@ -10,8 +10,8 @@
 #define PY_SSIZE_T_CLEAN
 #include <Python.h>
 
-PyObject * pycsh_slash_node(PyObject * self, PyObject * args);
+PyObject * pycsh_slash_node(PyObject * self, PyObject * args, PyObject * kwds);
 
-PyObject * pycsh_slash_timeout(PyObject * self, PyObject * args);
+PyObject * pycsh_slash_timeout(PyObject * self, PyObject * args, PyObject * kwds);
 
 PyObject * pycsh_slash_verbose(PyObject * self, PyObject * args);

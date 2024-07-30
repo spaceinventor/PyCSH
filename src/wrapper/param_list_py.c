@@ -47,20 +47,21 @@ PyObject * pycsh_param_list_download(PyObject * self, PyObject * args, PyObject 
 
     CSP_INIT_CHECK()
 
-    unsigned int node = pycsh_dfl_node;
-    unsigned int timeout = pycsh_dfl_timeout;
-    unsigned int version = 2;
+    int node = pycsh_dfl_node;
+    uint32_t timeout = pycsh_dfl_timeout;
+    int version = 2;
     int include_remotes = 0;
+    int verbose = pycsh_dfl_verbose;
 
-    static char *kwlist[] = {"node", "timeout", "version", "remotes", NULL};
+    static char *kwlist[] = {"node", "timeout", "version", "remote", "verbose", NULL};
 
-    if (!PyArg_ParseTupleAndKeywords(args, kwds, "|IIII", kwlist, &node, &timeout, &version, &include_remotes))
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "|iIiii", kwlist, &node, &timeout, &version, &include_remotes, &verbose))
         return NULL;  // TypeError is thrown
 
     {  /* Allow threads during list_download() */
         int list_download_res;
         Py_BEGIN_ALLOW_THREADS;
-        list_download_res = param_list_download(node, timeout, version, include_remotes);
+        list_download_res = param_list_download(node, timeout, version, include_remotes, verbose);
         Py_END_ALLOW_THREADS;
         // TODO Kevin: Downloading parameters with an incorrect version, can lead to a segmentation fault.
         //	Had it been easier to detect when an incorrect version is used, we would've raised an exception instead.
@@ -144,16 +145,19 @@ PyObject * pycsh_param_list_add(PyObject * self, PyObject * args, PyObject * kwd
 PyObject * pycsh_param_list_forget(PyObject * self, PyObject * args, PyObject * kwds) {
 
     int node = pycsh_dfl_node;
-    int verbose = 1;
+    int verbose = pycsh_dfl_verbose;
 
     static char *kwlist[] = {"node", "verbose", NULL};
 
     if (!PyArg_ParseTupleAndKeywords(args, kwds, "|ii", kwlist, &node, &verbose))
         return NULL;  // TypeError is thrown
 
-    int res = param_list_remove(node, verbose);
-    printf("Removed %i parameters\n", res);
-    return Py_BuildValue("i", res);;
+    int count_removed = param_list_remove(node, verbose);
+
+    if (verbose >= 1) {
+        printf("Removed %i parameters\n", count_removed);
+    }
+    return Py_BuildValue("i", count_removed);;
 }
 
 PyObject * pycsh_param_list_save(PyObject * self, PyObject * args, PyObject * kwds) {

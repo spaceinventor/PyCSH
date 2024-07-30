@@ -527,7 +527,7 @@ def push(node: int, timeout: int = None, hwid: int = None, retries: int = None) 
     :raises ConnectionError: when no response is received.
     """
 
-def pull(node: int = None, timeout: int = None, include_mask: str | int = None, exclude_mask: str | int = None, paramver: int = None) -> None:
+def pull(node: int = None, timeout: int = None, include_mask: str | int = None, exclude_mask: str | int = None, paramver: int = None, verbose: int = None) -> None:
     """ Pull all or a specific mask of parameters. """
 
 def slash_execute(command: str) -> int:
@@ -547,7 +547,7 @@ def cmd_new(type: _Literal['get', 'set'], name: str = None, paramver: int = 2) -
 def cmd_done() -> None:
     """ Clears the queue. """
 
-def node(node: int | str = None) -> int:
+def node(node: int | str = None, verbose: int = None) -> int:
     """
     Used to get or change the default node.
 
@@ -555,7 +555,7 @@ def node(node: int | str = None) -> int:
     :return: The current default node.
     """
 
-def timeout(timeout: int = None) -> int:
+def timeout(timeout: int = None, verbose: int = None) -> int:
     """
     Used to get or change the default timeout.
 
@@ -563,7 +563,7 @@ def timeout(timeout: int = None) -> int:
     :return: The current default timeout.
     """
 
-def verbose(verbose: int = None) -> int:
+def verbose(verbose: int = None, /) -> int:
     """
     Used to get or change the default parameter verbosity.
 
@@ -581,9 +581,15 @@ def list(node: int = None, verbose: int = None, mask: str | int = None, globstr:
     :param mask: Mask on which to filter the list.
     """
 
-def list_download(node: int = None, timeout: int = None, version: int = None) -> ParameterList:
+def list_download(node: int = None, timeout: int = None, version: int = None, remote: int = None, verbose: int = None) -> ParameterList:
     """
     Download all parameters on the specified node.
+
+    :param node: Node to download parameters.
+    :param timeout: Timeout in milliseconds.
+    :param version: Parameter version (3 includes docstrings)
+    :param remote: Also download parameters that are remote on the specified node.
+    :param verbose: 0=quiet, 1=parameter count, 2=every parameter (name/ID). (default = 2)
 
     :raises RuntimeError: When called before .init().
     :raises ConnectionError: When no response is received.
@@ -596,7 +602,9 @@ def list_forget(node: int = None, verbose: int = None) -> int:
     Remove remote parameters, matching the provided arguments, from the global list.
 
     :param node: Remove parameters from this node. Use <1 for all nodes.
-    :param name_filter: Wildcard name pattern to filter parameters by.
+    #:param name_filter: Wildcard name pattern to filter parameters by.
+    :param verbose: 0=quiet, 1=parameter count, 2=every parameter (name/ID). (default = 2)
+
     :returns: Count of parameters affected.
     """
 
