@@ -130,10 +130,11 @@ PyObject * pycsh_param_pull(PyObject * self, PyObject * args, PyObject * kwds) {
 	PyObject * include_mask_obj = NULL;
 	PyObject * exclude_mask_obj = NULL;
 	int paramver = 2;
+	int verbose = pycsh_dfl_verbose;
 
-	static char *kwlist[] = {"node", "timeout", "include_mask", "exclude_mask", "paramver", NULL};
+	static char *kwlist[] = {"node", "timeout", "include_mask", "exclude_mask", "paramver", "verbose", NULL};
 
-	if (!PyArg_ParseTupleAndKeywords(args, kwds, "|IIOOi", kwlist, &node, &timeout, &include_mask_obj, &exclude_mask_obj, &paramver)) {
+	if (!PyArg_ParseTupleAndKeywords(args, kwds, "|IIOOii", kwlist, &node, &timeout, &include_mask_obj, &exclude_mask_obj, &paramver, &verbose)) {
 		return NULL;
 	}
 
@@ -155,7 +156,7 @@ PyObject * pycsh_param_pull(PyObject * self, PyObject * args, PyObject * kwds) {
 	int param_pull_res;
 	Py_BEGIN_ALLOW_THREADS;
 
-	param_pull_res = param_pull_all(CSP_PRIO_NORM, 1, node, include_mask, exclude_mask, timeout, paramver);
+	param_pull_res = param_pull_all(CSP_PRIO_NORM, verbose, node, include_mask, exclude_mask, timeout, paramver);
 	Py_END_ALLOW_THREADS;
 	if (param_pull_res) {
 		PyErr_SetString(PyExc_ConnectionError, "No response.");
@@ -170,10 +171,11 @@ PyObject * pycsh_param_cmd_new(PyObject * self, PyObject * args, PyObject * kwds
 	char *type;
 	char *name;
 	int paramver = 2;
+	int verbose = pycsh_dfl_verbose;
 
-	static char *kwlist[] = {"type", "name", "paramver", NULL};
+	static char *kwlist[] = {"type", "name", "paramver", "verbose", NULL};
 
-	if (!PyArg_ParseTupleAndKeywords(args, kwds, "ss|i", kwlist, &type, &name, &paramver, &paramver)) {
+	if (!PyArg_ParseTupleAndKeywords(args, kwds, "ss|ii", kwlist, &type, &name, &paramver, &paramver, &verbose)) {
 		return NULL;
 	}
 
@@ -193,7 +195,9 @@ PyObject * pycsh_param_cmd_new(PyObject * self, PyObject * args, PyObject * kwds
 	param_queue.used = 0;
 	param_queue.version = paramver;
 
-	printf("Initialized new command: %s\n", name);
+	if (verbose) {
+		printf("Initialized new command: %s\n", name);
+	}
 
 	Py_RETURN_NONE;
 }

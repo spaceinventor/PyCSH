@@ -16,20 +16,27 @@
 
 // TODO Kevin: These differ from the newest version of slash/csh
 
-PyObject * pycsh_slash_node(PyObject * self, PyObject * args) {
+PyObject * pycsh_slash_node(PyObject * self, PyObject * args, PyObject * kwds) {
 
 	PyObject * node = NULL;
+	int verbose = pycsh_dfl_verbose;
 
-	if (!PyArg_ParseTuple(args, "|O", &node)) {
+	static char *kwlist[] = {"node", "verbose", NULL};
+
+	if (!PyArg_ParseTupleAndKeywords(args, kwds, "|Oi", kwlist, &node, &verbose)) {
 		return NULL;  // TypeError is thrown
 	}
 
 	if (node == NULL) {  // No argument passed
-		printf("Default node = %d\n", pycsh_dfl_node);
+		if (verbose) {
+			printf("Default node = %d\n", pycsh_dfl_node);
+		}
 	} else if (PyLong_Check(node)) {
 
 		pycsh_dfl_node = PyLong_AsUnsignedLong(node);
-		printf("Set default node to %d\n", pycsh_dfl_node);
+		if (verbose) {
+			printf("Set default node to %d\n", pycsh_dfl_node);
+		}
 	} else if (PyUnicode_Check(node)) {
 
 		slash_dfl_node = known_hosts_get_node(PyUnicode_AsUTF8(node));
@@ -43,19 +50,26 @@ PyObject * pycsh_slash_node(PyObject * self, PyObject * args) {
 	return Py_BuildValue("i", pycsh_dfl_node);
 }
 
-PyObject * pycsh_slash_timeout(PyObject * self, PyObject * args) {
+PyObject * pycsh_slash_timeout(PyObject * self, PyObject * args, PyObject * kwds) {
 
 	int timeout = -1;
+	int verbose = pycsh_dfl_verbose;
 
-	if (!PyArg_ParseTuple(args, "|i", &timeout)) {
+	static char *kwlist[] = {"timeout", "verbose", NULL};
+
+	if (!PyArg_ParseTupleAndKeywords(args, kwds, "|ii", kwlist, &timeout, &verbose)) {
 		return NULL;  // TypeError is thrown
 	}
 
-	if (timeout == -1)
-		printf("Default timeout = %d\n", pycsh_dfl_timeout);
-	else {
+	if (timeout == -1) {
+		if (verbose) {
+			printf("Default timeout = %d\n", pycsh_dfl_timeout);
+		}
+	} else {
 		pycsh_dfl_timeout = timeout;
-		printf("Set default timeout to %d\n", pycsh_dfl_timeout);
+		if (verbose) {
+			printf("Set default timeout to %d\n", pycsh_dfl_timeout);
+		}
 	}
 
 	return Py_BuildValue("i", pycsh_dfl_timeout);
