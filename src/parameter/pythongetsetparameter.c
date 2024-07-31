@@ -452,15 +452,7 @@ static void PythonGetSetParameter_dealloc(PythonGetSetParameterObject *self) {
         self->setter_func = NULL;
     }
 
-
-    // Get the type of 'self' in case the user has subclassed 'Parameter'.
-    // TODO Kevin: Alternatively it might be better to always iterate from pycsh.PythonParameter.
-    PyTypeObject *baseclass = Py_TYPE(self);
-
-    // Keep iterating baseclasses until we find one that doesn't use this deallocator.
-    while ((baseclass = baseclass->tp_base)->tp_dealloc == (destructor)PythonGetSetParameter_dealloc && baseclass != NULL);
-
-    assert(baseclass->tp_dealloc != NULL);  // Assert that Python installs some deallocator to classes that don't specifically implement one (Whether pycsh.Parameter or object()).
+    PyTypeObject *baseclass = pycsh_get_base_dealloc_class(&PythonGetSetParameterType);
     baseclass->tp_dealloc((PyObject*)self);
 }
 

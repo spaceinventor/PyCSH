@@ -34,6 +34,8 @@ char *safe_strdup(const char *s);
 /* Source: https://pythonextensionpatterns.readthedocs.io/en/latest/super_call.html */
 PyObject * call_super_pyname_lookup(PyObject *self, PyObject *func_name, PyObject *args, PyObject *kwargs);
 
+inline PyTypeObject * pycsh_get_base_dealloc_class(PyTypeObject *cls);
+
 int pycsh_get_num_accepted_pos_args(const PyObject *function, bool raise_exc);
 
 int pycsh_get_num_required_args(const PyObject *function, bool raise_exc);

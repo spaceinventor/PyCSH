@@ -127,6 +127,28 @@ finally:
     return result;
 }
 
+/**
+ * @brief Get the first base-class with a .tp_dealloc() different from the specified class.
+ * 
+ * If the specified class defines its own .tp_dealloc(),
+ * if should be safe to assume the returned class to be no more abstract than object(),
+ * which features its .tp_dealloc() that ust be called anyway.
+ * 
+ * This function is intended to be called in a subclassed __del__ (.tp_dealloc()),
+ * where it will mimic a call to super().
+ * 
+ * @param cls Class to find a super() .tp_dealloc() for.
+ * @return PyTypeObject* super() class.
+ */
+inline PyTypeObject * pycsh_get_base_dealloc_class(PyTypeObject *cls) {
+	
+	/* Keep iterating baseclasses until we find one that doesn't use this deallocator. */
+	PyTypeObject *baseclass = cls->tp_base;
+	for (; baseclass->tp_dealloc == cls->tp_dealloc; (baseclass = baseclass->tp_base));
+
+    assert(baseclass->tp_dealloc != NULL);  // Assert that Python installs some deallocator to classes that don't specifically implement one (Whether pycsh.Parameter or object()).
+	return baseclass;
+}
 
 int pycsh_get_num_accepted_pos_args(const PyObject *function, bool raise_exc) {
 
@@ -357,7 +379,7 @@ PyObject * _pycsh_Parameter_from_param(PyTypeObject *type, param_t * param, cons
 
 	if (param->array_size <= 1 && type == &ParameterArrayType) {
 		PyErr_SetString(PyExc_TypeError, 
-			"Attempted to create an ParameterArray instance, for a non array parameter.");
+			"Attempted to create a ParameterArray instance, for a non array parameter.");
 		return NULL;
 	} else if (param->array_size > 1) {  		   // If the parameter is an array.
 		type = get_arrayparameter_subclass(type);  // We create a ParameterArray instance instead.
@@ -373,7 +395,7 @@ PyObject * _pycsh_Parameter_from_param(PyTypeObject *type, param_t * param, cons
 	if (self == NULL)
 		return NULL;
 
-	{   /* Add ourselves from the callback/lookup dictionary */
+	{   /* Add ourselves to the callback/lookup dictionary */
 		PyObject *key AUTO_DECREF = PyLong_FromVoidPtr(param);
 		assert(key != NULL);
 		assert(!PyErr_Occurred());

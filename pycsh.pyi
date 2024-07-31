@@ -588,7 +588,7 @@ def list_download(node: int = None, timeout: int = None, version: int = None) ->
     :raises RuntimeError: When called before .init().
     :raises ConnectionError: When no response is received.
 
-    :returns: The output of list().
+    :returns: ParameterList() of the specified node, after download.
     """
 
 def list_forget(node: int = None, verbose: int = None) -> int:
@@ -596,8 +596,9 @@ def list_forget(node: int = None, verbose: int = None) -> int:
     Remove remote parameters, matching the provided arguments, from the global list.
 
     :param node: Remove parameters from this node. Use <1 for all nodes.
-    :param name_filter: Wildcard name pattern to filter parameters by.
-    :returns: Count of parameters affected.
+    #:param name_filter: Wildcard name pattern to filter parameters by.
+
+    :returns: Count of parameters removed.
     """
 
 def list_save(filename: str = None, node: int = None, include_node: bool = True) -> None:
