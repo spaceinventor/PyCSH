@@ -140,7 +140,7 @@ finally:
  * @param cls Class to find a super() .tp_dealloc() for.
  * @return PyTypeObject* super() class.
  */
-inline PyTypeObject * pycsh_get_base_dealloc_class(PyTypeObject *cls) {
+PyTypeObject * pycsh_get_base_dealloc_class(PyTypeObject *cls) {
 	
 	/* Keep iterating baseclasses until we find one that doesn't use this deallocator. */
 	PyTypeObject *baseclass = cls->tp_base;
