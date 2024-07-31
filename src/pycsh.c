@@ -469,6 +469,7 @@ PyMODINIT_FUNC PyInit_pycsh(void) {
 		/* Version Control */
 		PyModule_AddObject(m, "VERSION", PyUnicode_FromString(version_string));
 		PyModule_AddObject(m, "COMPILE_DATE", PyUnicode_FromString(__DATE__));
+		PyModule_AddObject(m, "COMPILE_DATETIME", pycsh_ident_time_to_datetime(__DATE__, __TIME__));
 
 		/* Param Type Enums */
 		PyModule_AddObject(m, "PARAM_TYPE_UINT8", PyLong_FromLong(PARAM_TYPE_UINT8));

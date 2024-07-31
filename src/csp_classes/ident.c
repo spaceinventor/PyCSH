@@ -129,7 +129,8 @@ static PyObject * Ident_new(PyTypeObject *type, PyObject *args, PyObject *kwds) 
 		csp_send(conn, packet);
     Py_END_ALLOW_THREADS;
 
-    PyObject * reply_tuple = PyTuple_New(0);
+	/* AUTO_DECREF used for exception handling, Py_NewRef() returned otherwise. */
+    PyObject * reply_tuple AUTO_DECREF = PyTuple_New(0);
 
 	if (!reply_tuple) {
 		return NULL;  // Let's just assume that Python has set some a MemoryError exception here
@@ -173,45 +174,9 @@ static PyObject * Ident_new(PyTypeObject *type, PyObject *args, PyObject *kwds) 
 			return NULL;
 		}
 
-		{  /* Build and assign self->datetime */
-			PyObject *datetime_module AUTO_DECREF = PyImport_ImportModule("datetime");
-			if (!datetime_module) {
-				return NULL;
-			}
-
-			PyObject *datetime_class AUTO_DECREF = PyObject_GetAttrString(datetime_module, "datetime");
-			if (!datetime_class) {
-				return NULL;
-			}
-
-			PyObject *datetime_strptime AUTO_DECREF = PyObject_GetAttrString(datetime_class, "strptime");
-			if (!datetime_strptime) {
-				return NULL;
-			}
-
-			//PyObject *datetime_str AUTO_DECREF = PyUnicode_FromFormat("%U %U", self->date, self->time);
-			PyObject *datetime_str AUTO_DECREF = PyUnicode_FromFormat("%s %s", msg.ident.date, msg.ident.time);
-			if (!datetime_str) {
-				return NULL;
-			}
-
-			PyObject *format_str AUTO_DECREF = PyUnicode_FromString("%b %d %Y %H:%M:%S");
-			if (!format_str) {
-				return NULL;
-			}
-
-			PyObject *datetime_args AUTO_DECREF = PyTuple_Pack(2, datetime_str, format_str);
-			if (!datetime_args) {
-				return NULL;
-			}
-
-			// No AUTO_DECREF because self->datetime needs the reference.
-			PyObject *datetime_obj = PyObject_CallObject(datetime_strptime, datetime_args);
-			if (!datetime_obj) {
-				return NULL;
-			}
-
-			self->datetime = datetime_obj;  // Steal the reference from PyObject_CallObject()
+		self->datetime = pycsh_ident_time_to_datetime(msg.ident.date, msg.ident.time);  // Steal the reference from the returned datetime()
+		if (!self->datetime) {
+			return NULL;
 		}
 
 		PyTuple_SET_ITEM(reply_tuple, reply_index, (PyObject*)self);
@@ -219,7 +184,7 @@ static PyObject * Ident_new(PyTypeObject *type, PyObject *args, PyObject *kwds) 
 		known_hosts_add(packet->id.src, msg.ident.hostname, override);
     }
 
-    return reply_tuple;
+    return Py_NewRef(reply_tuple);
 }
 
 

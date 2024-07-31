@@ -25,7 +25,8 @@ _param_type_hint = _param_value_hint | bytearray
 _pylist = type([])
 
 VERSION: str  # Git tag and commit SHA. Format example: 'V1.0-0-gceb4ed4+'
-COMPILE_DATE: str # Date of compilation. Format example: 'Jul 21 2023'
+COMPILE_DATE: str  # Date of compilation. Format example: 'Jul 21 2023'
+COMPILE_DATETIME: _datetime  # Datetime of compilation.
 
 # Parameter type translated directly from the C enum, these may receive their own Python enum in future versions.
 PARAM_TYPE_UINT8: int

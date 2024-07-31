@@ -150,6 +150,56 @@ PyTypeObject * pycsh_get_base_dealloc_class(PyTypeObject *cls) {
 	return baseclass;
 }
 
+/**
+ * @brief Goes well with (__DATE__, __TIME__) and (csp_cmp_message.ident.date, csp_cmp_message.ident.time)
+ * 
+ * 'date' and 'time' are separate arguments, because it's most convenient when working with csp_cmp_message.
+ * 
+ * @param date __DATE__ or csp_cmp_message.ident.date
+ * @param time __TIME__ or csp_cmp_message.ident.time
+ * @return New reference to a PyObject* datetime.datetime() from the specified time and dated
+ */
+PyObject *pycsh_ident_time_to_datetime(const char * const date, const char * const time) {
+
+	PyObject *datetime_module AUTO_DECREF = PyImport_ImportModule("datetime");
+	if (!datetime_module) {
+		return NULL;
+	}
+
+	PyObject *datetime_class AUTO_DECREF = PyObject_GetAttrString(datetime_module, "datetime");
+	if (!datetime_class) {
+		return NULL;
+	}
+
+	PyObject *datetime_strptime AUTO_DECREF = PyObject_GetAttrString(datetime_class, "strptime");
+	if (!datetime_strptime) {
+		return NULL;
+	}
+
+	//PyObject *datetime_str AUTO_DECREF = PyUnicode_FromFormat("%U %U", self->date, self->time);
+	PyObject *datetime_str AUTO_DECREF = PyUnicode_FromFormat("%s %s", date, time);
+	if (!datetime_str) {
+		return NULL;
+	}
+
+	PyObject *format_str AUTO_DECREF = PyUnicode_FromString("%b %d %Y %H:%M:%S");
+	if (!format_str) {
+		return NULL;
+	}
+
+	PyObject *datetime_args AUTO_DECREF = PyTuple_Pack(2, datetime_str, format_str);
+	if (!datetime_args) {
+		return NULL;
+	}
+
+	/* No DECREF, we just pass the new reference (returned by PyObject_CallObject()) to the caller.
+		No NULL check either, because the caller has to do that anyway.
+		And the only cleanup we need (for exceptions) is already done by AUTO_DECREF */
+	PyObject *datetime_obj = PyObject_CallObject(datetime_strptime, datetime_args);
+
+	return datetime_obj;
+}
+
 int pycsh_get_num_accepted_pos_args(const PyObject *function, bool raise_exc) {
 
 	// Suppress the incompatible pointer type warning when AUTO_DECREF is used on subclasses of PyObject*
