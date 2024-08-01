@@ -153,10 +153,11 @@ if get_option('build_apm')
 	# APM names must be prefixed with 'libcsh_'
 	py.extension_module('libcsh_pycsh', pycsh_sources,
 					dependencies : dependencies,
-					install : true,
 					# link_with : [static_library('python3')]
 					link_args : python_ldflags,
+					install : true,
 					install_dir : join_paths(get_option('prefix'), 'lib', 'csh'),
+					gnu_symbol_visibility: 'default',
 					)
 	
 else  # Not building APM
@@ -164,6 +165,7 @@ else  # Not building APM
 					dependencies : dependencies,
 					subdir : 'pycsh',
 					install : true,
+					gnu_symbol_visibility: 'default',
 					)
 
 	# TODO Kevin: Is there any sense in also installing sources when building for APM?

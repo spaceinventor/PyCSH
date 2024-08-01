@@ -23,7 +23,6 @@ def _import_pycsh(package_dir: str = None) -> _ModuleType:
     # Get the directory of the current __init__.py file
     if package_dir is None:
         package_dir = os.path.dirname(__file__)
-        package_dir = f"{_expanduser('~')}/.local/lib/python3.10/site-packages/pycsh/"
 
     # Construct the full path to the shared object file
     so_filepath = os.path.join(package_dir, so_filename)
