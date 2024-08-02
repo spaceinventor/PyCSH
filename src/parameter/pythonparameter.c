@@ -256,16 +256,11 @@ static void PythonParameter_dealloc(PythonParameterObject *self) {
         self->callback = NULL;
     }
 
-    param_list_remove_specific(((ParameterObject*)self)->param, 0, 1);
+    /* We defer deallocation to our Parameter baseclass,
+        as it must also handle deallocation of param_t's that have been "list forget"en anyway. */
+    param_list_remove_specific(((ParameterObject*)self)->param, 0, 0);
 
-    // Get the type of 'self' in case the user has subclassed 'Parameter'.
-    // TODO Kevin: Alternatively it might be better to always iterate from pycsh.PythonParameter.
-    PyTypeObject *baseclass = Py_TYPE(self);
-
-    // Keep iterating baseclasses until we find one that doesn't use this deallocator.
-    while ((baseclass = baseclass->tp_base)->tp_dealloc == (destructor)PythonParameter_dealloc && baseclass != NULL);
-
-    assert(baseclass->tp_dealloc != NULL);  // Assert that Python installs some deallocator to classes that don't specifically implement one (Whether pycsh.Parameter or object()).
+    PyTypeObject *baseclass = pycsh_get_base_dealloc_class(&PythonParameterType);
     baseclass->tp_dealloc((PyObject*)self);
 }
 

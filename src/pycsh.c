@@ -60,6 +60,10 @@
 #include "parameter/pythongetsetarrayparameter.h"
 #include "parameter/parameterlist.h"
 
+#include "csp_classes/ident.h"
+
+#include "csp_classes/ident.h"
+
 #ifdef PYCSH_HAVE_SLASH
 #include "slash_command/slash_command.h"
 #include "slash_command/python_slash_command.h"
@@ -354,6 +358,10 @@ PyMODINIT_FUNC PyInit_pycsh(void) {
 		return NULL;
 
 
+	if (PyType_Ready(&IdentType) < 0)
+        return NULL;
+
+
 #ifdef PYCSH_HAVE_SLASH
 	if (PyType_Ready(&SlashCommandType) < 0)
         return NULL;
@@ -441,6 +449,14 @@ PyMODINIT_FUNC PyInit_pycsh(void) {
 	}
 
 
+	Py_INCREF(&IdentType);
+	if (PyModule_AddObject(m, "Ident", (PyObject *) &IdentType) < 0) {
+		Py_DECREF(&IdentType);
+        Py_DECREF(m);
+        return NULL;
+	}
+
+
 #ifdef PYCSH_HAVE_SLASH
 	Py_INCREF(&SlashCommandType);
 	if (PyModule_AddObject(m, "SlashCommand", (PyObject *) &SlashCommandType) < 0) {
@@ -462,6 +478,7 @@ PyMODINIT_FUNC PyInit_pycsh(void) {
 		/* Version Control */
 		PyModule_AddObject(m, "VERSION", PyUnicode_FromString(version_string));
 		PyModule_AddObject(m, "COMPILE_DATE", PyUnicode_FromString(__DATE__));
+		PyModule_AddObject(m, "COMPILE_DATETIME", pycsh_ident_time_to_datetime(__DATE__, __TIME__));
 
 		/* Param Type Enums */
 		PyModule_AddObject(m, "PARAM_TYPE_UINT8", PyLong_FromLong(PARAM_TYPE_UINT8));

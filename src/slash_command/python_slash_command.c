@@ -86,6 +86,10 @@ int pycsh_parse_slash_args(const struct slash *slash, PyObject **args_out, PyObj
             return -1;
         }
 
+        /* TODO Kevin: Test what happens if the key is already in the dictionary here.
+            i.e, the same keyword-argument being passed multiple times:
+            mycommand --key=value --key=value --key=value2 */
+
         // Add the key-value pair to the kwargs_out dictionary
         if (PyDict_SetItem(kwargs_dict, py_key, py_value) != 0) {
             // Handle dictionary insertion failure
@@ -93,7 +97,7 @@ int pycsh_parse_slash_args(const struct slash *slash, PyObject **args_out, PyObj
             return -1;
         }
 
-        /* Reccnt should be 2 after we have added to the dict. */
+        /* Refcnt should be 2 after we have added to the dict. */
         assert(py_key->ob_refcnt != 1);
         assert(py_value->ob_refcnt != 1);
     }
@@ -491,6 +495,7 @@ __attribute__((destructor(151))) static void remove_python_slash_commands(void) 
         PythonSlashCommandObject *py_slash_command = python_wraps_slash_command(cmd);
         if (py_slash_command != NULL) {
             PythonSlashCommand_set_keep_alive(py_slash_command, Py_False, NULL);
+            // TODO Kevin: Remove from slash list here?
         }
     }
 }

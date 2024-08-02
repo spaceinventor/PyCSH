@@ -37,6 +37,32 @@ char *safe_strdup(const char *s);
 /* Source: https://pythonextensionpatterns.readthedocs.io/en/latest/super_call.html */
 PyObject * call_super_pyname_lookup(PyObject *self, PyObject *func_name, PyObject *args, PyObject *kwargs);
 
+/**
+ * @brief Get the first base-class with a .tp_dealloc() different from the specified class.
+ * 
+ * If the specified class defines its own .tp_dealloc(),
+ * if should be safe to assume the returned class to be no more abstract than object(),
+ * which features its .tp_dealloc() that ust be called anyway.
+ * 
+ * This function is intended to be called in a subclassed __del__ (.tp_dealloc()),
+ * where it will mimic a call to super().
+ * 
+ * @param cls Class to find a super() .tp_dealloc() for.
+ * @return PyTypeObject* super() class.
+ */
+PyTypeObject * pycsh_get_base_dealloc_class(PyTypeObject *cls);
+
+/**
+ * @brief Goes well with (__DATE__, __TIME__) and (csp_cmp_message.ident.date, csp_cmp_message.ident.time)
+ * 
+ * 'date' and 'time' are separate arguments, because it's most convenient when working with csp_cmp_message.
+ * 
+ * @param date __DATE__ or csp_cmp_message.ident.date
+ * @param time __TIME__ or csp_cmp_message.ident.time
+ * @return New reference to a PyObject* datetime.datetime() from the specified time and date
+ */
+PyObject *pycsh_ident_time_to_datetime(const char * const date, const char * const time);
+
 int pycsh_get_num_accepted_pos_args(const PyObject *function, bool raise_exc);
 
 int pycsh_get_num_required_args(const PyObject *function, bool raise_exc);

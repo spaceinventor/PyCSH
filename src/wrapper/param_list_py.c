@@ -140,6 +140,49 @@ PyObject * pycsh_param_list_add(PyObject * self, PyObject * args, PyObject * kwd
     return param_instance;
 }
 
+/**
+ * @brief Version of param_list_remove() that will not destroy param_t's referenced by a ParameterObject wrapper.
+ */
+static int param_list_remove_py(int node, uint8_t verbose) {
+
+	int count = 0;
+
+	param_list_iterator i = {};
+	param_t * iter_param = param_list_iterate(&i);
+
+	while (iter_param) {
+
+		param_t * param = iter_param;  // Free the current parameter after we have used it to iterate.
+		iter_param = param_list_iterate(&i);
+
+		if (i.phase == 0)  // Protection against removing static parameters
+			continue;
+
+		uint8_t match = node < 0;  // -1 means all nodes (except for 0)
+
+		if (node > 0)
+			match = param->node == node;
+
+		if (match) {
+            ParameterObject *python_parameter = Parameter_wraps_param(param);
+            /* TODO Kevin: Perhaps we need a better way to distinguish between param_t that are wrapped by Parameter()s,
+                and those that are not. Currently we do this by reimplementing param_list_remove() here.
+                We need to do this, because we must not free() param_t's referenced by Parameter()s,
+                this must be done in their .tp_dealloc() instead.
+                On the contrary, param_t's that are not wrapped by a Parameter() should be free()d now,
+                before a Parameter() manages to grab a reference to it. */ 
+            if (python_parameter) {
+                param_list_remove_specific(param, verbose, 0);
+                Py_DECREF(python_parameter);  // The parameter list no longer holds a reference to the Parameter
+            } else {
+                param_list_remove_specific(param, verbose, 1);
+            }
+			count++;
+		}
+	}
+
+	return count;
+}
 
 PyObject * pycsh_param_list_forget(PyObject * self, PyObject * args, PyObject * kwds) {
 
@@ -151,9 +194,12 @@ PyObject * pycsh_param_list_forget(PyObject * self, PyObject * args, PyObject * 
     if (!PyArg_ParseTupleAndKeywords(args, kwds, "|ii", kwlist, &node, &verbose))
         return NULL;  // TypeError is thrown
 
-    int res = param_list_remove(node, verbose);
-    printf("Removed %i parameters\n", res);
-    return Py_BuildValue("i", res);;
+    const int count_removed = param_list_remove_py(node, verbose);
+
+    if (verbose >= 1) {
+        printf("Removed %i parameters\n", count_removed);
+    }
+    return Py_BuildValue("i", count_removed);;
 }
 
 PyObject * pycsh_param_list_save(PyObject * self, PyObject * args, PyObject * kwds) {

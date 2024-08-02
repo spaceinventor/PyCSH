@@ -133,6 +133,78 @@ finally:
     return result;
 }
 
+/**
+ * @brief Get the first base-class with a .tp_dealloc() different from the specified class.
+ * 
+ * If the specified class defines its own .tp_dealloc(),
+ * if should be safe to assume the returned class to be no more abstract than object(),
+ * which features its .tp_dealloc() that ust be called anyway.
+ * 
+ * This function is intended to be called in a subclassed __del__ (.tp_dealloc()),
+ * where it will mimic a call to super().
+ * 
+ * @param cls Class to find a super() .tp_dealloc() for.
+ * @return PyTypeObject* super() class.
+ */
+PyTypeObject * pycsh_get_base_dealloc_class(PyTypeObject *cls) {
+	
+	/* Keep iterating baseclasses until we find one that doesn't use this deallocator. */
+	PyTypeObject *baseclass = cls->tp_base;
+	for (; baseclass->tp_dealloc == cls->tp_dealloc; (baseclass = baseclass->tp_base));
+
+    assert(baseclass->tp_dealloc != NULL);  // Assert that Python installs some deallocator to classes that don't specifically implement one (Whether pycsh.Parameter or object()).
+	return baseclass;
+}
+
+/**
+ * @brief Goes well with (__DATE__, __TIME__) and (csp_cmp_message.ident.date, csp_cmp_message.ident.time)
+ * 
+ * 'date' and 'time' are separate arguments, because it's most convenient when working with csp_cmp_message.
+ * 
+ * @param date __DATE__ or csp_cmp_message.ident.date
+ * @param time __TIME__ or csp_cmp_message.ident.time
+ * @return New reference to a PyObject* datetime.datetime() from the specified time and dated
+ */
+PyObject *pycsh_ident_time_to_datetime(const char * const date, const char * const time) {
+
+	PyObject *datetime_module AUTO_DECREF = PyImport_ImportModule("datetime");
+	if (!datetime_module) {
+		return NULL;
+	}
+
+	PyObject *datetime_class AUTO_DECREF = PyObject_GetAttrString(datetime_module, "datetime");
+	if (!datetime_class) {
+		return NULL;
+	}
+
+	PyObject *datetime_strptime AUTO_DECREF = PyObject_GetAttrString(datetime_class, "strptime");
+	if (!datetime_strptime) {
+		return NULL;
+	}
+
+	//PyObject *datetime_str AUTO_DECREF = PyUnicode_FromFormat("%U %U", self->date, self->time);
+	PyObject *datetime_str AUTO_DECREF = PyUnicode_FromFormat("%s %s", date, time);
+	if (!datetime_str) {
+		return NULL;
+	}
+
+	PyObject *format_str AUTO_DECREF = PyUnicode_FromString("%b %d %Y %H:%M:%S");
+	if (!format_str) {
+		return NULL;
+	}
+
+	PyObject *datetime_args AUTO_DECREF = PyTuple_Pack(2, datetime_str, format_str);
+	if (!datetime_args) {
+		return NULL;
+	}
+
+	/* No DECREF, we just pass the new reference (returned by PyObject_CallObject()) to the caller.
+		No NULL check either, because the caller has to do that anyway.
+		And the only cleanup we need (for exceptions) is already done by AUTO_DECREF */
+	PyObject *datetime_obj = PyObject_CallObject(datetime_strptime, datetime_args);
+
+	return datetime_obj;
+}
 
 int pycsh_get_num_accepted_pos_args(const PyObject *function, bool raise_exc) {
 
@@ -363,7 +435,7 @@ PyObject * _pycsh_Parameter_from_param(PyTypeObject *type, param_t * param, cons
 
 	if (param->array_size <= 1 && type == &ParameterArrayType) {
 		PyErr_SetString(PyExc_TypeError, 
-			"Attempted to create an ParameterArray instance, for a non array parameter.");
+			"Attempted to create a ParameterArray instance, for a non array parameter.");
 		return NULL;
 	} else if (param->array_size > 1) {  		   // If the parameter is an array.
 		type = get_arrayparameter_subclass(type);  // We create a ParameterArray instance instead.

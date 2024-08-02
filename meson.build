@@ -67,6 +67,8 @@ pycsh_sources = [
 	'src/parameter/pythongetsetparameter.c',
 	'src/parameter/pythongetsetarrayparameter.c',
 	'src/parameter/parameterlist.c',
+	'src/csp_classes/ident.c',
+	#'src/csp_classes/node.c',  # Coming soon...
 
 	# Wrapper functions
 	'src/wrapper/py_csp.c',
