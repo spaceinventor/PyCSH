@@ -161,6 +161,7 @@ __attribute__((destructor(150))) static void finalize_python_interpreter(void) {
 
 int apm_init(void) {
 	PyImport_AppendInittab("pycsh", &PyInit_pycsh);
+	PyImport_AppendInittab("PyCSH", &PyInit_pycsh);
 	/* Calling Py_Initialize() "has the side effect of locking the global interpreter lock.
 		Once the function completes, you are responsible for releasing the lock."
 		-- https://www.linuxjournal.com/article/3641 */
