@@ -50,7 +50,9 @@ else
 	dependencies += curl_dep
 endif
 
-
+# TODO Kevin: Perhaps let us inspire by the meson.build,
+#	they check for the presence of the python.h header.
+#	- https://github.com/numpy/numpy/blob/main/meson.build#L44
 
 pycsh_sources = [
 
@@ -70,7 +72,7 @@ pycsh_sources = [
 
 	# Wrapper functions
 	'src/wrapper/py_csp.c',
-	'src/wrapper/slash_py.c',
+	'src/wrapper/apm_py.c',
 	'src/wrapper/param_py.c',
 	'src/wrapper/dflopt_py.c',
 	'src/wrapper/csp_init_py.c',
@@ -80,11 +82,14 @@ pycsh_sources = [
 
 	# Utilities
 	'src/utils.c',
+	'src/apm/apm_utils.c',
 ]
 
 if get_option('build_apm')
 	pycsh_sources += [
-		'src/apm.c',
+		# apm.c will start the Python interpreter,
+		#	which we aren't interested in when building a normal Python C extension.
+		'src/apm/apm.c',
 	]
 else
 	pycsh_sources += [
@@ -111,6 +116,12 @@ if slash_dep.found()
 		pycsh_sources += [
 			'src/csh/csp_init_cmd.c',
 		]
+	else
+		pycsh_sources += [
+			# apm_slash.c currently only supports extending the CSH "apm load" slash command.
+			#	So don't build our version when the original isn't present.
+			'src/apm/apm_slash.c',
+		]
 	endif
 	conf.set('PYCSH_HAVE_SLASH', slash_dep.found())
 endif
@@ -122,6 +133,9 @@ pycsh_sources += vcs_tag(input: files('src/version.c.in'), output: 'version.c', 
 
 # Add .pyi file for type-hints
 pyi = configure_file(input: 'pycsh.pyi', output: 'pycsh.pyi', copy: true)
+
+# Also __init__.py that ensures we can expose CSH symbols/dependencies.
+__init__py = configure_file(input: '__init__.py', output: '__init__.py', copy: true)
 
 py = import('python').find_installation('python'+get_option('python3_version'), pure: false)
 
@@ -141,17 +155,23 @@ if get_option('build_apm')
 	# APM names must be prefixed with 'libcsh_'
 	py.extension_module('libcsh_pycsh', pycsh_sources,
 					dependencies : dependencies,
-					install : true,
 					# link_with : [static_library('python3')]
 					link_args : python_ldflags,
+					install : true,
 					install_dir : join_paths(get_option('prefix'), 'lib', 'csh'),
+					gnu_symbol_visibility: 'default',
 					)
 	
 else  # Not building APM
 	py.extension_module('pycsh', pycsh_sources,
 					dependencies : dependencies,
+					subdir : 'pycsh',
 					install : true,
+					gnu_symbol_visibility: 'default',
 					)
-endif
 
-py.install_sources(pyi)
+	# TODO Kevin: Is there any sense in also installing sources when building for APM?
+	#	We will probably always build both anyway, and linters will look in dist-packages/
+	#	rather than ~/.local/lib/csh/
+	py.install_sources([pyi, __init__py], subdir: 'pycsh')
+endif

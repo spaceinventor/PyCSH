@@ -21,4 +21,4 @@ ninja -C builddir-apm $target_name install
 # Build in builddir-pip, so we can assume that we will only find 1 .whl
 python3 -mpip wheel -w builddir-pip . && \
 # installing the .whl seems to also install the .pyi file, so that's nice
-pip3 install --force-reinstall $(ls builddir-pip/pycsh*.whl)
+pip3 install --force-reinstall $(ls builddir-pip/pycsh*.whl) --break-system-packages || pip3 install --force-reinstall $(ls builddir-pip/pycsh*.whl)

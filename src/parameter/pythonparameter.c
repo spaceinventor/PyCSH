@@ -62,6 +62,14 @@ void Parameter_callback(param_t * param, int offset) {
         /* _PyErr_FormatFromCause() seems simpler than PyException_SetCause() and PyException_SetContext() */
         // TODO Kevin: It seems exceptions raised in the CSP thread are ignored.
         _PyErr_FormatFromCause(PyExc_ParamCallbackError, "Error calling Python callback");
+        #if PYCSH_HAVE_APM  // TODO Kevin: This is pretty ugly, but we can't let the error propagate when building for APM, as there is no one but us to catch it.
+            /* It may not be clear to the user, that the exception came from the callback,
+                we therefore chain unto the existing exception, for better clarity. */
+            /* _PyErr_FormatFromCause() seems simpler than PyException_SetCause() and PyException_SetContext() */
+            // TODO Kevin: It seems exceptions raised in the CSP thread are ignored.
+            //_PyErr_FormatFromCause(PyExc_ParamCallbackError, "Error calling Python callback");
+            PyErr_Print();
+        #endif
     }
 }
 
