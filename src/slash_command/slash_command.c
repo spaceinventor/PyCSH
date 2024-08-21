@@ -60,7 +60,7 @@ static void SlashCommand_dealloc(SlashCommandObject *self) {
 	Py_TYPE(self)->tp_free((PyObject *) self);
 }
 
-__attribute__((malloc, malloc(SlashCommand_dealloc, 1)))
+__attribute__((malloc(SlashCommand_dealloc, 1)))
 static PyObject * SlashCommand_new(PyTypeObject *type, PyObject *args, PyObject *kwds) {
 
 	static char *kwlist[] = {"name", NULL};

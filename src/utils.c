@@ -56,7 +56,7 @@ void state_release_GIL(PyThreadState ** state) {
     *state = PyEval_SaveThread();
 }
 
-__attribute__((malloc, malloc(free, 1)))
+__attribute__((malloc(free, 1)))
 char *safe_strdup(const char *s) {
     if (s == NULL) {
         return NULL;

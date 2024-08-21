@@ -295,7 +295,7 @@ static int Parameter_set_callback(PythonParameterObject *self, PyObject *value, 
 }
 
 /* Internal API for creating a new PythonParameterObject. */
-__attribute__((malloc, malloc(PythonParameter_dealloc, 1)))
+__attribute__((malloc(PythonParameter_dealloc, 1)))
 PythonParameterObject * Parameter_create_new(PyTypeObject *type, uint16_t id, param_type_e param_type, uint32_t mask, char * name, char * unit, char * docstr, int array_size, const PyObject * callback, int host, int timeout, int retries, int paramver) {
 
     /* Check for valid parameter type. param_list_create_remote() should always return NULL for errors,

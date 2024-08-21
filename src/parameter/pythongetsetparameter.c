@@ -553,7 +553,7 @@ int Parameter_set_setter(PythonGetSetParameterObject *self, PyObject *value, voi
     return 0;
 }
 
-__attribute__((malloc, malloc(PythonGetSetParameter_dealloc, 1)))
+__attribute__((malloc(PythonGetSetParameter_dealloc, 1)))
 static PyObject * PythonGetSetParameter_new(PyTypeObject *type, PyObject * args, PyObject * kwds) {
 
     uint16_t id;
