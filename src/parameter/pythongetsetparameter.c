@@ -177,7 +177,7 @@ static int _pycsh_param_pyval_to_cval(param_type_e type, PyObject * value_in, vo
 /**
  * @brief Shared getter for all param_t's wrapped by a Parameter instance.
  */
-void Parameter_getter(vmem_t * vmem, uint32_t addr, void * dataout, uint32_t len) {
+void Parameter_getter(vmem_t * vmem, uint64_t addr, void * dataout, uint32_t len) {
 
     PyGILState_STATE CLEANUP_GIL gstate = PyGILState_Ensure();
     assert(!PyErr_Occurred());  // Callback may raise an exception. But we don't want to override an existing one.
@@ -224,7 +224,7 @@ void Parameter_getter(vmem_t * vmem, uint32_t addr, void * dataout, uint32_t len
 /**
  * @brief Shared setter for all param_t's wrapped by a Parameter instance.
  */
-void Parameter_setter(vmem_t * vmem, uint32_t addr, const void * datain, uint32_t len) {
+void Parameter_setter(vmem_t * vmem, uint64_t addr, const void * datain, uint32_t len) {
 
     PyGILState_STATE CLEANUP_GIL gstate = PyGILState_Ensure();
     assert(!PyErr_Occurred());  // Callback may raise an exception. But we don't want to override an existing one.
@@ -613,7 +613,7 @@ static PyObject * PythonGetSetParameter_new(PyTypeObject *type, PyObject * args,
         self->vmem_heap.name = "GETSET";
         self->vmem_heap.size = array_size*param_typesize(self->parameter_object.parameter_object.param->type);
         self->vmem_heap.type = -1;  // TODO Kevin: Maybe expose vmem_types, instead of just setting unspecified.
-        self->vmem_heap.vaddr = NULL;
+        self->vmem_heap.vaddr = 0;
         self->vmem_heap.backup = NULL;
         self->vmem_heap.big_endian = false;
         self->vmem_heap.restore = NULL;
