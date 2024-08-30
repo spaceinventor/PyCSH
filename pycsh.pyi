@@ -9,12 +9,14 @@ These provide an object-oriented interface to libparam, but are largely meant fo
 
 from __future__ import annotations
 
+from warnings import deprecated as _deprecated
 from _typeshed import Self
 from typing import \
     Any as _Any, \
     Iterable as _Iterable, \
     Literal as _Literal, \
-    Callable as _Callable
+    Callable as _Callable, \
+    Sequence as _Sequence
 from datetime import datetime as _datetime
 
 _param_value_hint = int | float | str
@@ -129,6 +131,7 @@ class Parameter:
         """ Returns the best Python representation type object of the param_t c struct type. i.e int for uint32. """
 
     @property
+    @_deprecated("Use .get_value(..., remote=False) instead")
     def cached_value(self) -> int | float:
         """
         Returns the local cached value of the parameter from its specified node in the Python representation of its type.
@@ -136,6 +139,7 @@ class Parameter:
         """
 
     @cached_value.setter
+    @_deprecated("Use .set_value(..., remote=False) instead")
     def cached_value(self, value: int | float) -> None:
         """
         Sets the local cached value of the parameter.
@@ -144,6 +148,7 @@ class Parameter:
         """
 
     @property
+    @_deprecated("Use .get_value() instead")
     def remote_value(self) -> int | float:
         """
         Returns the remote value of the parameter from its specified node in the Python representation of its type.
@@ -151,11 +156,25 @@ class Parameter:
         """
 
     @remote_value.setter
+    @_deprecated("Use .set_value() instead")
     def remote_value(self, value: int | float) -> None:
         """
         Sets the remote value of the parameter.
 
         :param value: New desired value. Assignments to other parameters, use their value instead, Otherwise uses .__str__().
+        """
+
+    def set_value(self, value: _param_value_hint, remote=True, timeout: int = None) -> None:
+        """
+        Sets the remote value of the parameter.
+
+        :raises ConnectionError: When no response is received.
+        """
+
+    def get_value(self, remote=True, timeout: int = None) -> _param_value_hint:
+        """
+        Returns the remote value of the parameter from its specified node in the Python representation of its type.
+        Array parameters return a tuple of values, whereas normal parameters return only a single value.
         """
 
     @property
@@ -231,6 +250,7 @@ class ParameterArray(Parameter):
         """
 
     @property
+    @_deprecated("Use .get_value(..., remote=False) instead")
     def cached_value(self) -> str | tuple[int | float]:
         """
         Returns the local cached value of the parameter from its specified node in the Python representation of its type.
@@ -238,6 +258,7 @@ class ParameterArray(Parameter):
         """
 
     @cached_value.setter
+    @_deprecated("Use .set_value(..., remote=False) instead")
     def cached_value(self, value: str | _Iterable[int | float]) -> None:
         """
         Sets the local cached value of the parameter.
@@ -246,6 +267,7 @@ class ParameterArray(Parameter):
         """
 
     @property
+    @_deprecated("Use .get_value() instead")
     def remote_value(self) -> str | tuple[int | float]:
         """
         Returns the remote value of the parameter from its specified node in the Python representation of its type.
@@ -253,11 +275,25 @@ class ParameterArray(Parameter):
         """
 
     @remote_value.setter
+    @_deprecated("Use .set_value() instead")
     def remote_value(self, value: str | _Iterable[int | float]) -> None:
         """
         Sets the remote value of the parameter.
 
         :param value: New desired value. Assignments to other parameters, use their value instead, Otherwise uses .__str__().
+        """
+
+    def set_value(self, value: _Sequence[_param_value_hint], remote=True, timeout: int = None) -> None:
+        """
+        Sets the remote value of the parameter.
+
+        :raises ConnectionError: When no response is received.
+        """
+
+    def get_value(self, remote=True, timeout: int = None) -> tuple[_param_value_hint, ...]:
+        """
+        Returns the remote value of the parameter from its specified node in the Python representation of its type.
+        Array parameters return a tuple of values, whereas normal parameters return only a single value.
         """
 
 
@@ -311,6 +347,9 @@ class PythonParameter(Parameter):
         """
         Change the callback of the parameter
         """
+
+    # TODO Kevin: PythonParameter(s) are never remote, so they should not have a get/set_value(remote=) argument. So we would need a RemoteParameter subclass
+
 
 class PythonArrayParameter(PythonParameter, ParameterArray):
     """ ParameterArray created in Python. """
