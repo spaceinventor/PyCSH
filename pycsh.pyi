@@ -767,7 +767,7 @@ def csp_init(host: str = None, model: str = None, revision: str = None, version:
     :param dedup: CSP dedup 0=off 1=forward 2=incoming 3=all (default)
     """
 
-def csp_add_zmq(addr: int, server: str, promisc: int = 0, mask: int = 8, default: int = 0) -> None:
+def csp_add_zmq(addr: int, server: str, promisc: int = 0, mask: int = 8, default: int = 0, sec_key: str|None = None) -> None:
     """
     Add a new ZMQ interface
 
@@ -776,6 +776,7 @@ def csp_add_zmq(addr: int, server: str, promisc: int = 0, mask: int = 8, default
     :param promisc: Promiscuous Mode
     :param mask: Netmask (defaults to 8)
     :param default: Set as default
+    :param sec_key: Auth key for zmqproxy
     """
 
 def csp_add_kiss(addr: int, promisc: int = 0, mask: int = 8, default: int = 0, baud: int = 1000000, uart: str = "ttyUSB0") -> None:
