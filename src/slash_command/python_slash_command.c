@@ -228,6 +228,157 @@ char* print_function_signature_w_docstr(PyObject* function, int only_print) {
     return result_buf;
 }
 
+typedef enum {
+    TYPECAST_SUCCESS = 0,
+    TYPECAST_UNSPECIFIED_EXCEPTION = -1,
+    TYPECAST_NO_ANNOTATION = -2,
+    TYPECAST_INVALID_ARG = -3,
+    TYPECAST_INVALID_KWARG = -4,
+} typecast_result_t;
+
+/**
+ * @brief Inspect type-hints of the provided PyObject *func, and convert the arguments in py_args and py_kwargs (in-place) to the their corresponding type-hinted type.
+ * 
+ * Source: https://chatgpt.com
+ * 
+ * @param func Python function to call with py_args and py_kwargs.
+ * @param py_args New tuple (without other references) that we can still modify in place.
+ * @param py_kwargs Dictionary of arguments to modify in-place.
+ * @return int 0 for success
+ */
+static typecast_result_t SlashCommand_typecast_args(PyObject *python_func, PyObject *py_args, PyObject *py_kwargs) {
+    
+    PyObject *annotations AUTO_DECREF = PyObject_GetAttrString(python_func, "__annotations__");
+    if (!annotations || !PyDict_Check(annotations)) {
+        // Handle error, no annotations found
+        // PyErr_SetString(PyExc_ValueError, "Failed to find annotations for function");
+        fprintf(stderr, "Failed to find annotations for Python function, no typehint argument conversion will be made");
+        return TYPECAST_NO_ANNOTATION;  // Or other appropriate error handling
+    }
+
+    {   /* handle *args */
+
+        // Get the parameter names from the function's code object
+        PyObject *code AUTO_DECREF = PyObject_GetAttrString(python_func, "__code__");
+        if (!code) {
+            assert(PyErr_Occurred());  // PyObject_GetAttrString() has probably raised an exception.
+            return TYPECAST_UNSPECIFIED_EXCEPTION;
+        }
+
+        PyObject *varnames AUTO_DECREF = PyObject_GetAttrString(code, "co_varnames");
+        if (!varnames || !PyTuple_Check(varnames)) {
+            assert(PyErr_Occurred());  // PyObject_GetAttrString() has probably raised an exception.
+            return TYPECAST_UNSPECIFIED_EXCEPTION;
+        }
+
+        Py_ssize_t num_args = PyTuple_Size(py_args);
+        for (Py_ssize_t i = 0; i < num_args; i++) {
+            PyObject *arg = PyTuple_GetItem(py_args, i);  // Borrowed reference
+            
+            // Get the corresponding parameter name for this positional argument
+            PyObject *param_name = PyTuple_GetItem(varnames, i);  // Borrowed reference
+            assert(PyUnicode_Check(param_name));
+
+            PyObject *hint = PyDict_GetItem(annotations, param_name);  // Borrowed reference
+            
+            if (!hint) {
+                continue;
+            }
+
+            PyObject *new_arg AUTO_DECREF = NULL;
+
+            // Handle type casting based on the type hint
+            if (hint == (PyObject*)&PyLong_Type && PyUnicode_Check(arg)) {
+                new_arg = PyLong_FromUnicodeObject(arg, 10);
+            } else if (hint == (PyObject*)&PyFloat_Type && PyUnicode_Check(arg)) {
+                new_arg = PyFloat_FromString(arg);
+            } else if (hint == (PyObject*)&PyBool_Type && PyUnicode_Check(arg)) {
+                PyObject *lowered AUTO_DECREF = PyObject_CallMethod(arg, "lower", NULL);
+                if (!lowered) {
+                    PyObject * python_func_name AUTO_DECREF = PyObject_GetAttrString(python_func, "__qualname__");
+                    assert(python_func_name);
+                    PyErr_Format(PyExc_ValueError, "Failed to create lowered version of '%s' for boolean argument '%s' for function '%s()'. Use either \"True\"/\"False\"", PyUnicode_AsUTF8(lowered), PyUnicode_AsUTF8(param_name), PyUnicode_AsUTF8(python_func_name));
+                }
+                
+                if (lowered && PyUnicode_CompareWithASCIIString(lowered, "true") == 0) {
+                    new_arg = Py_True;
+                } else if (lowered && PyUnicode_CompareWithASCIIString(lowered, "false") == 0) {
+                    new_arg = Py_False;
+                } else {
+                    PyObject * python_func_name AUTO_DECREF = PyObject_GetAttrString(python_func, "__qualname__");
+                    assert(python_func_name);
+                    PyErr_Format(PyExc_ValueError, "Invalid value '%s' for boolean argument '%s' for function '%s()'. Use either \"True\"/\"False\"", PyUnicode_AsUTF8(lowered), PyUnicode_AsUTF8(param_name), PyUnicode_AsUTF8(python_func_name));
+                }
+                Py_XINCREF(new_arg);  // Manually increase ref count as PyTuple_SetItem will steal it
+            }
+
+            if (PyErr_Occurred()) {
+                return TYPECAST_INVALID_ARG;
+            }
+            
+            if (new_arg) {
+                // Replace the item in the tuple, stealing the reference of new_arg
+                PyTuple_SetItem(py_args, i, new_arg);
+                new_arg = NULL;  // Set to NULL so that AUTO_DECREF doesn't decrement it
+            }
+        }
+    }
+
+    {   /* Handle **kwargs */
+        PyObject *key = NULL, *value = NULL;
+        Py_ssize_t pos = 0;
+
+        while (PyDict_Next(py_kwargs, &pos, &key, &value)) {
+            PyObject *hint = PyDict_GetItem(annotations, key);  // Borrowed reference
+            assert(!PyErr_Occurred());
+
+            if (!hint) {
+                continue;
+            }
+
+            PyObject *new_value AUTO_DECREF = NULL;
+
+            // Handle type casting based on the type hint
+            if (hint == (PyObject*)&PyLong_Type && PyUnicode_Check(value)) {
+                new_value = PyLong_FromUnicodeObject(value, 10);
+            } else if (hint == (PyObject*)&PyFloat_Type && PyUnicode_Check(value)) {
+                new_value = PyFloat_FromString(value);
+            } else if (hint == (PyObject*)&PyBool_Type && PyUnicode_Check(value)) {
+                PyObject *lowered AUTO_DECREF = PyObject_CallMethod(value, "lower", NULL);
+                if (!lowered) {
+                    PyObject * python_func_name AUTO_DECREF = PyObject_GetAttrString(python_func, "__qualname__");
+                    assert(python_func_name);
+                    PyErr_Format(PyExc_ValueError, "Failed to create lowered version of '%s' for boolean argument '%s' for function '%s()'. Use either \"True\"/\"False\"", PyUnicode_AsUTF8(lowered), PyUnicode_AsUTF8(key), PyUnicode_AsUTF8(python_func_name));
+                }
+                
+                if (lowered && PyUnicode_CompareWithASCIIString(lowered, "true") == 0) {
+                    new_value = Py_True;
+                } else if (lowered && PyUnicode_CompareWithASCIIString(lowered, "false") == 0) {
+                    new_value = Py_False;
+                } else {
+                    PyObject * python_func_name AUTO_DECREF = PyObject_GetAttrString(python_func, "__qualname__");
+                    assert(python_func_name);
+                    PyErr_Format(PyExc_ValueError, "Invalid value '%s' for boolean argument '%s' for function '%s()'. Use either \"True\"/\"False\"", PyUnicode_AsUTF8(lowered), PyUnicode_AsUTF8(key), PyUnicode_AsUTF8(python_func_name));
+                }
+                Py_INCREF(new_value);  // Manually increase ref count as PyTuple_SetItem will steal it
+            }
+
+            if (PyErr_Occurred()) {
+                return TYPECAST_INVALID_KWARG;
+            }
+            
+            if (new_value) {
+                // Replace the value in the dictionary
+                PyDict_SetItem(py_kwargs, key, new_value);
+                new_value = NULL;  // Set to NULL so that AUTO_DECREF doesn't decrement it
+            }
+        }
+    }
+
+    assert(!PyErr_Occurred());
+    return TYPECAST_SUCCESS;
+}
+
 
 /**
  * @brief Shared callback for all slash_commands wrapped by a Slash object instance.
@@ -292,6 +443,13 @@ int SlashCommand_func(struct slash *slash) {
         PyErr_Print();
         return SLASH_EINVAL;
     }
+
+    /* Convert to type-hinted types */
+    if (SlashCommand_typecast_args(python_func, py_args, py_kwargs) && PyErr_Occurred()) {
+        PyErr_Print();
+        return SLASH_EINVAL;
+    }
+
     
     /* Call the user provided Python function */
     PyObject * value AUTO_DECREF = PyObject_Call(python_func, py_args, py_kwargs);

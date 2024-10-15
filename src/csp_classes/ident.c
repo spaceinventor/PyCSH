@@ -84,7 +84,7 @@ static void csp_buffer_cleanup(csp_packet_t ** packet) {
 	csp_buffer_free(*packet);
 }
 
-__attribute__((malloc, malloc(Ident_dealloc, 1)))
+__attribute__((malloc(Ident_dealloc, 1)))
 static PyObject * Ident_new(PyTypeObject *type, PyObject *args, PyObject *kwds) {
 
 	static char *kwlist[] = {"node", "timeout", "override", NULL};
