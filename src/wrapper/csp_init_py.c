@@ -160,13 +160,12 @@ PyObject * pycsh_csh_csp_ifadd_kiss(PyObject * self, PyObject * args, PyObject *
         .baudrate = baud,
         .databits = 8,
         .stopbits = 1,
-        .paritysetting = 0,
-        .checkparity = 0
+        .paritysetting = 0
     };
 
     csp_iface_t * iface;
 
-    int error = csp_usart_open_and_add_kiss_interface(&conf, name, &iface);
+    int error = csp_usart_open_and_add_kiss_interface(&conf, name, addr, &iface);
     if (error != CSP_ERR_NONE) {
         PyErr_SetString(PyExc_SystemError, "Failed to add kiss interface");
         return NULL;

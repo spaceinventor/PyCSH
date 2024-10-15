@@ -4,10 +4,10 @@
 #include <Python.h>
 
 // Slash is conditionally included by pycsh.h
-#include "pycsh.h"
-#include "utils.h"
+#include "../pycsh.h"
+#include "../utils.h"
 #include "pycshconfig.h"
-#include "slash_command/python_slash_command.h"
+#include "../slash_command/python_slash_command.h"
 
 
 static int py_iter_sys_path(void) {
@@ -161,6 +161,7 @@ __attribute__((destructor(150))) static void finalize_python_interpreter(void) {
 
 int apm_init(void) {
 	PyImport_AppendInittab("pycsh", &PyInit_pycsh);
+	PyImport_AppendInittab("PyCSH", &PyInit_pycsh);
 	/* Calling Py_Initialize() "has the side effect of locking the global interpreter lock.
 		Once the function completes, you are responsible for releasing the lock."
 		-- https://www.linuxjournal.com/article/3641 */
@@ -182,164 +183,3 @@ int apm_init(void) {
 
 	return 0;
 }
-
-#if 0
-static void py_print__str__(PyObject *obj) {
-	// Get the string representation of the object
-    PyObject* str_repr AUTO_DECREF = PyObject_Str(obj);
-    if (str_repr == NULL) {
-		fprintf(stderr, "Failed to get string representation\n");
-		return;
-	}
-
-	// Convert the string representation to a C string
-	const char* c_str_repr = PyUnicode_AsUTF8(str_repr);
-	if (c_str_repr != NULL) {
-		// Print the string representation
-		printf("String representation: %s\n", c_str_repr);
-	} else {
-		fprintf(stderr, "Failed to convert string representation to C string\n");
-	}
-}
-#endif
-
-#ifdef PYCSH_HAVE_SLASH
-#include <slash/completer.h>
-
-static bool path_is_file(const char * path) {
-	struct stat s;
-	if (stat(path, &s) == 0 && s.st_mode & S_IFREG)
-		return true;
-	return false;
-}
-
-static void python_module_path_completer(struct slash * slash, char * token) {
-
-	size_t len = strlen(token);
-
-#if 0  // Using path_is_file() to get the length to restore, means we have to type the full path with filename.
-	if (path_is_file(token)) {
-		char * file_extension = strrchr(token, '.');
-		if (file_extension != NULL) {
-			len = file_extension - token;
-		}
-	}
-
-	printf("ABA %ld\n", len);
-#endif
-
-	/* Restore path after previous Python package tab completion */
-	for (size_t i = 0; i < len; i++) {
-		if (token[i] == '.') {
-			token[i] = '/';
-		}
-	}
-
-	slash_path_completer(slash, token);
-	len = strlen(token);
-
-	if (path_is_file(token)) {
-#if 0
-		/* Strip file extension if token is file */
-		char * file_extension = strrchr(token, '.');
-		if (file_extension != NULL) {
-			*file_extension = '\0';
-			slash->cursor = slash->length = file_extension - token;
-		}
-#else
-	/* Strip .py extension */
-    if (len >= 3 && strcmp(token + len - 3, ".py") == 0) {
-        token[len - 3] = '\0'; // Null-terminate the string at the position before ".py"
-		len -= 3;
-		slash->cursor = slash->length -= 3;
-    }
-#endif
-	}
-	
-	for (size_t i = 0; i < len; i++) {
-		if (token[i] == '/') {
-			token[i] = '.';
-		}
-	}
-}
-
-/* NOTE: It doesn't make sense for PYCSH_HAVE_APM without PYCSH_HAVE_SLASH.
-	But we allow it for now, instead of erroring. */
-
-static int py_run_cmd(struct slash *slash) {
-
-	char * func_name = "main";
-
-    optparse_t * parser = optparse_new("py run", "<file> [arguments...]");
-    optparse_add_help(parser);
-    optparse_add_string(parser, 'f', "func", "FUNCNAME", &func_name, "Function to call in the specified file (default = 'main')");
-
-    int argi = optparse_parse(parser, slash->argc - 1, (const char **) slash->argv + 1);
-    if (argi < 0) {  // Must have filename
-        optparse_del(parser);
-	    return SLASH_EUSAGE;
-    }
-
-	/* Check if filename is present */
-	if (++argi >= slash->argc) {
-		printf("missing parameter filename\n");
-        optparse_del(parser);
-		return SLASH_EINVAL;
-	}
-
-	PyEval_RestoreThread(main_thread_state);
-    PyThreadState * state __attribute__((cleanup(state_release_GIL))) = main_thread_state;
-
-	PyObject *pName AUTO_DECREF = PyUnicode_DecodeFSDefault(slash->argv[argi]);
-	if (pName == NULL) {
-		PyErr_Print();
-		fprintf(stderr, "Failed to decode module name %s\n", slash->argv[argi]);
-		return SLASH_EINVAL;
-	}
-
-    PyObject *pModule AUTO_DECREF = PyImport_Import(pName);
-    if (pModule == NULL) {
-		PyErr_Print();
-        fprintf(stderr, "Failed to load \"%s\"\n", slash->argv[argi]);
-		optparse_del(parser);
-        return SLASH_EINVAL;
-	}
-
-	PyObject *pFunc AUTO_DECREF = PyObject_GetAttrString(pModule, func_name);
-	/* pFunc is a new reference */
-
-	if (!pFunc || !PyCallable_Check(pFunc)) {
-		if (PyErr_Occurred())
-			PyErr_Print();
-		fprintf(stderr, "Cannot find function \"%s\"\n", func_name);
-		optparse_del(parser);
-		return SLASH_EINVAL;
-	}
-
-	PyObject *pArgs AUTO_DECREF = PyTuple_New((slash->argc - argi)-1);
-	for (int i = argi+1; i < slash->argc; i++) {
-		PyObject *pValue = PyUnicode_FromString(slash->argv[i]);  // pValue will have its reference stolen, so no DECREF
-		if (!pValue) {
-			fprintf(stderr, "Cannot convert argument\n");
-			optparse_del(parser);
-			return SLASH_EINVAL;
-		}
-		/* pValue reference stolen here: */
-		PyTuple_SetItem(pArgs, i-argi-1, pValue);
-	}
-
-	PyObject *pValue AUTO_DECREF = PyObject_CallObject(pFunc, pArgs);
-
-	if (pValue == NULL) {
-		PyErr_Print();
-		fprintf(stderr,"Call failed\n");
-		optparse_del(parser);
-		return SLASH_EINVAL;
-	}
-
-	optparse_del(parser);
-	return SLASH_SUCCESS;
-}
-slash_command_sub_completer(py, run, py_run_cmd, python_module_path_completer, "<file> [arguments...]", "Run a Python script with an importable PyCSH from this APM");
-
-#endif  // PYCSH_HAVE_SLASH

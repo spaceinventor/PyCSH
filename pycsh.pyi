@@ -10,6 +10,7 @@ These provide an object-oriented interface to libparam, but are largely meant fo
 from __future__ import annotations
 
 from _typeshed import Self
+from types import ModuleType as _ModuleType
 from typing import \
     Any as _Any, \
     Iterable as _Iterable, \
@@ -320,7 +321,7 @@ class PythonGetSetParameter(PythonParameter):
 
     def __new__(cls, id: int, name: str, type: int, mask: int | str, unit: str = None, docstr: str = None, array_size: int = 0,
                    callback: _Callable[[Parameter, int], None] = None, host: int = None, timeout: int = None,
-                   retries: int = 0, paramver: int = 2, getter: _Callable = None, setter: _Callable = None) -> PythonGetSetParameter:
+                   retries: int = 0, paramver: int = 2, getter: _Callable[[Parameter, int], _Any] = None, setter: _Callable[[Parameter, int, _Any], None] = None) -> PythonGetSetParameter:
         """  """
 
 class PythonGetSetArrayParameter(PythonGetSetParameter, PythonArrayParameter):
@@ -479,7 +480,7 @@ _param_ident_hint = int | str | Parameter  # Types accepted for finding a param_
 
 
 # Libparam commands
-def get(param_identifier: _param_ident_hint, node: int = None, server: int = None, paramver: int = 2, offset: int = None, timeout: int = None, retries: int = None) -> _param_value_hint | tuple[_param_value_hint]:
+def get(param_identifier: _param_ident_hint, node: int = None, server: int = None, paramver: int = 2, offset: int = None, timeout: int = None, retries: int = None) -> _param_value_hint | tuple[_param_value_hint, ...]:
     """
     Get the value of a parameter.
 
@@ -754,6 +755,22 @@ def sps(from: int, to: int, filename: str, node: int = None, window: int = None,
     :param ack_count: rdp ack for each (default = 2 packets)
 
     :raises ProgramDiffError: See class docstring.
+    """
+
+def apm_load(path: str = '~/.local/lib/csh/', filename: str = None, stop_on_error: bool = False) -> dict[str, _ModuleType | Exception]:
+    """
+    Loads both .py and .so APMs
+
+    Python built in 'import <apm>' machinery cannot load .so APMs that attempt to link with (Py)CSH.
+
+    :param path: Directory to scan for APMs to load
+    :param filename: Specific file/APM to load in the 'path' directory.
+    :param stop_on_error: Whether to stop and raise an exception when an APM fails to load.
+
+    :raises Exception: When stop_on_error==True and an APM fails to import.
+
+    :return: A dictionary with str paths of the modules as keys,
+        and the APM modules themselves as values (when loaded successfully, otherwise exception raised).
     """
 
 def csp_init(host: str = None, model: str = None, revision: str = None, version: int = 2, dedup: int = 3) -> None:

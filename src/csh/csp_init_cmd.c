@@ -236,6 +236,7 @@ static int csp_ifadd_kiss_cmd(struct slash *slash) {
     int argi = optparse_parse(parser, slash->argc - 1, (const char **) slash->argv + 1);
 
     if (argi < 0) {
+        optparse_del(parser);
 	    return SLASH_EINVAL;
     }
 
@@ -252,15 +253,14 @@ static int csp_ifadd_kiss_cmd(struct slash *slash) {
         .baudrate = baud,
         .databits = 8,
         .stopbits = 1,
-        .paritysetting = 0,
-        .checkparity = 0
+        .paritysetting = 0
     };
 
     csp_iface_t * iface;
     
-    int error = csp_usart_open_and_add_kiss_interface(&conf, name, &iface);
+    int error = csp_usart_open_and_add_kiss_interface(&conf, name, addr, &iface);
     if (error != CSP_ERR_NONE) {
-        printf("Failed to add kiss interface\n");
+        csp_print("Failed to add kiss interface [%s], error: %d\n", device, error);
         optparse_del(parser);
         return SLASH_EINVAL;
     }
@@ -269,6 +269,7 @@ static int csp_ifadd_kiss_cmd(struct slash *slash) {
     iface->addr = addr;
 	iface->netmask = mask;
 
+    optparse_del(parser);
 	return SLASH_SUCCESS;
 }
 
