@@ -480,7 +480,7 @@ _param_ident_hint = int | str | Parameter  # Types accepted for finding a param_
 
 
 # Libparam commands
-def get(param_identifier: _param_ident_hint, node: int = None, server: int = None, paramver: int = 2, offset: int = None, timeout: int = None, retries: int = None) -> _param_value_hint | tuple[_param_value_hint]:
+def get(param_identifier: _param_ident_hint, node: int = None, server: int = None, paramver: int = 2, offset: int = None, timeout: int = None, retries: int = None) -> _param_value_hint | tuple[_param_value_hint, ...]:
     """
     Get the value of a parameter.
 

@@ -23,7 +23,7 @@ def check_PythonParameter_leaks(iterations=10000):
             pass
 
         try:
-            # TODO Kevin: 'param' does not appear to be garbage collected while the look is running.
+            # TODO Kevin: 'param' does not appear to be garbage collected while the loop is running.
             param = pycsh.PythonParameter(600, "memleak_test_param", pycsh.PARAM_TYPE_INT8, pycsh.PM_DEBUG, "test", "memleak test param", 8)
             print(f"type {type(param)}")
             print(f"refcountA {getrefcount(param)}")
