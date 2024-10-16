@@ -10,11 +10,13 @@ These provide an object-oriented interface to libparam, but are largely meant fo
 from __future__ import annotations
 
 from _typeshed import Self
+from types import ModuleType as _ModuleType
 from typing import \
     Any as _Any, \
     Iterable as _Iterable, \
     Literal as _Literal, \
     Callable as _Callable
+from datetime import datetime as _datetime
 
 _param_value_hint = int | float | str
 _param_type_hint = _param_value_hint | bytearray
@@ -24,7 +26,8 @@ _param_type_hint = _param_value_hint | bytearray
 _pylist = type([])
 
 VERSION: str  # Git tag and commit SHA. Format example: 'V1.0-0-gceb4ed4+'
-COMPILE_DATE: str # Date of compilation. Format example: 'Jul 21 2023'
+COMPILE_DATE: str  # Date of compilation. Format example: 'Jul 21 2023'
+COMPILE_DATETIME: _datetime  # Datetime of compilation.
 
 # Parameter type translated directly from the C enum, these may receive their own Python enum in future versions.
 PARAM_TYPE_UINT8: int
@@ -313,6 +316,17 @@ class PythonParameter(Parameter):
 class PythonArrayParameter(PythonParameter, ParameterArray):
     """ ParameterArray created in Python. """
 
+class PythonGetSetParameter(PythonParameter):
+    """ ParameterArray created in Python. """
+
+    def __new__(cls, id: int, name: str, type: int, mask: int | str, unit: str = None, docstr: str = None, array_size: int = 0,
+                   callback: _Callable[[Parameter, int], None] = None, host: int = None, timeout: int = None,
+                   retries: int = 0, paramver: int = 2, getter: _Callable[[Parameter, int], _Any] = None, setter: _Callable[[Parameter, int, _Any], None] = None) -> PythonGetSetParameter:
+        """  """
+
+class PythonGetSetArrayParameter(PythonGetSetParameter, PythonArrayParameter):
+    """ ParameterArray created in Python. """
+
 # PyCharm may refuse to acknowledge that a list subclass is iterable, so we explicitly state that it is.
 class ParameterList(_pylist[Parameter | ParameterArray], _Iterable):
     """
@@ -333,14 +347,14 @@ class ParameterList(_pylist[Parameter | ParameterArray], _Iterable):
         :raises TypeError: When attempting to append a non-Parameter object.
         """
 
-    def pull(self, host: int, timeout: int = None) -> None:
+    def pull(self, node: int = None, timeout: int = None, paramver: int = 2) -> None:
         """
         Pulls all Parameters in the list as a single request.
 
         :raises ConnectionError: When no response is received.
         """
 
-    def push(self, node: int, timeout: int = None, hwid: int = None, paramver: int = 2) -> None:
+    def push(self, node: int = None, timeout: int = None, hwid: int = None, paramver: int = 2) -> None:
         """
         Pushes all Parameters in the list in a single packet.
 
@@ -418,11 +432,55 @@ class PythonSlashCommand(SlashCommand):
         """
 
 
+class Ident:
+    """
+    Convenient wrapper class for 'ident' replies. Allows for easy iteration of multiple responses:
+
+    for reply in Ident(16383):
+        print(f"{reply.hostname}@{reply.node}")
+    """
+
+    node: int
+    "Node of the 'module' that replied, which may differ from the targeted node in case of broadcast"
+    hostname: str
+    model: str
+    revision: str
+    "Revision of the 'module' that replied, which typically indicates software version"
+
+    # CSP doesn't seem to require these dates to be compilation dates,
+    # but they always seem to be so in practice.
+    date: str
+    "Typically compilation date, i.e: 'Jun 18 2024'"
+    time: str
+    "Typically compilation time, i.e: '14:06:09'"
+    datetime: _datetime
+    "Datetime object constructed from: Ident.date + Ident.time"
+
+    def __new__(cls, node: int = None, timeout: int = None, override: bool = False) -> tuple[Ident]:
+        """
+        Provide a node to 'ident' and receive an iterable of all replies.
+
+        :param node: Address of which to request identity, defaults to environment node.
+        :param timeout: Timeout in ms to wait for reply.
+        :param override: Whether to override the "known hosts" hostname of the responding module.
+
+        :raises RuntimeError: When called before .init().
+
+        :returns: A list of Ident instances based on replies to the specified node (which may be a broadcast)
+        """
+
+    def __str__(self) -> str:
+        """ Will return a string formatted as slash will print an ident reply """
+
+    def __hash__(self) -> int:
+        """ Uses all Ident fields to generate a hash """
+
+
 _param_ident_hint = int | str | Parameter  # Types accepted for finding a param_t
 
 
 # Libparam commands
-def get(param_identifier: _param_ident_hint, node: int = None, server: int = None, paramver: int = 2, offset: int = None, timeout: int = None, retries: int = None) -> _param_value_hint | tuple[_param_value_hint]:
+def get(param_identifier: _param_ident_hint, node: int = None, server: int = None, paramver: int = 2, offset: int = None, timeout: int = None, retries: int = None) -> _param_value_hint | tuple[_param_value_hint, ...]:
     """
     Get the value of a parameter.
 
@@ -441,7 +499,7 @@ def get(param_identifier: _param_ident_hint, node: int = None, server: int = Non
     :return: The value of the retrieved parameter (As its Python type).
     """
 
-def set(param_identifier: _param_ident_hint, value: _param_value_hint | _Iterable[int | float], node: int = None, server: int = None, paramver: int = 2, offset: int = None, timeout: int = None, retries: int = None) -> None:
+def set(param_identifier: _param_ident_hint, value: _param_value_hint | _Iterable[int | float], node: int = None, server: int = None, paramver: int = 2, offset: int = None, timeout: int = None, retries: int = None, verbose: int = 2) -> None:
     """
     Set the value of a parameter.
 
@@ -507,6 +565,14 @@ def timeout(timeout: int = None) -> int:
     :return: The current default timeout.
     """
 
+def verbose(verbose: int = None) -> int:
+    """
+    Used to get or change the default parameter verbosity.
+
+    :param verbose: Integer to change the default verbosity to (initial value = -1).
+    :return: The current default timeout.
+    """
+
 def cmd() -> None:
     """ Print the current command. """
 
@@ -524,7 +590,7 @@ def list_download(node: int = None, timeout: int = None, version: int = None) ->
     :raises RuntimeError: When called before .init().
     :raises ConnectionError: When no response is received.
 
-    :returns: The output of list().
+    :returns: ParameterList() of the specified node, after download.
     """
 
 def list_forget(node: int = None, verbose: int = None) -> int:
@@ -532,8 +598,9 @@ def list_forget(node: int = None, verbose: int = None) -> int:
     Remove remote parameters, matching the provided arguments, from the global list.
 
     :param node: Remove parameters from this node. Use <1 for all nodes.
-    :param name_filter: Wildcard name pattern to filter parameters by.
-    :returns: Count of parameters affected.
+    #:param name_filter: Wildcard name pattern to filter parameters by.
+
+    :returns: Count of parameters removed.
     """
 
 def list_save(filename: str = None, node: int = None, include_node: bool = True) -> None:
@@ -577,11 +644,11 @@ def ident(node: int = None, timeout: int = None, override: bool = False) -> str:
     """
     Print the identity of the specified node.
 
-    :param node: Address of subsystem.
+    :param node: Address of which to request identity, defaults to environment node.
     :param timeout: Timeout in ms to wait for reply.
+    :param override: Whether to override the "known hosts" hostname of the responding module.
 
     :raises RuntimeError: When called before .init().
-    :raises ConnectionError: When no response is received.
     """
 
 def reboot(node: int = None) -> None:
@@ -690,6 +757,22 @@ def sps(from: int, to: int, filename: str, node: int = None, window: int = None,
     :raises ProgramDiffError: See class docstring.
     """
 
+def apm_load(path: str = '~/.local/lib/csh/', filename: str = None, stop_on_error: bool = False) -> dict[str, _ModuleType | Exception]:
+    """
+    Loads both .py and .so APMs
+
+    Python built in 'import <apm>' machinery cannot load .so APMs that attempt to link with (Py)CSH.
+
+    :param path: Directory to scan for APMs to load
+    :param filename: Specific file/APM to load in the 'path' directory.
+    :param stop_on_error: Whether to stop and raise an exception when an APM fails to load.
+
+    :raises Exception: When stop_on_error==True and an APM fails to import.
+
+    :return: A dictionary with str paths of the modules as keys,
+        and the APM modules themselves as values (when loaded successfully, otherwise exception raised).
+    """
+
 def csp_init(host: str = None, model: str = None, revision: str = None, version: int = 2, dedup: int = 3) -> None:
     """
     Initialize CSP
@@ -701,7 +784,7 @@ def csp_init(host: str = None, model: str = None, revision: str = None, version:
     :param dedup: CSP dedup 0=off 1=forward 2=incoming 3=all (default)
     """
 
-def csp_add_zmq(addr: int, server: str, promisc: int = 0, mask: int = 8, default: int = 0) -> None:
+def csp_add_zmq(addr: int, server: str, promisc: int = 0, mask: int = 8, default: int = 0, sec_key: str|None = None) -> None:
     """
     Add a new ZMQ interface
 
@@ -710,6 +793,7 @@ def csp_add_zmq(addr: int, server: str, promisc: int = 0, mask: int = 8, default
     :param promisc: Promiscuous Mode
     :param mask: Netmask (defaults to 8)
     :param default: Set as default
+    :param sec_key: Auth key for zmqproxy
     """
 
 def csp_add_kiss(addr: int, promisc: int = 0, mask: int = 8, default: int = 0, baud: int = 1000000, uart: str = "ttyUSB0") -> None:

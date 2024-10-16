@@ -118,12 +118,10 @@ static int Parameter_set_node(ParameterObject *self, PyObject *value, void *clos
 	uint16_t node;
 
 	// This is pretty stupid, but seems to be the easiest way to convert a long to short using Python.
-	PyObject * value_tuple = PyTuple_Pack(1, value);
+	PyObject * value_tuple AUTO_DECREF = PyTuple_Pack(1, value);
 	if (!PyArg_ParseTuple(value_tuple, "H", &node)) {
-		Py_DECREF(value_tuple);
 		return -1;
 	}
-	Py_DECREF(value_tuple);
 
 	param_t * param = param_list_find_id(node, self->param->id);
 
@@ -186,8 +184,8 @@ static int Parameter_set_oldvalue(ParameterObject *self, PyObject *value, void *
 
 static PyObject * Parameter_get_value(ParameterObject *self, int remote) {
 	if (self->param->array_size > 1 && self->param->type != PARAM_TYPE_STRING)
-		return _pycsh_util_get_array(self->param, remote, self->host, self->timeout, self->retries, self->paramver);
-	return _pycsh_util_get_single(self->param, INT_MIN, remote, self->host, self->timeout, self->retries, self->paramver);
+		return _pycsh_util_get_array(self->param, remote, self->host, self->timeout, self->retries, self->paramver, pycsh_dfl_verbose);
+	return _pycsh_util_get_single(self->param, INT_MIN, remote, self->host, self->timeout, self->retries, self->paramver, pycsh_dfl_verbose);
 }
 
 static int Parameter_set_value(ParameterObject *self, PyObject *value, int remote) {
@@ -198,8 +196,8 @@ static int Parameter_set_value(ParameterObject *self, PyObject *value, int remot
     }
 
 	if (self->param->array_size > 1 && self->param->type != PARAM_TYPE_STRING)  // Is array parameter
-		return _pycsh_util_set_array(self->param, value, self->host, self->timeout, self->retries, self->paramver);
-	return _pycsh_util_set_single(self->param, value, INT_MIN, self->host, self->timeout, self->retries, self->paramver, remote);  // Normal parameter
+		return _pycsh_util_set_array(self->param, value, self->host, self->timeout, self->retries, self->paramver, pycsh_dfl_verbose);
+	return _pycsh_util_set_single(self->param, value, INT_MIN, self->host, self->timeout, self->retries, self->paramver, remote, pycsh_dfl_verbose);  // Normal parameter
 }
 
 static PyObject * Parameter_get_remote_value(ParameterObject *self, void *closure) {
@@ -262,7 +260,7 @@ static PyObject * Parameter_getmask(ParameterObject *self, void *closure) {
 }
 
 static PyObject * Parameter_gettimestamp(ParameterObject *self, void *closure) {
-	return Py_BuildValue("I", self->param->timestamp);
+	return Py_BuildValue("I", *(self->param->timestamp));
 }
 
 static PyObject * Parameter_get_retries(ParameterObject *self, void *closure) {
@@ -300,6 +298,29 @@ static int Parameter_set_retries(ParameterObject *self, PyObject *value, void *c
 static long Parameter_hash(ParameterObject *self) {
 	/* Use the ID of the parameter as the hash, as it is assumed unique. */
     return self->param->id;
+}
+
+static void Parameter_dealloc(ParameterObject *self) {
+
+	{   /* Remove ourselves from the callback/lookup dictionary */
+        PyObject *key AUTO_DECREF = PyLong_FromVoidPtr(self->param);
+        assert(key != NULL);
+        if (PyDict_GetItem((PyObject*)param_callback_dict, key) != NULL) {
+            PyDict_DelItem((PyObject*)param_callback_dict, key);
+        }
+    }
+
+	/* Somehow we hold a reference to a parameter that is not in the list,
+		this should only be possible if it was "list forget"en, after we wrapped it.
+		It should therefore follow that we are now responsible for its memory.
+		We must therefore free() it, now that we are being deallocated.
+		We check that (self->param != NULL), just in case we allow that to raise exceptions in the future. */
+	if (param_list_find_id(self->param->node, self->param->id) != self->param && self->param != NULL) {
+		param_list_destroy(self->param);
+	}
+
+	PyTypeObject *baseclass = pycsh_get_base_dealloc_class(&ParameterType);
+    baseclass->tp_dealloc((PyObject*)self);
 }
 
 /* 
@@ -354,7 +375,7 @@ PyTypeObject ParameterType = {
     .tp_itemsize = 0,
     .tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
     .tp_new = Parameter_new,
-    //.tp_dealloc = (destructor)Parameter_dealloc,
+    .tp_dealloc = (destructor)Parameter_dealloc,
 	.tp_getset = Parameter_getsetters,
 	// .tp_members = Parameter_members,
 	// .tp_methods = Parameter_methods,

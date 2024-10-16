@@ -71,13 +71,13 @@ PyObject * pycsh_slash_ident(PyObject * self, PyObject * args, PyObject * kwds) 
     Py_BEGIN_ALLOW_THREADS;
     conn = csp_connect(CSP_PRIO_NORM, node, CSP_CMP, timeout, CSP_O_CRC32);
     if (conn == NULL) {
-        return 0;
+        return NULL;
     }
 
     packet = csp_buffer_get(size);
     if (packet == NULL) {
         csp_close(conn);
-        return 0;
+        return NULL;
     }
 
     /* Copy the request */

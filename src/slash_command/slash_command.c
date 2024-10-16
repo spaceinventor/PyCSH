@@ -18,7 +18,7 @@
 #include "../utils.h"
 
 
-/* 1 for success. Compares the wrapped param_t for parameters, otherwise 0. Assumes self to be a SlashCommandObject. */
+/* 1 for success. Compares the wrapped slash_command (struct) between two SlashCommands, otherwise 0. Assumes self to be a SlashCommandObject. */
 static int SlashCommand_equal(PyObject *self, PyObject *other) {
 	if (PyObject_TypeCheck(other, &SlashCommandType))
 		return ((SlashCommandObject *)self)->command == ((SlashCommandObject *)other)->command;
@@ -60,7 +60,7 @@ static void SlashCommand_dealloc(SlashCommandObject *self) {
 	Py_TYPE(self)->tp_free((PyObject *) self);
 }
 
-__attribute__((malloc, malloc(SlashCommand_dealloc, 1)))
+__attribute__((malloc(SlashCommand_dealloc, 1)))
 static PyObject * SlashCommand_new(PyTypeObject *type, PyObject *args, PyObject *kwds) {
 
 	static char *kwlist[] = {"name", NULL};
@@ -126,7 +126,7 @@ static char* _tuple_to_slash_string(const char * command_name, PyObject* args, P
     }
 
     // Create an empty Unicode object
-    PyObject* unicode_result;
+    PyObject* unicode_result AUTO_DECREF = NULL;
 	if (command_name == NULL) {
 		unicode_result = PyUnicode_New(0, 0);
 	} else {
@@ -145,12 +145,9 @@ static char* _tuple_to_slash_string(const char * command_name, PyObject* args, P
 
         while (PyDict_Next(kwargs, &pos, &key, &value)) {
             // Format each key-value pair as named arguments to shell commands
-            PyObject* str_key = PyObject_Str(key);
-            PyObject* str_value = PyObject_Str(value);
+            PyObject* str_key AUTO_DECREF = PyObject_Str(key);
+            PyObject* str_value AUTO_DECREF = PyObject_Str(value);
             if (str_key == NULL || str_value == NULL) {
-                Py_XDECREF(str_key);
-                Py_XDECREF(str_value);
-                Py_DECREF(unicode_result);
                 PyErr_SetString(PyExc_RuntimeError, "Failed to convert key-value pair to string");
                 return NULL;
             }
@@ -160,9 +157,7 @@ static char* _tuple_to_slash_string(const char * command_name, PyObject* args, P
             PyUnicode_AppendAndDel(&unicode_result, str_key);
             /* Assume that boolean arguments are just flags without values,
                 i.e "--override" for ident */
-            if (PyBool_Check(value)) {
-                Py_DECREF(str_value);
-            } else {
+            if (!PyBool_Check(value)) {
                 PyUnicode_AppendAndDel(&unicode_result, PyUnicode_FromString("="));
                 PyUnicode_AppendAndDel(&unicode_result, str_value);
             }
@@ -175,7 +170,6 @@ static char* _tuple_to_slash_string(const char * command_name, PyObject* args, P
         PyObject* item = PyTuple_GetItem(args, i);
         if (item == NULL) {
             // Error occurred while getting tuple item
-            Py_DECREF(unicode_result);
             return NULL;
         }
 
@@ -183,7 +177,6 @@ static char* _tuple_to_slash_string(const char * command_name, PyObject* args, P
         PyObject* str_obj = PyObject_Str(item);
         if (str_obj == NULL) {
             // Error occurred while converting to string
-            Py_DECREF(unicode_result);
             return NULL;
         }
 
@@ -198,6 +191,7 @@ static char* _tuple_to_slash_string(const char * command_name, PyObject* args, P
     const char* temp = PyUnicode_AsUTF8(unicode_result);
     if (temp == NULL) {
         PyErr_SetString(PyExc_RuntimeError, "Failed to convert Unicode to UTF-8");
+		return NULL;
     }
 
 	char *result = malloc(strlen(temp)+1);
@@ -206,9 +200,6 @@ static char* _tuple_to_slash_string(const char * command_name, PyObject* args, P
 		return NULL;
 	}
 	strcpy(result, temp);
-
-    // Decrement the reference count of the Unicode object
-    Py_DECREF(unicode_result);
 
     return result;
 }

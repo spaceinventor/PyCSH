@@ -56,12 +56,21 @@
 #include "parameter/parameterarray.h"
 #include "parameter/pythonparameter.h"
 #include "parameter/pythonarrayparameter.h"
+#include "parameter/pythongetsetparameter.h"
+#include "parameter/pythongetsetarrayparameter.h"
 #include "parameter/parameterlist.h"
 
+#include "csp_classes/ident.h"
+
+#include "csp_classes/ident.h"
+
+#ifdef PYCSH_HAVE_SLASH
 #include "slash_command/slash_command.h"
 #include "slash_command/python_slash_command.h"
+#endif
 
 #include "wrapper/py_csp.h"
+#include "wrapper/apm_py.h"
 #include "wrapper/param_py.h"
 #include "wrapper/slash_py.h"
 #include "wrapper/dflopt_py.h"
@@ -104,9 +113,13 @@ uint8_t csp_initialized() {
 }
 
 #ifndef PYCSH_HAVE_SLASH
-unsigned int pycsh_dfl_node = 0;
-unsigned int pycsh_dfl_timeout = 1000;
+// TODO Kevin: Building as APM without slash, will provide its own default node/timeout, which is very much not ideal.
+unsigned int slash_dfl_node = 0;
+unsigned int slash_dfl_timeout = 1000;
+#else
+#include <slash/dflopt.h>
 #endif
+unsigned int pycsh_dfl_verbose = -1;
 
 uint64_t clock_get_nsec(void) {
 	struct timespec ts;
@@ -174,11 +187,11 @@ static int _handle_stream(PyObject * stream_identifier, FILE **std_stream, FILE 
 
 static PyObject * pycsh_init(PyObject * self, PyObject * args, PyObject *kwds) {
 
-	if (_csp_initialized) {
-		PyErr_SetString(PyExc_RuntimeError,
-			"Cannot initialize multiple instances of libparam bindings. Please use a previous binding.");
-		return NULL;
-	}
+	// if (_csp_initialized) {
+	// 	PyErr_SetString(PyExc_RuntimeError,
+	// 		"Cannot initialize multiple instances of libparam bindings. Please use a previous binding.");
+	// 	return NULL;
+	// }
 
 	static char *kwlist[] = {
 		"quiet", "stdout", "stderr", NULL,
@@ -209,7 +222,7 @@ static PyObject * pycsh_init(PyObject * self, PyObject * args, PyObject *kwds) {
 	) {
 		return NULL;
 	}
-
+	#ifndef PYCSH_HAVE_APM
 	srand(time(NULL));
 
 	void serial_init(void);
@@ -229,8 +242,7 @@ static PyObject * pycsh_init(PyObject * self, PyObject * args, PyObject *kwds) {
 
 	static pthread_t onehz_handle;
 	pthread_create(&onehz_handle, NULL, &onehz_task, NULL);
-
-	/* TODO Kevin: If we include slash as a submodule, we should run the init file here. */
+	#endif 
 	
 	_csp_initialized = 1;
 	Py_RETURN_NONE;
@@ -249,6 +261,7 @@ static PyMethodDef methods[] = {
 	{"cmd_new", 	(PyCFunction)pycsh_param_cmd_new,METH_VARARGS | METH_KEYWORDS, "Create a new command"},
 	{"node", 		pycsh_slash_node, 			  	METH_VARARGS, 				  "Used to get or change the default node."},
 	{"timeout", 	pycsh_slash_timeout, 			METH_VARARGS, 		  		  "Used to get or change the default timeout."},
+	{"verbose", 	pycsh_slash_verbose, 			METH_VARARGS, 		  		  "Used to get or change the default parameter verbosity."},
 	{"queue", 		pycsh_param_cmd,			  	METH_NOARGS, 				  "Print the current command."},
 
 	/* Converted CSH commands from libparam/src/param/list/param_list_slash.c */
@@ -282,6 +295,7 @@ static PyMethodDef methods[] = {
 	{"switch", 	(PyCFunction)slash_csp_switch,   METH_VARARGS | METH_KEYWORDS, "Reboot into the specified firmware slot."},
 	{"program", (PyCFunction)pycsh_csh_program,  METH_VARARGS | METH_KEYWORDS, "Upload new firmware to a module."},
 	{"sps", 	(PyCFunction)slash_sps,   		 METH_VARARGS | METH_KEYWORDS, "Switch -> Program -> Switch"},
+	{"apm_load",(PyCFunction)pycsh_apm_load,   	 METH_VARARGS | METH_KEYWORDS, "Loads both .py and .so APMs"},
 
 	/* Wrappers for src/csp_init_cmd.c */
 	{"csp_init", 	(PyCFunction)pycsh_csh_csp_init,   METH_VARARGS | METH_KEYWORDS, "Initialize CSP"},
@@ -329,9 +343,23 @@ PyMODINIT_FUNC PyInit_pycsh(void) {
 	if (PyType_Ready(PythonArrayParameterType) < 0)
 		return NULL;
 
+	if (PyType_Ready(&PythonGetSetParameterType) < 0)
+        return NULL;
+
+	/* PythonArrayParameterType must be created dynamically after
+		ParameterArrayType and PythonParameterType to support multiple inheritance. */
+	if (create_pythongetsetarrayparameter_type() == NULL)
+		return NULL;
+	if (PyType_Ready(PythonGetSetArrayParameterType) < 0)
+		return NULL;
+
 	ParameterListType.tp_base = &PyList_Type;
 	if (PyType_Ready(&ParameterListType) < 0)
 		return NULL;
+
+
+	if (PyType_Ready(&IdentType) < 0)
+        return NULL;
 
 
 #ifdef PYCSH_HAVE_SLASH
@@ -399,11 +427,33 @@ PyMODINIT_FUNC PyInit_pycsh(void) {
         return NULL;
 	}
 
+	Py_INCREF(&PythonGetSetParameterType);
+	if (PyModule_AddObject(m, "PythonGetSetParameter", (PyObject *) &PythonGetSetParameterType) < 0) {
+		Py_DECREF(&PythonGetSetParameterType);
+        Py_DECREF(m);
+        return NULL;
+	}
+
+	Py_INCREF(PythonGetSetArrayParameterType);
+    if (PyModule_AddObject(m, "PythonGetSetArrayParameter", (PyObject *) PythonGetSetArrayParameterType) < 0) {
+		Py_DECREF(PythonGetSetArrayParameterType);
+        Py_DECREF(m);
+        return NULL;
+	}
+
 	Py_INCREF(&ParameterListType);
 	if (PyModule_AddObject(m, "ParameterList", (PyObject *)&ParameterListType) < 0) {
 		Py_DECREF(&ParameterListType);
 		Py_DECREF(m);
 		return NULL;
+	}
+
+
+	Py_INCREF(&IdentType);
+	if (PyModule_AddObject(m, "Ident", (PyObject *) &IdentType) < 0) {
+		Py_DECREF(&IdentType);
+        Py_DECREF(m);
+        return NULL;
 	}
 
 
@@ -428,6 +478,7 @@ PyMODINIT_FUNC PyInit_pycsh(void) {
 		/* Version Control */
 		PyModule_AddObject(m, "VERSION", PyUnicode_FromString(version_string));
 		PyModule_AddObject(m, "COMPILE_DATE", PyUnicode_FromString(__DATE__));
+		PyModule_AddObject(m, "COMPILE_DATETIME", pycsh_ident_time_to_datetime(__DATE__, __TIME__));
 
 		/* Param Type Enums */
 		PyModule_AddObject(m, "PARAM_TYPE_UINT8", PyLong_FromLong(PARAM_TYPE_UINT8));

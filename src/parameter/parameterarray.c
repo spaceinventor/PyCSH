@@ -29,7 +29,7 @@ static PyObject * ParameterArray_GetItem(ParameterObject *self, PyObject *item) 
 		return NULL;  // 'Reraise' the current exception.
 
 	/* TODO Kevin: How should we handle remote/cached when using indexed access? */
-	return _pycsh_util_get_single(self->param, index, 1, self->host, self->timeout, self->retries, self->paramver);
+	return _pycsh_util_get_single(self->param, index, 1, self->host, self->timeout, self->retries, self->paramver, -1);
 }
 
 static int ParameterArray_SetItem(ParameterObject *self, PyObject* item, PyObject* value) {
@@ -57,7 +57,7 @@ static int ParameterArray_SetItem(ParameterObject *self, PyObject* item, PyObjec
 #if 0  /* TODO Kevin: When should we use queues with the new cmd system? */
 	param_queue_t *usequeue = autosend ? NULL : &param_queue_set;
 #endif
-	return _pycsh_util_set_single(self->param, value, index, self->host, self->timeout, self->retries, self->paramver, 1);
+	return _pycsh_util_set_single(self->param, value, index, self->host, self->timeout, self->retries, self->paramver, 1, pycsh_dfl_verbose);
 }
 
 static Py_ssize_t ParameterArray_length(ParameterObject *self) {

@@ -9,6 +9,7 @@
 
 #include "utils.h"
 
+#include <dirent.h>
 #include <param/param_server.h>
 #include <param/param_client.h>
 #include <param/param_string.h>
@@ -20,21 +21,28 @@
 #include "parameter/parameterlist.h"
 #include "parameter/pythonarrayparameter.h"
 
+#undef NDEBUG
+#include <assert.h>
 
-/* __attribute__(()) doesn't like to treat char** and void** interchangeably. */
-void cleanup_str(char ** obj) {
+void cleanup_free(void *const* obj) {
     if (*obj == NULL) {
         return;
 	}
     free(*obj);
-    *obj = NULL;
+	/* Setting *obj=NULL should never have a visible effect when using __attribute__((cleanup()).
+		But accepting a *const* allows for more use cases. */
+    //*obj = NULL;  // 
 }
-void cleanup_free(void ** obj) {
-    if (*obj == NULL) {
-        return;
+/* __attribute__(()) doesn't like to treat char** and void** interchangeably. */
+void cleanup_str(char *const* obj) {
+    cleanup_free((void *const*)obj);
+}
+void _close_dir(DIR *const* dir) {
+	if (dir == NULL || *dir == NULL) {
+		return;
 	}
-    free(*obj);
-    *obj = NULL;
+	closedir(*dir);
+	//*dir = NULL;
 }
 void cleanup_GIL(PyGILState_STATE * gstate) {
 	//printf("AAA %d\n", PyGILState_Check());
@@ -54,7 +62,7 @@ void state_release_GIL(PyThreadState ** state) {
     *state = PyEval_SaveThread();
 }
 
-__attribute__((malloc, malloc(free, 1)))
+__attribute__((malloc(free, 1)))
 char *safe_strdup(const char *s) {
     if (s == NULL) {
         return NULL;
@@ -123,6 +131,133 @@ finally:
     Py_XDECREF(super);
     Py_XDECREF(func);
     return result;
+}
+
+/**
+ * @brief Get the first base-class with a .tp_dealloc() different from the specified class.
+ * 
+ * If the specified class defines its own .tp_dealloc(),
+ * if should be safe to assume the returned class to be no more abstract than object(),
+ * which features its .tp_dealloc() that ust be called anyway.
+ * 
+ * This function is intended to be called in a subclassed __del__ (.tp_dealloc()),
+ * where it will mimic a call to super().
+ * 
+ * @param cls Class to find a super() .tp_dealloc() for.
+ * @return PyTypeObject* super() class.
+ */
+PyTypeObject * pycsh_get_base_dealloc_class(PyTypeObject *cls) {
+	
+	/* Keep iterating baseclasses until we find one that doesn't use this deallocator. */
+	PyTypeObject *baseclass = cls->tp_base;
+	for (; baseclass->tp_dealloc == cls->tp_dealloc; (baseclass = baseclass->tp_base));
+
+    assert(baseclass->tp_dealloc != NULL);  // Assert that Python installs some deallocator to classes that don't specifically implement one (Whether pycsh.Parameter or object()).
+	return baseclass;
+}
+
+/**
+ * @brief Goes well with (__DATE__, __TIME__) and (csp_cmp_message.ident.date, csp_cmp_message.ident.time)
+ * 
+ * 'date' and 'time' are separate arguments, because it's most convenient when working with csp_cmp_message.
+ * 
+ * @param date __DATE__ or csp_cmp_message.ident.date
+ * @param time __TIME__ or csp_cmp_message.ident.time
+ * @return New reference to a PyObject* datetime.datetime() from the specified time and dated
+ */
+PyObject *pycsh_ident_time_to_datetime(const char * const date, const char * const time) {
+
+	PyObject *datetime_module AUTO_DECREF = PyImport_ImportModule("datetime");
+	if (!datetime_module) {
+		return NULL;
+	}
+
+	PyObject *datetime_class AUTO_DECREF = PyObject_GetAttrString(datetime_module, "datetime");
+	if (!datetime_class) {
+		return NULL;
+	}
+
+	PyObject *datetime_strptime AUTO_DECREF = PyObject_GetAttrString(datetime_class, "strptime");
+	if (!datetime_strptime) {
+		return NULL;
+	}
+
+	//PyObject *datetime_str AUTO_DECREF = PyUnicode_FromFormat("%U %U", self->date, self->time);
+	PyObject *datetime_str AUTO_DECREF = PyUnicode_FromFormat("%s %s", date, time);
+	if (!datetime_str) {
+		return NULL;
+	}
+
+	PyObject *format_str AUTO_DECREF = PyUnicode_FromString("%b %d %Y %H:%M:%S");
+	if (!format_str) {
+		return NULL;
+	}
+
+	PyObject *datetime_args AUTO_DECREF = PyTuple_Pack(2, datetime_str, format_str);
+	if (!datetime_args) {
+		return NULL;
+	}
+
+	/* No DECREF, we just pass the new reference (returned by PyObject_CallObject()) to the caller.
+		No NULL check either, because the caller has to do that anyway.
+		And the only cleanup we need (for exceptions) is already done by AUTO_DECREF */
+	PyObject *datetime_obj = PyObject_CallObject(datetime_strptime, datetime_args);
+
+	return datetime_obj;
+}
+
+int pycsh_get_num_accepted_pos_args(const PyObject *function, bool raise_exc) {
+
+	// Suppress the incompatible pointer type warning when AUTO_DECREF is used on subclasses of PyObject*
+    #pragma GCC diagnostic push
+    #pragma GCC diagnostic ignored "-Wincompatible-pointer-types"
+    PyCodeObject *func_code AUTO_DECREF = (PyCodeObject*)PyObject_GetAttrString((PyObject*)function, "__code__");
+	// Re-enable the warning
+    #pragma GCC diagnostic pop
+
+    if (!func_code || !PyCode_Check(func_code)) {
+        if (raise_exc)
+            PyErr_SetString(PyExc_TypeError, "Provided function must be callable");
+        return -1;
+    }
+
+    // Check if the function accepts *args
+    int accepts_varargs = (func_code->co_flags & CO_VARARGS) ? 1 : 0;
+
+    // Return INT_MAX if *args is present
+    if (accepts_varargs) {
+        return INT_MAX;
+    }
+
+    // Number of positional arguments excluding *args
+    int num_pos_args = func_code->co_argcount;
+    return num_pos_args;
+}
+
+
+// Source: https://chatgpt.com
+int pycsh_get_num_required_args(const PyObject *function, bool raise_exc) {
+
+	// Suppress the incompatible pointer type warning when AUTO_DECREF is used on subclasses of PyObject*
+    #pragma GCC diagnostic push
+    #pragma GCC diagnostic ignored "-Wincompatible-pointer-types"
+    PyCodeObject *func_code AUTO_DECREF = (PyCodeObject*)PyObject_GetAttrString((PyObject*)function, "__code__");
+	// Re-enable the warning
+    #pragma GCC diagnostic pop
+
+    if (!func_code || !PyCode_Check(func_code)) {
+        if (raise_exc)
+            PyErr_SetString(PyExc_TypeError, "Provided callback must be callable");
+        return -1;
+    }
+
+    int num_required_pos_args = func_code->co_argcount - func_code->co_kwonlyargcount;
+
+    PyObject *defaults AUTO_DECREF = PyObject_GetAttrString((PyObject*)function, "__defaults__");
+    Py_ssize_t num_defaults = (defaults && PyTuple_Check(defaults)) ? PyTuple_Size(defaults) : 0;
+
+    int num_non_default_pos_args = num_required_pos_args - (int)num_defaults;
+    return num_non_default_pos_args;
 }
 
 
@@ -229,15 +364,14 @@ PyObject * pycsh_util_get_type(PyObject * self, PyObject * args) {
 	return (PyObject *)_pycsh_misc_param_t_type(param);
 }
 
-PythonParameterObject * Parameter_wraps_param(param_t *param) {
+ParameterObject * Parameter_wraps_param(param_t *param) {
 	/* TODO Kevin: If it ever becomes possible to assert() the held state of the GIL,
 		we would definitely want to do it here. We don't want to use PyGILState_Ensure()
 		because the GIL should still be held after returning. */
     assert(param != NULL);
 
-	PyObject *key = PyLong_FromVoidPtr(param);
-    PythonParameterObject *python_param = (PythonParameterObject*)PyDict_GetItem((PyObject*)param_callback_dict, key);
-    Py_DECREF(key);
+	PyObject *key AUTO_DECREF = PyLong_FromVoidPtr(param);
+    ParameterObject *python_param = (ParameterObject*)PyDict_GetItem((PyObject*)param_callback_dict, key);
 
 	return python_param;
 }
@@ -293,7 +427,7 @@ PyObject * _pycsh_Parameter_from_param(PyTypeObject *type, param_t * param, cons
  		return NULL;
 	}
 	// This parameter is already wrapped by a ParameterObject, which we may return instead.
-	PythonParameterObject * existing_parameter;
+	ParameterObject * existing_parameter;
 	if ((existing_parameter = Parameter_wraps_param(param)) != NULL) {
 		/* TODO Kevin: How should we handle when: host, timeout, retries and paramver are different for the existing parameter? */
 		return (PyObject*)Py_NewRef(existing_parameter);
@@ -301,7 +435,7 @@ PyObject * _pycsh_Parameter_from_param(PyTypeObject *type, param_t * param, cons
 
 	if (param->array_size <= 1 && type == &ParameterArrayType) {
 		PyErr_SetString(PyExc_TypeError, 
-			"Attempted to create an ParameterArray instance, for a non array parameter.");
+			"Attempted to create a ParameterArray instance, for a non array parameter.");
 		return NULL;
 	} else if (param->array_size > 1) {  		   // If the parameter is an array.
 		type = get_arrayparameter_subclass(type);  // We create a ParameterArray instance instead.
@@ -317,10 +451,31 @@ PyObject * _pycsh_Parameter_from_param(PyTypeObject *type, param_t * param, cons
 	if (self == NULL)
 		return NULL;
 
-	PyObject *key = PyLong_FromVoidPtr(param);
-	PyDict_SetItem((PyObject*)param_callback_dict, key, (PyObject*)self);  // Allows the param_t callback to find the corresponding PythonParameterObject.
-    Py_DECREF(key);
-    Py_DECREF(self);  // param_callback_dict should hold a weak reference to self
+	{   /* Add ourselves to the callback/lookup dictionary */
+		PyObject *key AUTO_DECREF = PyLong_FromVoidPtr(param);
+		assert(key != NULL);
+		assert(!PyErr_Occurred());
+		assert(PyDict_GetItem((PyObject*)param_callback_dict, key) == NULL);
+		int set_res = PyDict_SetItem((PyObject*)param_callback_dict, key, (PyObject*)self);
+		assert(set_res == 0);  // Allows the param_t callback to find the corresponding ParameterObject.
+		assert(PyDict_GetItem((PyObject*)param_callback_dict, key) != NULL);
+		assert(!PyErr_Occurred());
+
+		assert(self);
+		assert(self->ob_base.ob_type);
+		/* The parameter linked list should maintain an eternal reference to Parameter() instances, and subclasses thereof (with the exception of PythonParameter() and its subclasses).
+			This check should ensure that: Parameter("name") is Parameter("name") == True.
+			This check doesn't apply to PythonParameter()'s, because its reference is maintained by .keep_alive */
+		int is_pythonparameter = PyObject_IsSubclass((PyObject*)(type), (PyObject*)&PythonParameterType);
+        if (is_pythonparameter < 0) {
+			assert(false);
+			return NULL;
+		}
+
+		if (is_pythonparameter) {
+			Py_DECREF(self);  // param_callback_dict should hold a weak reference to self
+		}
+	}
 
 	self->host = host;
 	self->param = param;
@@ -334,25 +489,40 @@ PyObject * _pycsh_Parameter_from_param(PyTypeObject *type, param_t * param, cons
 }
 
 
-/* Constructs a list of Python Parameters of all known param_t returned by param_list_iterate. */
-PyObject * pycsh_util_parameter_list(void) {
+/**
+ * @brief Return a list of Parameter wrappers similar to the "list" slash command
+ * 
+ * @param node <0 for all nodes, otherwise only include parameters for the specified node.
+ * @return PyObject* Py_NewRef(list[Parameter])
+ */
+PyObject * pycsh_util_parameter_list(uint32_t mask, int node, const char * globstr) {
 
 	PyObject * list = PyObject_CallObject((PyObject *)&ParameterListType, NULL);
 
 	param_t * param;
 	param_list_iterator i = {};
 	while ((param = param_list_iterate(&i)) != NULL) {
+
+		if ((node >= 0) && (param->node != node)) {
+			continue;
+		}
+		if ((param->mask & mask) == 0) {
+			continue;
+		}
+		int strmatch(const char *str, const char *pattern, int n, int m);  // TODO Kevin: Maybe strmatch() should be in the libparam public API?
+		if ((globstr != NULL) && strmatch(param->name, globstr, strlen(param->name), strlen(globstr)) == 0) {
+			continue;
+		}
+
 		/* CSH does not specify a paramver when listing parameters,
 			so we just use 2 as the default version for the created instances. */
-		PyObject * parameter = _pycsh_Parameter_from_param(&ParameterType, param, NULL, INT_MIN, pycsh_dfl_timeout, 1, 2);
+		PyObject * parameter AUTO_DECREF = _pycsh_Parameter_from_param(&ParameterType, param, NULL, INT_MIN, pycsh_dfl_timeout, 1, 2);
 		if (parameter == NULL) {
 			Py_DECREF(list);
 			return NULL;
 		}
-		PyObject * argtuple = PyTuple_Pack(1, parameter);
-		Py_DECREF(ParameterList_append(list, argtuple));  // TODO Kevin: DECREF on None doesn't seem right here...
-		Py_DECREF(argtuple);
-		Py_DECREF(parameter);
+		PyObject * argtuple AUTO_DECREF = PyTuple_Pack(1, parameter);
+		Py_XDECREF(ParameterList_append(list, argtuple));  // TODO Kevin: DECREF on None doesn't seem right here...
 	}
 
 	return list;
@@ -375,7 +545,7 @@ static int _pycsh_util_index(int seqlen, int *index) {
 /* Private interface for getting the value of single parameter
    Increases the reference count of the returned item before returning.
    Use INT_MIN for offset as no offset. */
-PyObject * _pycsh_util_get_single(param_t *param, int offset, int autopull, int host, int timeout, int retries, int paramver) {
+PyObject * _pycsh_util_get_single(param_t *param, int offset, int autopull, int host, int timeout, int retries, int paramver, int verbose) {
 
 	if (offset != INT_MIN) {
 		if (_pycsh_util_index(param->array_size, &offset))  // Validate the offset.
@@ -398,53 +568,85 @@ PyObject * _pycsh_util_get_single(param_t *param, int offset, int autopull, int 
 		}	
 	}
 
-	param_print(param, -1, NULL, 0, 0, 0);
+	if (verbose > -1) {
+		param_print(param, -1, NULL, 0, 0, 0);
+	}
 
 	switch (param->type) {
 		case PARAM_TYPE_UINT8:
-		case PARAM_TYPE_XINT8:
-			if (offset != -1)
-				return Py_BuildValue("B", param_get_uint8_array(param, offset));
-			return Py_BuildValue("B", param_get_uint8(param));
+		case PARAM_TYPE_XINT8: {
+			uint8_t val = (offset != -1) ? param_get_uint8_array(param, offset) : param_get_uint8(param);
+			if (PyErr_Occurred()) {  // Error may occur during Parameter_getter()
+				return NULL;
+			}
+			return Py_BuildValue("B", val);
+		}
 		case PARAM_TYPE_UINT16:
-		case PARAM_TYPE_XINT16:
-			if (offset != -1)
-				return Py_BuildValue("H", param_get_uint16_array(param, offset));
-			return Py_BuildValue("H", param_get_uint16(param));
+		case PARAM_TYPE_XINT16: {
+			uint16_t val = (offset != -1) ? param_get_uint16_array(param, offset) :  param_get_uint16(param);
+			if (PyErr_Occurred()) {  // Error may occur during Parameter_getter()
+				return NULL;
+			}
+			return Py_BuildValue("H", val);
+		}
 		case PARAM_TYPE_UINT32:
-		case PARAM_TYPE_XINT32:
-			if (offset != -1)
-				return Py_BuildValue("I", param_get_uint32_array(param, offset));
-			return Py_BuildValue("I", param_get_uint32(param));
+		case PARAM_TYPE_XINT32: {
+			uint32_t val = (offset != -1) ? param_get_uint32_array(param, offset) :  param_get_uint32(param);
+			if (PyErr_Occurred()) {  // Error may occur during Parameter_getter()
+				return NULL;
+			}
+			return Py_BuildValue("I", val);
+		}
 		case PARAM_TYPE_UINT64:
-		case PARAM_TYPE_XINT64:
-			if (offset != -1)
-				return Py_BuildValue("K", param_get_uint64_array(param, offset));
-			return Py_BuildValue("K", param_get_uint64(param));
-		case PARAM_TYPE_INT8:
-			if (offset != -1)
-				return Py_BuildValue("b", param_get_int8_array(param, offset));
-			return Py_BuildValue("b", param_get_int8(param));
-		case PARAM_TYPE_INT16:
-			if (offset != -1)
-				return Py_BuildValue("h", param_get_int16_array(param, offset));
-			return Py_BuildValue("h", param_get_int16(param));
-		case PARAM_TYPE_INT32:
-			if (offset != -1)
-				return Py_BuildValue("i", param_get_int32_array(param, offset));
-			return Py_BuildValue("i", param_get_int32(param));
-		case PARAM_TYPE_INT64:
-			if (offset != -1)
-				return Py_BuildValue("k", param_get_int64_array(param, offset));
-			return Py_BuildValue("k", param_get_int64(param));
-		case PARAM_TYPE_FLOAT:
-			if (offset != -1)
-				return Py_BuildValue("f", param_get_float_array(param, offset));
-			return Py_BuildValue("f", param_get_float(param));
-		case PARAM_TYPE_DOUBLE:
-			if (offset != -1)
-				return Py_BuildValue("d", param_get_double_array(param, offset));
-			return Py_BuildValue("d", param_get_double(param));
+		case PARAM_TYPE_XINT64: {
+			uint64_t val = (offset != -1) ? param_get_uint64_array(param, offset) :  param_get_uint64(param);
+			if (PyErr_Occurred()) {  // Error may occur during Parameter_getter()
+				return NULL;
+			}
+			return Py_BuildValue("K", val);
+		}
+		case PARAM_TYPE_INT8: {
+			int8_t val = (offset != -1) ? param_get_int8_array(param, offset) : param_get_int8(param);
+			if (PyErr_Occurred()) {  // Error may occur during Parameter_getter()
+				return NULL;
+			}
+			return Py_BuildValue("b", val);	
+		}
+		case PARAM_TYPE_INT16: {
+			int16_t val = (offset != -1) ? param_get_int16_array(param, offset) :  param_get_int16(param);
+			if (PyErr_Occurred()) {  // Error may occur during Parameter_getter()
+				return NULL;
+			}
+			return Py_BuildValue("h", val);	
+		}
+		case PARAM_TYPE_INT32: {
+			int32_t val = (offset != -1) ? param_get_int32_array(param, offset) :  param_get_int32(param);
+			if (PyErr_Occurred()) {  // Error may occur during Parameter_getter()
+				return NULL;
+			}
+			return Py_BuildValue("i", val);	
+		}
+		case PARAM_TYPE_INT64: {
+			int64_t val = (offset != -1) ? param_get_int64_array(param, offset) :  param_get_int64(param);
+			if (PyErr_Occurred()) {  // Error may occur during Parameter_getter()
+				return NULL;
+			}
+			return Py_BuildValue("k", val);	
+		}
+		case PARAM_TYPE_FLOAT: {
+			float val = (offset != -1) ? param_get_float_array(param, offset) : param_get_float(param);
+			if (PyErr_Occurred()) {  // Error may occur during Parameter_getter()
+				return NULL;
+			}
+			return Py_BuildValue("f", val);	
+		}
+		case PARAM_TYPE_DOUBLE: {
+			double val = (offset != -1) ? param_get_double_array(param, offset) : param_get_double(param);
+			if (PyErr_Occurred()) {  // Error may occur during Parameter_getter()
+				return NULL;
+			}
+			return Py_BuildValue("d", val);	
+		}
 		case PARAM_TYPE_STRING: {
 			char buf[param->array_size];
 			param_get_string(param, &buf, param->array_size);
@@ -474,7 +676,7 @@ PyObject * _pycsh_util_get_single(param_t *param, int offset, int autopull, int 
 
 /* Private interface for getting the value of an array parameter
    Increases the reference count of the returned tuple before returning.  */
-PyObject * _pycsh_util_get_array(param_t *param, int autopull, int host, int timeout, int retries, int paramver) {
+PyObject * _pycsh_util_get_array(param_t *param, int autopull, int host, int timeout, int retries, int paramver, int verbose) {
 
 	// Pull the value for every index using a queue (if we're allowed to),
 	// instead of pulling them individually.
@@ -502,7 +704,7 @@ PyObject * _pycsh_util_get_array(param_t *param, int autopull, int host, int tim
 	PyObject * value_tuple = PyTuple_New(param->array_size);
 
 	for (int i = 0; i < param->array_size; i++) {
-		PyObject * item = _pycsh_util_get_single(param, i, 0, host, timeout, retries, paramver);
+		PyObject * item = _pycsh_util_get_single(param, i, 0, host, timeout, retries, paramver, verbose);
 
 		if (item == NULL) {  // Something went wrong, probably a ConnectionError. Let's abandon ship.
 			Py_DECREF(value_tuple);
@@ -532,12 +734,11 @@ static PyObject * _pycsh_get_str_value(PyObject * obj) {
 		int retries = paramobj->retries;
 		int paramver = paramobj->paramver;
 
-		PyObject * value = param->array_size > 0 ? 
-			_pycsh_util_get_array(param, 0, host, timeout, retries, paramver) :
-			_pycsh_util_get_single(param, INT_MIN, 0, host, timeout, retries, paramver);
+		PyObject * value AUTO_DECREF = param->array_size > 0 ? 
+			_pycsh_util_get_array(param, 0, host, timeout, retries, paramver, -1) :
+			_pycsh_util_get_single(param, INT_MIN, 0, host, timeout, retries, paramver, -1);
 
 		PyObject * strvalue = PyObject_Str(value);
-		Py_DECREF(value);
 		return strvalue;
 	}
 	else  // Otherwise use __str__.
@@ -549,13 +750,11 @@ static PyObject * _pycsh_typeconvert(PyObject * strvalue, PyTypeObject * type, i
 	// TODO Kevin: Using this to check the types of object is likely against
 	// PEP 20 -- The Zen of Python: "Explicit is better than implicit"
 
-	PyObject * valuetuple = PyTuple_Pack(1, strvalue);
+	PyObject * valuetuple AUTO_DECREF = PyTuple_Pack(1, strvalue);
 	PyObject * converted_value = PyObject_CallObject((PyObject *)type, valuetuple);
 	if (converted_value == NULL) {
-		Py_DECREF(valuetuple);  // converted_value is NULL, so we don't decrements its refcount.
 		return NULL;  // We assume failed conversions to have set an exception string.
 	}
-	Py_DECREF(valuetuple);
 	if (check_only) {
 		Py_DECREF(converted_value);
 		Py_RETURN_NONE;
@@ -599,7 +798,7 @@ static int _pycsh_typecheck_sequence(PyObject * sequence, PyTypeObject * type) {
 
 /* Private interface for setting the value of a normal parameter. 
    Use INT_MIN as no offset. */
-int _pycsh_util_set_single(param_t *param, PyObject *value, int offset, int host, int timeout, int retries, int paramver, int remote) {
+int _pycsh_util_set_single(param_t *param, PyObject *value, int offset, int host, int timeout, int retries, int paramver, int remote, int verbose) {
 	
 	if (offset != INT_MIN) {
 		if (param->type == PARAM_TYPE_STRING) {
@@ -613,35 +812,34 @@ int _pycsh_util_set_single(param_t *param, PyObject *value, int offset, int host
 		offset = -1;
 
 	char valuebuf[128] __attribute__((aligned(16))) = { };
-	// Stringify the value object
-	PyObject * strvalue = _pycsh_get_str_value(value);
-	switch (param->type) {
-		case PARAM_TYPE_XINT8:
-		case PARAM_TYPE_XINT16:
-		case PARAM_TYPE_XINT32:
-		case PARAM_TYPE_XINT64:
-			// If the destination parameter is expecting a hexadecimal value
-			// and the Python object value is of Long type (int), then we need
-			// to do a conversion here. Otherwise if the Python value is a string
-			// type, then we must expect hexadecimal digits only (including 0x)
-			if (Py_IS_TYPE(value, &PyLong_Type)) {
-				// Convert the integer value to hexadecimal digits
-				char tmp[64];
-				snprintf(tmp,64,"0x%lX", PyLong_AsUnsignedLong(value));
-				// Convert the hexadecimal C-string into a Python string object
-				PyObject *py_long_str = PyUnicode_FromString(tmp);
-				// De-reference the original strvalue before assigning a new
-				Py_DECREF(strvalue);
-				strvalue = py_long_str;
-			}
-			break;
+ 	{   // Stringify the value object
+		PyObject * strvalue AUTO_DECREF = _pycsh_get_str_value(value);
+		switch (param->type) {
+			case PARAM_TYPE_XINT8:
+			case PARAM_TYPE_XINT16:
+			case PARAM_TYPE_XINT32:
+			case PARAM_TYPE_XINT64:
+				// If the destination parameter is expecting a hexadecimal value
+				// and the Python object value is of Long type (int), then we need
+				// to do a conversion here. Otherwise if the Python value is a string
+				// type, then we must expect hexadecimal digits only (including 0x)
+				if (Py_IS_TYPE(value, &PyLong_Type)) {
+					// Convert the integer value to hexadecimal digits
+					char tmp[64];
+					snprintf(tmp,64,"0x%lX", PyLong_AsUnsignedLong(value));
+					// Convert the hexadecimal C-string into a Python string object
+					PyObject *py_long_str = PyUnicode_FromString(tmp);
+					// De-reference the original strvalue before assigning a new
+					Py_DECREF(strvalue);
+					strvalue = py_long_str;
+				}
+				break;
 
-		default:
-			break;
+			default:
+				break;
+		}
+		param_str_to_value(param->type, (char*)PyUnicode_AsUTF8(strvalue), valuebuf);
 	}
-
-	param_str_to_value(param->type, (char*)PyUnicode_AsUTF8(strvalue), valuebuf);
-	Py_DECREF(strvalue);
 
 	int dest = (host != INT_MIN ? host : param->node);
 
@@ -661,7 +859,9 @@ int _pycsh_util_set_single(param_t *param, PyObject *value, int offset, int host
 				}
 		}
 
-		param_print(param, offset, NULL, 0, 2, 0);
+		if (verbose > -1) {
+			param_print(param, offset, NULL, 0, 2, 0);
+		}
 
 	} else {  // Otherwise; set local cached value.
 
@@ -683,7 +883,7 @@ int _pycsh_util_set_single(param_t *param, PyObject *value, int offset, int host
 }
 
 /* Private interface for setting the value of an array parameter. */
-int _pycsh_util_set_array(param_t *param, PyObject *value, int host, int timeout, int retries, int paramver) {
+int _pycsh_util_set_array(param_t *param, PyObject *value, int host, int timeout, int retries, int paramver, int verbose) {
 
 	// Transform lazy generators and iterators into sequences,
 	// such that their length may be retrieved in a uniform manner.
@@ -691,9 +891,8 @@ int _pycsh_util_set_array(param_t *param, PyObject *value, int host, int timeout
 	// especially for very large sequences.
 	if (!PySequence_Check(value)) {
 		if (PyIter_Check(value)) {
-			PyObject * temptuple = PyTuple_Pack(1, value);
+			PyObject * temptuple AUTO_DECREF = PyTuple_Pack(1, value);
 			value = PyObject_CallObject((PyObject *)&PyTuple_Type, temptuple);
-			Py_DECREF(temptuple);
 		} else {
 			PyErr_SetString(PyExc_TypeError, "Provided argument must be iterable.");
 			return -1;
@@ -746,7 +945,7 @@ int _pycsh_util_set_array(param_t *param, PyObject *value, int host, int timeout
 		// Set local parameters immediately, use the global queue if autosend if off.
 		param_queue_t *usequeue = (!autosend ? &param_queue_set : ((param->node != 0) ? &queue : NULL));
 #endif
-		_pycsh_util_set_single(param, item, i, host, timeout, retries, paramver, 1);
+		_pycsh_util_set_single(param, item, i, host, timeout, retries, paramver, 1, verbose);
 		
 		// 'item' is a borrowed reference, so we don't need to decrement it.
 	}
