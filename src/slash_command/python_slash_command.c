@@ -37,14 +37,12 @@ int pycsh_parse_slash_args(const struct slash *slash, PyObject **args_out, PyObj
     // Create a tuple and dit to hold *args and **kwargs.
     /* TODO Kevin: Support args_out and kwargs_out already being partially filled i.e not NULL,
         may be a bit complicated by the fact that we use _PyTuple_Resize() */
-    PyObject* args_tuple = PyTuple_New(slash->argc < 0 ? 0 : slash->argc);
-    PyObject* kwargs_dict = PyDict_New();
+    PyObject* args_tuple AUTO_DECREF = PyTuple_New(slash->argc < 0 ? 0 : slash->argc);
+    PyObject* kwargs_dict AUTO_DECREF = PyDict_New();
 
     if (args_tuple == NULL || kwargs_dict == NULL) {
         // Handle memory allocation failure
         PyErr_SetString(PyExc_MemoryError, "Failed to allocate memory for args list or kwargs dictionary");
-        Py_XDECREF(args_tuple);
-        Py_XDECREF(kwargs_dict);
         return -1;
     }
 
@@ -60,10 +58,9 @@ int pycsh_parse_slash_args(const struct slash *slash, PyObject **args_out, PyObj
             if (py_arg == NULL) {
                 // Handle memory allocation failure
                 PyErr_SetString(PyExc_MemoryError, "Failed to allocate memory for positional argument");
-                Py_DECREF(args_tuple);
-                Py_DECREF(kwargs_dict);
                 return -1;
             }
+            assert(parsed_positional_args < slash->argc);
             PyTuple_SET_ITEM(args_tuple, parsed_positional_args++, py_arg);  // Add the argument to the args_out list
             continue; // Skip processing for keyword arguments
         }
@@ -73,8 +70,6 @@ int pycsh_parse_slash_args(const struct slash *slash, PyObject **args_out, PyObj
         if (equal_sign == NULL) {
             // Invalid format for keyword argument
             PyErr_SetString(PyExc_ValueError, "Invalid format for keyword argument");
-            Py_DECREF(args_tuple);
-            Py_DECREF(kwargs_dict);
             return -1;
         }
 
@@ -83,47 +78,45 @@ int pycsh_parse_slash_args(const struct slash *slash, PyObject **args_out, PyObj
         const char* value = equal_sign + 1;
         
         // Create Python objects for key and value
-        PyObject* py_key = PyUnicode_FromString(key);
-        PyObject* py_value = PyUnicode_FromString(value);
+        PyObject* py_key AUTO_DECREF = PyUnicode_FromString(key);
+        PyObject* py_value AUTO_DECREF = PyUnicode_FromString(value);
         if (py_key == NULL || py_value == NULL) {
             // Handle memory allocation failure
             PyErr_SetString(PyExc_MemoryError, "Failed to allocate memory for key or value");
-            Py_XDECREF(py_key);
-            Py_XDECREF(py_value);
-            Py_DECREF(args_tuple);
-            Py_DECREF(kwargs_dict);
             return -1;
         }
+
+        /* TODO Kevin: Test what happens if the key is already in the dictionary here.
+            i.e, the same keyword-argument being passed multiple times:
+            mycommand --key=value --key=value --key=value2 */
 
         // Add the key-value pair to the kwargs_out dictionary
         if (PyDict_SetItem(kwargs_dict, py_key, py_value) != 0) {
             // Handle dictionary insertion failure
             PyErr_SetString(PyExc_RuntimeError, "Failed to add key-value pair to kwargs dictionary");
-            Py_DECREF(args_tuple);
-            Py_DECREF(kwargs_dict);
             return -1;
         }
 
-        /* Reccnt should be 2 after we have added to the dict. */
+        /* Refcnt should be 2 after we have added to the dict. */
         assert(py_key->ob_refcnt != 1);
         assert(py_value->ob_refcnt != 1);
-
-        Py_XDECREF(py_key);
-        Py_XDECREF(py_value);
     }
 
-    // Resize tuple to actual length
+    /* Resize tuple to actual length, which should only ever shrink it from a maximal value of slash->argc */
     if (_PyTuple_Resize(&args_tuple, parsed_positional_args) < 0) {
         // Handle tuple resizing failure
         PyErr_SetString(PyExc_RuntimeError, "Failed to resize tuple for positional arguments");
-        Py_DECREF(args_tuple);
-        Py_DECREF(kwargs_dict);
         return -1;
     }
 
-    // Assign the args and kwargs variables
+    /* Assign the args and kwargs variables */
     *args_out = args_tuple;
     *kwargs_out = kwargs_dict;
+
+    /* Don't let AUTO_DECREF decrement *args and **kwargs, now that they are new references.
+        This could just as well have been done with Py_INCREF() */
+    args_tuple = NULL;
+    kwargs_dict = NULL;
 
     return 0;
 }
@@ -235,6 +228,157 @@ char* print_function_signature_w_docstr(PyObject* function, int only_print) {
     return result_buf;
 }
 
+typedef enum {
+    TYPECAST_SUCCESS = 0,
+    TYPECAST_UNSPECIFIED_EXCEPTION = -1,
+    TYPECAST_NO_ANNOTATION = -2,
+    TYPECAST_INVALID_ARG = -3,
+    TYPECAST_INVALID_KWARG = -4,
+} typecast_result_t;
+
+/**
+ * @brief Inspect type-hints of the provided PyObject *func, and convert the arguments in py_args and py_kwargs (in-place) to the their corresponding type-hinted type.
+ * 
+ * Source: https://chatgpt.com
+ * 
+ * @param func Python function to call with py_args and py_kwargs.
+ * @param py_args New tuple (without other references) that we can still modify in place.
+ * @param py_kwargs Dictionary of arguments to modify in-place.
+ * @return int 0 for success
+ */
+static typecast_result_t SlashCommand_typecast_args(PyObject *python_func, PyObject *py_args, PyObject *py_kwargs) {
+    
+    PyObject *annotations AUTO_DECREF = PyObject_GetAttrString(python_func, "__annotations__");
+    if (!annotations || !PyDict_Check(annotations)) {
+        // Handle error, no annotations found
+        // PyErr_SetString(PyExc_ValueError, "Failed to find annotations for function");
+        fprintf(stderr, "Failed to find annotations for Python function, no typehint argument conversion will be made");
+        return TYPECAST_NO_ANNOTATION;  // Or other appropriate error handling
+    }
+
+    {   /* handle *args */
+
+        // Get the parameter names from the function's code object
+        PyObject *code AUTO_DECREF = PyObject_GetAttrString(python_func, "__code__");
+        if (!code) {
+            assert(PyErr_Occurred());  // PyObject_GetAttrString() has probably raised an exception.
+            return TYPECAST_UNSPECIFIED_EXCEPTION;
+        }
+
+        PyObject *varnames AUTO_DECREF = PyObject_GetAttrString(code, "co_varnames");
+        if (!varnames || !PyTuple_Check(varnames)) {
+            assert(PyErr_Occurred());  // PyObject_GetAttrString() has probably raised an exception.
+            return TYPECAST_UNSPECIFIED_EXCEPTION;
+        }
+
+        Py_ssize_t num_args = PyTuple_Size(py_args);
+        for (Py_ssize_t i = 0; i < num_args; i++) {
+            PyObject *arg = PyTuple_GetItem(py_args, i);  // Borrowed reference
+            
+            // Get the corresponding parameter name for this positional argument
+            PyObject *param_name = PyTuple_GetItem(varnames, i);  // Borrowed reference
+            assert(PyUnicode_Check(param_name));
+
+            PyObject *hint = PyDict_GetItem(annotations, param_name);  // Borrowed reference
+            
+            if (!hint) {
+                continue;
+            }
+
+            PyObject *new_arg AUTO_DECREF = NULL;
+
+            // Handle type casting based on the type hint
+            if (hint == (PyObject*)&PyLong_Type && PyUnicode_Check(arg)) {
+                new_arg = PyLong_FromUnicodeObject(arg, 10);
+            } else if (hint == (PyObject*)&PyFloat_Type && PyUnicode_Check(arg)) {
+                new_arg = PyFloat_FromString(arg);
+            } else if (hint == (PyObject*)&PyBool_Type && PyUnicode_Check(arg)) {
+                PyObject *lowered AUTO_DECREF = PyObject_CallMethod(arg, "lower", NULL);
+                if (!lowered) {
+                    PyObject * python_func_name AUTO_DECREF = PyObject_GetAttrString(python_func, "__qualname__");
+                    assert(python_func_name);
+                    PyErr_Format(PyExc_ValueError, "Failed to create lowered version of '%s' for boolean argument '%s' for function '%s()'. Use either \"True\"/\"False\"", PyUnicode_AsUTF8(lowered), PyUnicode_AsUTF8(param_name), PyUnicode_AsUTF8(python_func_name));
+                }
+                
+                if (lowered && PyUnicode_CompareWithASCIIString(lowered, "true") == 0) {
+                    new_arg = Py_True;
+                } else if (lowered && PyUnicode_CompareWithASCIIString(lowered, "false") == 0) {
+                    new_arg = Py_False;
+                } else {
+                    PyObject * python_func_name AUTO_DECREF = PyObject_GetAttrString(python_func, "__qualname__");
+                    assert(python_func_name);
+                    PyErr_Format(PyExc_ValueError, "Invalid value '%s' for boolean argument '%s' for function '%s()'. Use either \"True\"/\"False\"", PyUnicode_AsUTF8(lowered), PyUnicode_AsUTF8(param_name), PyUnicode_AsUTF8(python_func_name));
+                }
+                Py_XINCREF(new_arg);  // Manually increase ref count as PyTuple_SetItem will steal it
+            }
+
+            if (PyErr_Occurred()) {
+                return TYPECAST_INVALID_ARG;
+            }
+            
+            if (new_arg) {
+                // Replace the item in the tuple, stealing the reference of new_arg
+                PyTuple_SetItem(py_args, i, new_arg);
+                new_arg = NULL;  // Set to NULL so that AUTO_DECREF doesn't decrement it
+            }
+        }
+    }
+
+    {   /* Handle **kwargs */
+        PyObject *key = NULL, *value = NULL;
+        Py_ssize_t pos = 0;
+
+        while (PyDict_Next(py_kwargs, &pos, &key, &value)) {
+            PyObject *hint = PyDict_GetItem(annotations, key);  // Borrowed reference
+            assert(!PyErr_Occurred());
+
+            if (!hint) {
+                continue;
+            }
+
+            PyObject *new_value AUTO_DECREF = NULL;
+
+            // Handle type casting based on the type hint
+            if (hint == (PyObject*)&PyLong_Type && PyUnicode_Check(value)) {
+                new_value = PyLong_FromUnicodeObject(value, 10);
+            } else if (hint == (PyObject*)&PyFloat_Type && PyUnicode_Check(value)) {
+                new_value = PyFloat_FromString(value);
+            } else if (hint == (PyObject*)&PyBool_Type && PyUnicode_Check(value)) {
+                PyObject *lowered AUTO_DECREF = PyObject_CallMethod(value, "lower", NULL);
+                if (!lowered) {
+                    PyObject * python_func_name AUTO_DECREF = PyObject_GetAttrString(python_func, "__qualname__");
+                    assert(python_func_name);
+                    PyErr_Format(PyExc_ValueError, "Failed to create lowered version of '%s' for boolean argument '%s' for function '%s()'. Use either \"True\"/\"False\"", PyUnicode_AsUTF8(lowered), PyUnicode_AsUTF8(key), PyUnicode_AsUTF8(python_func_name));
+                }
+                
+                if (lowered && PyUnicode_CompareWithASCIIString(lowered, "true") == 0) {
+                    new_value = Py_True;
+                } else if (lowered && PyUnicode_CompareWithASCIIString(lowered, "false") == 0) {
+                    new_value = Py_False;
+                } else {
+                    PyObject * python_func_name AUTO_DECREF = PyObject_GetAttrString(python_func, "__qualname__");
+                    assert(python_func_name);
+                    PyErr_Format(PyExc_ValueError, "Invalid value '%s' for boolean argument '%s' for function '%s()'. Use either \"True\"/\"False\"", PyUnicode_AsUTF8(lowered), PyUnicode_AsUTF8(key), PyUnicode_AsUTF8(python_func_name));
+                }
+                Py_INCREF(new_value);  // Manually increase ref count as PyTuple_SetItem will steal it
+            }
+
+            if (PyErr_Occurred()) {
+                return TYPECAST_INVALID_KWARG;
+            }
+            
+            if (new_value) {
+                // Replace the value in the dictionary
+                PyDict_SetItem(py_kwargs, key, new_value);
+                new_value = NULL;  // Set to NULL so that AUTO_DECREF doesn't decrement it
+            }
+        }
+    }
+
+    assert(!PyErr_Occurred());
+    return TYPECAST_SUCCESS;
+}
+
 
 /**
  * @brief Shared callback for all slash_commands wrapped by a Slash object instance.
@@ -293,19 +437,22 @@ int SlashCommand_func(struct slash *slash) {
     }
 
     /* Create the arguments. */
-    PyObject *py_args = NULL;
-    PyObject *py_kwargs = NULL;
+    PyObject *py_args AUTO_DECREF = NULL;
+    PyObject *py_kwargs AUTO_DECREF = NULL;
     if (pycsh_parse_slash_args(slash, &py_args, &py_kwargs) != 0) {
         PyErr_Print();
         return SLASH_EINVAL;
     }
+
+    /* Convert to type-hinted types */
+    if (SlashCommand_typecast_args(python_func, py_args, py_kwargs) && PyErr_Occurred()) {
+        PyErr_Print();
+        return SLASH_EINVAL;
+    }
+
     
     /* Call the user provided Python function */
-    PyObject * value = PyObject_Call(python_func, py_args, py_kwargs);
-
-    /* Cleanup */
-    Py_XDECREF(value);
-    Py_DECREF(py_args);
+    PyObject * value AUTO_DECREF = PyObject_Call(python_func, py_args, py_kwargs);
 
     if (PyErr_Occurred()) {
         PyErr_Print();
@@ -417,13 +564,6 @@ static int PythonSlashCommand_set_keep_alive(PythonSlashCommandObject *self, PyO
     return 0;
 }
 
-static char *safe_strdup(const char *s) {
-    if (s == NULL) {
-        return NULL;
-    }
-    return strdup(s);
-}
-
 /* Internal API for creating a new PythonSlashCommandObject. */
 static PythonSlashCommandObject * SlashCommand_create_new(PyTypeObject *type, char * name, const char * args, const PyObject * py_slash_func) {
 
@@ -513,6 +653,7 @@ __attribute__((destructor(151))) static void remove_python_slash_commands(void) 
         PythonSlashCommandObject *py_slash_command = python_wraps_slash_command(cmd);
         if (py_slash_command != NULL) {
             PythonSlashCommand_set_keep_alive(py_slash_command, Py_False, NULL);
+            // TODO Kevin: Remove from slash list here?
         }
     }
 }

@@ -43,9 +43,8 @@ PyObject * ParameterList_append(PyObject * self, PyObject * args) {
 	Finding the name in the superclass is likely not nearly as efficient 
 	as calling list.append() directly. But it is more flexible.
 	*/
-	PyObject * func_name = Py_BuildValue("s", "append");
-	Py_DECREF(call_super_pyname_lookup(self, func_name, args, NULL));
-	Py_DECREF(func_name);
+	PyObject * func_name AUTO_DECREF = Py_BuildValue("s", "append");
+	Py_XDECREF(call_super_pyname_lookup(self, func_name, args, NULL));
 
 	Py_RETURN_NONE;
 }
@@ -55,16 +54,16 @@ static PyObject * ParameterList_pull(ParameterListObject *self, PyObject *args, 
 	
 	CSP_INIT_CHECK()
 
-	unsigned int host = 0;
+	unsigned int node = pycsh_dfl_node;
 	unsigned int timeout = pycsh_dfl_timeout;
 	int paramver = 2;
 
-	static char *kwlist[] = {"host", "timeout", "paramver", NULL};
+	static char *kwlist[] = {"node", "timeout", "paramver", NULL};
 
-	if (!PyArg_ParseTupleAndKeywords(args, kwds, "I|Ii", kwlist, &host, &timeout, &paramver))
+	if (!PyArg_ParseTupleAndKeywords(args, kwds, "|IIi", kwlist, &node, &timeout, &paramver))
 		return NULL;  // TypeError is thrown
 
-	void * queuebuffer = malloc(PARAM_SERVER_MTU);
+	void * queuebuffer CLEANUP_FREE = malloc(PARAM_SERVER_MTU);
 	param_queue_t queue = { };
 	param_queue_init(&queue, queuebuffer, PARAM_SERVER_MTU, 0, PARAM_QUEUE_TYPE_GET, paramver);
 
@@ -75,26 +74,27 @@ static PyObject * ParameterList_pull(ParameterListObject *self, PyObject *args, 
 		PyObject *item = PySequence_Fast_GET_ITEM(self, i);
 
 		if(!item) {
-            Py_DECREF(args);
-			free(queuebuffer);
 			PyErr_SetString(PyExc_RuntimeError, "Iterator went outside the bounds of the list.");
             return NULL;
         }
 
-		if (PyObject_TypeCheck(item, &ParameterType))  // Sanity check
-			param_queue_add(&queue, ((ParameterObject *)item)->param, -1, NULL);
-		else
+		if (!PyObject_TypeCheck(item, &ParameterType)) {  // Sanity check
 			fprintf(stderr, "Skipping non-parameter object (of type: %s) in Parameter list.", item->ob_type->tp_name);
+			continue;
+		}
+
+		if (param_queue_add(&queue, ((ParameterObject *)item)->param, -1, NULL) < 0) {
+			PyErr_SetString(PyExc_MemoryError, "Queue full");
+			return NULL;
+		}
 
 	}
 
-	if (param_pull_queue(&queue, CSP_PRIO_NORM, 0, host, timeout)) {
+	if (param_pull_queue(&queue, CSP_PRIO_NORM, 0, node, timeout)) {
 		PyErr_SetString(PyExc_ConnectionError, "No response.");
-		free(queuebuffer);
 		return 0;
 	}
 
-	free(queuebuffer);
 	Py_RETURN_NONE;
 }
 
@@ -103,17 +103,17 @@ static PyObject * ParameterList_push(ParameterListObject *self, PyObject *args, 
 
 	CSP_INIT_CHECK()
 	
-	unsigned int node = 0;
+	unsigned int node = pycsh_dfl_node;
 	unsigned int timeout = pycsh_dfl_timeout;
 	uint32_t hwid = 0;
 	int paramver = 2;
 
 	static char *kwlist[] = {"node", "timeout", "hwid", "paramver", NULL};
 
-	if (!PyArg_ParseTupleAndKeywords(args, kwds, "I|IIi", kwlist, &node, &timeout, &hwid, &paramver))
+	if (!PyArg_ParseTupleAndKeywords(args, kwds, "|IIIi", kwlist, &node, &timeout, &hwid, &paramver))
 		return NULL;  // TypeError is thrown
 
-	void * queuebuffer = malloc(PARAM_SERVER_MTU);
+	void * queuebuffer CLEANUP_FREE = malloc(PARAM_SERVER_MTU);
 	param_queue_t queue = { };
 	param_queue_init(&queue, queuebuffer, PARAM_SERVER_MTU, 0, PARAM_QUEUE_TYPE_SET, paramver);
 
@@ -127,26 +127,26 @@ static PyObject * ParameterList_push(ParameterListObject *self, PyObject *args, 
 		PyObject *item = PySequence_Fast_GET_ITEM(self, i);
 
 		if(!item) {
-            Py_DECREF(args);
-			free(queuebuffer);
 			PyErr_SetString(PyExc_RuntimeError, "Iterator went outside the bounds of the list.");
             return NULL;
         }
 
-		if (PyObject_TypeCheck(item, &ParameterType)) {  // Sanity check
-			// TODO Kevin: Naively adding the buffer may not work.
-			param_queue_add(&queue, ((ParameterObject *)item)->param, -1, ((ParameterObject *)item)->param->addr);
-		} else
+		if (!PyObject_TypeCheck(item, &ParameterType)) {  // Sanity check
 			fprintf(stderr, "Skipping non-parameter object (of type: %s) in Parameter list.", item->ob_type->tp_name);
+			continue;
+		}
+
+		if (param_queue_add(&queue, ((ParameterObject *)item)->param, -1, ((ParameterObject *)item)->param->addr) < 0) {
+			PyErr_SetString(PyExc_MemoryError, "Queue full");
+			return NULL;
+		}
 	}
 
 	if (param_push_queue(&queue, 1, node, timeout, hwid, false) < 0) {
 		PyErr_SetString(PyExc_ConnectionError, "No response.");
-		free(queuebuffer);
 		return NULL;
 	}
 
-	free(queuebuffer);
 	Py_RETURN_NONE;
 }
 
@@ -181,22 +181,19 @@ static int ParameterList_init(ParameterListObject *self, PyObject *args, PyObjec
 	if (PyList_Type.tp_init((PyObject *) self, PyTuple_Pack(0), kwds) < 0)
         return -1;
 
-	PyObject *iter = PyObject_GetIter(iterobj);
+	PyObject *iter AUTO_DECREF = PyObject_GetIter(iterobj);
 	PyObject *item;
 
 	while ((item = PyIter_Next(iter)) != NULL) {
 
-		PyObject * valuetuple = PyTuple_Pack(1, item);
+		PyObject * valuetuple AUTO_DECREF = PyTuple_Pack(1, item);
 		ParameterList_append((PyObject *)self, valuetuple);
-		Py_DECREF(valuetuple);
 
 		Py_DECREF(item);
 
 		if (PyErr_Occurred())  // Likely to happen when we fail to append an object.
 			return -1;
 	}
-
-	Py_DECREF(iter);
 
     return 0;
 }

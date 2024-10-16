@@ -60,3 +60,21 @@ PyObject * pycsh_slash_timeout(PyObject * self, PyObject * args) {
 
 	return Py_BuildValue("i", pycsh_dfl_timeout);
 }
+
+PyObject * pycsh_slash_verbose(PyObject * self, PyObject * args) {
+
+	int verbose = INT_MIN;
+
+	if (!PyArg_ParseTuple(args, "|i", &verbose)) {
+		return NULL;  // TypeError is thrown
+	}
+
+	if (verbose == INT_MIN)
+		printf("Default verbose = %d\n", pycsh_dfl_verbose);
+	else {
+		pycsh_dfl_verbose = verbose;
+		printf("Set default vebose to %d\n", pycsh_dfl_verbose);
+	}
+
+	return Py_BuildValue("i", pycsh_dfl_verbose);
+}

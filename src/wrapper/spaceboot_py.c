@@ -368,7 +368,7 @@ PyObject * slash_sps(PyObject * self, PyObject * args, PyObject * kwds) {
 	}
 
 	assert(filename != NULL);
-    strncpy(bin_info.entries[0], filename, BIN_PATH_MAX_SIZE);
+    strncpy(bin_info.entries[0], filename, BIN_PATH_MAX_SIZE-1);
     bin_info.count = 0;
 	
 	char * path = bin_info.entries[0];

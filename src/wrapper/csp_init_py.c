@@ -119,15 +119,16 @@ PyObject * pycsh_csh_csp_ifadd_zmq(PyObject * self, PyObject * args, PyObject * 
     int dfl = 0;
     int pub_port = 6000;
     int sub_port = 7000;
+    char * sec_key = NULL;
 
-    static char *kwlist[] = {"addr", "server", "promisc", "mask", "default", "pub_port", "sub_port", NULL};
+    static char *kwlist[] = {"addr", "server", "promisc", "mask", "default", "pub_port", "sub_port", "sec_key", NULL};
 
-	if (!PyArg_ParseTupleAndKeywords(args, kwds, "Is|iiiii", kwlist, &addr, &server, &promisc, &mask, &dfl, &pub_port, &sub_port))
+	if (!PyArg_ParseTupleAndKeywords(args, kwds, "Is|iiiiis", kwlist, &addr, &server, &promisc, &mask, &dfl, &pub_port, &sub_port, &sec_key))
 		return NULL;  // TypeError is thrown
 
     csp_iface_t * iface;
     // TODO: We need to figure out how to correctly align the interface with respect to pub and sub ports. They are swapped
-    csp_zmqhub_init_filter2((const char *) name, server, addr, mask, promisc, &iface, NULL, pub_port, sub_port);
+    csp_zmqhub_init_filter2((const char *) name, server, addr, mask, promisc, &iface, sec_key, pub_port, sub_port);
     iface->is_default = dfl;
     iface->addr = addr;
 	iface->netmask = mask;
@@ -159,13 +160,12 @@ PyObject * pycsh_csh_csp_ifadd_kiss(PyObject * self, PyObject * args, PyObject *
         .baudrate = baud,
         .databits = 8,
         .stopbits = 1,
-        .paritysetting = 0,
-        .checkparity = 0
+        .paritysetting = 0
     };
 
     csp_iface_t * iface;
 
-    int error = csp_usart_open_and_add_kiss_interface(&conf, name, &iface);
+    int error = csp_usart_open_and_add_kiss_interface(&conf, name, addr, &iface);
     if (error != CSP_ERR_NONE) {
         PyErr_SetString(PyExc_SystemError, "Failed to add kiss interface");
         return NULL;
@@ -306,13 +306,24 @@ PyObject * pycsh_csh_csp_ifadd_udp(PyObject * self, PyObject * args, PyObject * 
 	if (!PyArg_ParseTupleAndKeywords(args, kwds, "Is|iiiii", kwlist, &addr, &server, &promisc, &mask, &dfl, &listen_port, &remote_port))
 		return NULL;  // TypeError is thrown
 
-    csp_iface_t * iface;
-    iface = malloc(sizeof(csp_iface_t));
+    csp_iface_t * iface = malloc(sizeof(csp_iface_t));
+    if (iface == NULL) {
+        PyErr_NoMemory();
+        return NULL;
+    }
     memset(iface, 0, sizeof(csp_iface_t));
     csp_if_udp_conf_t * udp_conf = malloc(sizeof(csp_if_udp_conf_t));
+    if (udp_conf == NULL) {
+        PyErr_NoMemory();
+        return NULL;
+    }
     udp_conf->host = strdup(server);
     udp_conf->lport = listen_port;
     udp_conf->rport = remote_port;
+    if (udp_conf->host == NULL) {
+        PyErr_NoMemory();
+        return NULL;
+    }
     csp_if_udp_init(iface, udp_conf);
 
     iface->is_default = dfl;
