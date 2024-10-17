@@ -19,7 +19,7 @@ slash_dep = dependency('slash', fallback: ['slash', 'slash_dep'], required: fals
 dependencies += slash_dep
 
 if slash_dep.found()
-    conf.set('PYCSH_HAVE_SLASH', slash_dep.found())
+    conf.set('CSH_HAVE_SLASH', slash_dep.found())
 endif
 
 libcsh_src = [
@@ -33,9 +33,9 @@ libcsh_src = [
     'src/victoria_metrics.c',
 ]
 
-pycsh_config_h = configure_file(output: 'pycshconfig.h', configuration: conf, install_dir: 'include/csh/', install: false)
+pycsh_config_h = configure_file(output: 'cshconfig.h', configuration: conf, install_dir: 'include/csh/', install: false)
 
-csh_lib = shared_library('csh',
+csh_lib = library('csh',
                          libcsh_src,
                          include_directories: csh_inc,
                          dependencies : dependencies,
