@@ -2,7 +2,7 @@ project('pycsh_core', 'c')
 
 conf = configuration_data()
 
-include_dir = []
+include_dir = include_directories('.', 'include')
 
 dependencies = [
     dependency('csp', fallback: ['csp', 'csp_dep'], required: true),
