@@ -25,8 +25,6 @@ project('csh_bindings', 'c', subproject_dir: 'lib', default_options: [
 
 add_global_arguments('-I../include', language: 'c')
 
-conf = configuration_data()
-
 dependencies = [
 	dependency('pycsh_core', fallback: ['pycsh_core', 'pycsh_core_dep'], required: true),
 	dependency('python3', required: true),  # We don't actually Python as dep here when we have the linker args, but it might help VSC with highlighting.

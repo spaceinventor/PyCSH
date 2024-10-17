@@ -1,5 +1,5 @@
 #!/bin/sh
 rm -r builddir*
-meson setup . builddir
+#meson setup . builddir
 # libdir here seems to be overridden by py.extension_module(..., install_dir : )
 meson setup . builddir-apm -Dpycsh_core:build_apm=true -Dbuild_apm=true -Dprefix=$HOME/.local -Dlibdir=lib/csh

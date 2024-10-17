@@ -12,9 +12,6 @@ dependencies = [
 slash_dep = dependency('slash', fallback: ['slash', 'slash_dep'], required: false).as_link_whole()
 dependencies += slash_dep
 
-if slash_dep.found()
-    conf.set('PYCSH_HAVE_SLASH', slash_dep.found())
-endif
 
 pycsh_sources = [
 
@@ -77,14 +74,10 @@ if slash_dep.found()
 	conf.set('PYCSH_HAVE_SLASH', slash_dep.found())
 endif
 
-# Build/declare CSH dependencies
-dependencies += dependency('csh', fallback: ['csh', 'csh_dep'], required: true).partial_dependency(links: false, includes: true)
 
 
 
 pycsh_config_h = configure_file(output: 'pycshconfig.h', configuration: conf, install_dir: 'include/csh/', install: false)
-
-
 
 # Add .pyi file for type-hints
 pyi = configure_file(input: 'pycsh.pyi', output: 'pycsh.pyi', copy: true)
@@ -95,6 +88,9 @@ __init__py = configure_file(input: '__init__.py', output: '__init__.py', copy: t
 py = import('python').find_installation('python'+get_option('python3_version'), pure: false)
 
 if get_option('build_apm')
+
+    # Include CSH headers, to be fulfilled when loading as APM
+    dependencies += dependency('csh', fallback: ['csh', 'csh_dep'], required: true).partial_dependency(links: false, includes: true)
 
 	# TODO Kevin: .so file doesn't exist at this point, and install_data() isn't lazy. So this doesn't work.
 	#install_data(libcsh_lib_path, install_dir : get_option('datadir'))
@@ -122,6 +118,10 @@ if get_option('build_apm')
 					)
 	
 else  # Not building APM
+
+    # Build/declare CSH dependencies
+    dependencies += dependency('csh', fallback: ['csh', 'csh_dep'], required: true)
+
 	pycsh_core_lib = py.extension_module('pycsh', pycsh_sources,
 					dependencies : dependencies,
 					subdir : 'pycsh',

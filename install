@@ -10,7 +10,6 @@ target=$(find builddir-apm -name "libcsh_pycsh*.so" -print -quit)
 target_name=$(basename "$target")
 ninja -C builddir-apm clean
 ninja -C builddir-apm $target_name
-ninja -C builddir-apm lib/csh/libcsh.so
 
 # We install the PyCSH Python package using pip3, but this is somehow more painful than Meson...
 # pip3 very much prefers to skip installing packages,
