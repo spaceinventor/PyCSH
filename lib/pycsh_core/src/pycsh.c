@@ -47,8 +47,8 @@
 
 #include <sys/types.h>
 
-#include "csh/prometheus.h"
-#include "csh/param_sniffer.h"
+#include <csh/prometheus.h>
+#include <csh/param_sniffer.h>
 
 #include "utils.h"
 

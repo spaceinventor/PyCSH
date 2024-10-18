@@ -757,7 +757,7 @@ def sps(from: int, to: int, filename: str, node: int = None, window: int = None,
     :raises ProgramDiffError: See class docstring.
     """
 
-def apm_load(path: str = '~/.local/lib/csh/', filename: str = None, stop_on_error: bool = False) -> dict[str, _ModuleType | Exception]:
+def apm_load(path: str = '~/.local/lib/csh/pyapms/', filename: str = None, stop_on_error: bool = False) -> dict[str, _ModuleType | Exception]:
     """
     Loads both .py and .so APMs
 
