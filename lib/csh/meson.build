@@ -18,10 +18,6 @@ dependencies += curl_dep
 slash_dep = dependency('slash', fallback: ['slash', 'slash_dep'], required: false).as_link_whole()
 dependencies += slash_dep
 
-if slash_dep.found()
-    conf.set('CSH_HAVE_SLASH', slash_dep.found())
-endif
-
 libcsh_src = [
     'src/vts.c',
     'src/lock.c',
@@ -32,6 +28,13 @@ libcsh_src = [
     'src/hk_param_sniffer.c',
     'src/victoria_metrics.c',
 ]
+
+if slash_dep.found()
+    #conf.set('CSH_HAVE_SLASH', slash_dep.found())  # NOTE: We don't have any need for this #define, at least as of now.
+    libcsh_src += [
+        'src/known_hosts_cmd.c',
+    ]
+endif
 
 pycsh_config_h = configure_file(output: 'cshconfig.h', configuration: conf, install_dir: 'include/csh/', install: false)
 
