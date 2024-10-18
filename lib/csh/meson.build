@@ -1,6 +1,6 @@
 project('libcsh', 'c')
 
-conf = configuration_data()
+#conf = configuration_data()
 
 csh_inc = include_directories('.', 'include')
 
@@ -36,7 +36,7 @@ if slash_dep.found()
     ]
 endif
 
-pycsh_config_h = configure_file(output: 'cshconfig.h', configuration: conf, install_dir: 'include/csh/', install: false)
+#pycsh_config_h = configure_file(output: 'cshconfig.h', configuration: conf, install_dir: 'include/csh/', install: false)
 
 csh_lib = library('csh',
                          libcsh_src,

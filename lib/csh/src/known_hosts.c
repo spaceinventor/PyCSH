@@ -9,7 +9,7 @@
 #include <string.h>
 #include <assert.h>
 
-#include "cshconfig.h"
+//#include "cshconfig.h"
 
 
 /*Both of these may be modified by APMs  */
