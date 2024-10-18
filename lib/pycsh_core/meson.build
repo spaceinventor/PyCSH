@@ -7,6 +7,7 @@ include_dir = include_directories('.', 'include')
 dependencies = [
     dependency('csp', fallback: ['csp', 'csp_dep'], required: true),
     dependency('param', fallback: ['param', 'param_dep'], required: true),#.as_link_whole(),  # NOTE: .as_link_whole() gives linking errors here, but is otherwise needed to preserve symbols
+	dependency('python3', required: true),  # We don't actually Python as dep here when we have the linker args, but it might help VSC with highlighting.
 ]
 
 slash_dep = dependency('slash', fallback: ['slash', 'slash_dep'], required: false).as_link_whole()
