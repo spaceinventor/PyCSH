@@ -10,6 +10,8 @@
 #define PY_SSIZE_T_CLEAN
 #include <Python.h>
 
+#define PYAPMS_DIR "/.local/lib/csh/pyapms/"
+
 #define WALKDIR_MAX_PATH_SIZE 256
 #define DEFAULT_INIT_FUNCTION "apm_init"
 

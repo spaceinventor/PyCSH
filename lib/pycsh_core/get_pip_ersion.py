@@ -3,12 +3,14 @@
 
 from __future__ import annotations
 
-from subprocess import PIPE, run
 from datetime import datetime
+from posixpath import dirname
+from subprocess import PIPE, run
 
 
 def main() -> None:
-    ersion: str = run(['git', 'describe', '--long', '--always', '--dirty=+'], stdout=PIPE).stdout.decode()
+
+    ersion: str = run(['git', '-C', dirname(__file__), 'describe', '--long', '--always', '--dirty=+'], stdout=PIPE).stdout.decode()
     ersion = ersion.lstrip('vV').strip('\n\t ')
 
     semantic_ersion = ersion.split('-')[0]

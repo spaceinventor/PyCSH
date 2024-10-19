@@ -59,7 +59,7 @@ PyObject * pycsh_apm_load(PyObject * self, PyObject * args, PyObject * kwds) {
         }
         path = (char *)malloc(WALKDIR_MAX_PATH_SIZE);  // TODO Kevin: Memory leak here
         strcpy(path, home_dir);
-        strcat(path, "/.local/lib/csh/");
+        strcat(path, PYAPMS_DIR);
     }
 	// Function to search for python files in specified path
 	int lib_count = 0;
