@@ -5,14 +5,10 @@ conf = configuration_data()
 include_dir = include_directories('.', 'include')
 
 dependencies = [
-    dependency('csp', fallback: ['csp', 'csp_dep'], required: true),
-    dependency('param', fallback: ['param', 'param_dep'], required: true),#.as_link_whole(),  # NOTE: .as_link_whole() gives linking errors here, but is otherwise needed to preserve symbols
 	dependency('python3', required: true),  # We don't actually Python as dep here when we have the linker args, but it might help VSC with highlighting.
 ]
 
 slash_dep = dependency('slash', fallback: ['slash', 'slash_dep'], required: false).as_link_whole()
-dependencies += slash_dep
-
 
 pycsh_sources = [
 
@@ -91,7 +87,12 @@ py = import('python').find_installation('python'+get_option('python3_version'), 
 if get_option('build_apm')
 
     # Include CSH headers, to be fulfilled when loading as APM
-    dependencies += dependency('csh', fallback: ['csh', 'csh_dep'], required: true).partial_dependency(links: false, includes: true)
+    dependencies += [
+		dependency('csh', fallback: ['csh', 'csh_dep'], required: true).partial_dependency(links: false, includes: true),
+		dependency('csp', fallback: ['csp', 'csp_dep'], required: true).partial_dependency(links: false, includes: true),
+    	dependency('param', fallback: ['param', 'param_dep'], required: true).partial_dependency(links: false, includes: true),#.as_link_whole(),  # NOTE: .as_link_whole() gives linking errors here, but is otherwise needed to preserve symbols
+		slash_dep.partial_dependency(links: false, includes: true),
+	]
 
 	# TODO Kevin: .so file doesn't exist at this point, and install_data() isn't lazy. So this doesn't work.
 	#install_data(libcsh_lib_path, install_dir : get_option('datadir'))
@@ -121,7 +122,12 @@ if get_option('build_apm')
 else  # Not building APM
 
     # Build/declare CSH dependencies
-    dependencies += dependency('csh', fallback: ['csh', 'csh_dep'], required: true)
+    dependencies += [
+		dependency('csh', fallback: ['csh', 'csh_dep'], required: true),
+		dependency('csp', fallback: ['csp', 'csp_dep'], required: true),
+		dependency('param', fallback: ['param', 'param_dep'], required: true),
+		slash_dep,
+	]
 
 	pycsh_core_lib = py.extension_module('pycsh', pycsh_sources,
 					dependencies : dependencies,
