@@ -312,7 +312,7 @@ static void Parameter_dealloc(ParameterObject *self) {
 
 	/* Somehow we hold a reference to a parameter that is not in the list,
 		this should only be possible if it was "list forget"en, after we wrapped it.
-		It should therefore follow that we are now responsible for its memory.
+		It should therefore follow that we are now responsible for its memory (<-- TODO Kevin: Is this true? It has probably already been freed).
 		We must therefore free() it, now that we are being deallocated.
 		We check that (self->param != NULL), just in case we allow that to raise exceptions in the future. */
 	if (param_list_find_id(self->param->node, self->param->id) != self->param && self->param != NULL) {
