@@ -63,8 +63,14 @@ static PyObject * pycsh_integrate_pymod(const char * const _filepath) {
 	/* TODO Kevin: Are we responsible for adding to sys.modules?
 		Or will PyModule_Create() do that for us? */
 
+	PyObject *module_name AUTO_DECREF = PyObject_GetAttrString(module, "__name__");
+	assert(module_name != NULL);
+
+	//const char *module_name_str = PyUnicode_AsUTF8(module_name);
+	//assert(module_name_str != NULL);
+
     // Add the module to sys.modules
-    if (PyDict_SetItemString(PyImport_GetModuleDict(), filename, module) < 0) {
+    if (PyDict_SetItem(PyImport_GetModuleDict(), module_name, module) < 0) {
         return NULL;
     }
 #endif
