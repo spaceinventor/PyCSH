@@ -8,7 +8,8 @@ dependencies = [
 	dependency('python3', required: true),  # We don't actually Python as dep here when we have the linker args, but it might help VSC with highlighting.
 ]
 
-slash_dep = dependency('slash', fallback: ['slash', 'slash_dep'], required: false).as_link_whole()
+# We link slash.as_link_whole() through libcsh.as_link_whole()
+slash_dep = dependency('slash', fallback: ['slash', 'slash_dep'], required: false)#.as_link_whole()
 
 pycsh_sources = [
 
@@ -123,7 +124,7 @@ else  # Not building APM
 
     # Build/declare CSH dependencies
     dependencies += [
-		dependency('csh', fallback: ['csh', 'csh_dep'], required: true),
+		dependency('csh', fallback: ['csh', 'csh_dep'], required: true).as_link_whole(),
 		dependency('csp', fallback: ['csp', 'csp_dep'], required: true),
 		dependency('param', fallback: ['param', 'param_dep'], required: true),
 		slash_dep,

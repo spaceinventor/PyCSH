@@ -15,7 +15,8 @@ if not curl_dep.found()
 endif
 dependencies += curl_dep
 
-slash_dep = dependency('slash', fallback: ['slash', 'slash_dep'], required: false).as_link_whole()
+# libcsh can't link slash.as_link_whole(), if libcsh needs to .as_link_whole() itself.
+slash_dep = dependency('slash', fallback: ['slash', 'slash_dep'], required: false)#.as_link_whole()
 dependencies += slash_dep
 
 libcsh_src = [
