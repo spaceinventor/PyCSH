@@ -83,7 +83,7 @@ static int append_pyapm_paths(void) {
         if (home_path == NULL) {
             printf("Failed to create Python object for HOME directory\n");
         } else {
-            PyList_Append(sys_path, home_path);
+			PyList_Insert(sys_path, 0, home_path);
         }
     }
 
@@ -97,7 +97,7 @@ static int append_pyapm_paths(void) {
         if (full_path == NULL) {
             printf("Failed to create Python object for $HOME/.local/lib/csh\n");
         } else {
-            PyList_Append(sys_path, full_path);
+			PyList_Insert(sys_path, 0, full_path);
         }
     }
 

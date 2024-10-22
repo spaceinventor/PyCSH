@@ -63,8 +63,14 @@ static PyObject * pycsh_integrate_pymod(const char * const _filepath) {
 	/* TODO Kevin: Are we responsible for adding to sys.modules?
 		Or will PyModule_Create() do that for us? */
 
+	PyObject *module_name AUTO_DECREF = PyObject_GetAttrString(module, "__name__");
+	assert(module_name != NULL);
+
+	//const char *module_name_str = PyUnicode_AsUTF8(module_name);
+	//assert(module_name_str != NULL);
+
     // Add the module to sys.modules
-    if (PyDict_SetItemString(PyImport_GetModuleDict(), filename, module) < 0) {
+    if (PyDict_SetItem(PyImport_GetModuleDict(), module_name, module) < 0) {
         return NULL;
     }
 #endif
@@ -161,7 +167,7 @@ PyObject * pycsh_load_pymod(const char * const _filepath, const char * const ini
 
 		if (init_function_name == NULL) {
 			if (verbose) {
-				printf("Skipping init function for module '%s'", filename);
+				printf("Skipping init function for module '%s'\n", filename);
 			}
 			return Py_NewRef(pModule);
 		}
@@ -171,7 +177,7 @@ PyObject * pycsh_load_pymod(const char * const _filepath, const char * const ini
 		PyObject *init_function AUTO_DECREF = PyObject_GetAttrString(pModule, init_function_name);
 		if (init_function == NULL) {
 			PyErr_Clear();
-			printf("Skipping missing init function '%s()' in module '%s'", init_function_name, filename);
+			printf("Skipping missing init function '%s()' in module '%s'\n", init_function_name, filename);
 			//fprintf(stderr, "Cannot find function \"%s()\" in %s\n", init_function_name, filename); // This print is a good idea for debugging, but since the apm_init(main) is not required this print can be a bit confusing.
 			return Py_NewRef(pModule);
 		}

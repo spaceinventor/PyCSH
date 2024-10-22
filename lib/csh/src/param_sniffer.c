@@ -14,10 +14,10 @@
 #include <csp/csp.h>
 #include <csp/csp_crc32.h>
 
-#include "hk_param_sniffer.h"
-#include "prometheus.h"
-#include "victoria_metrics.h"
-#include "vts.h"
+#include <csh/hk_param_sniffer.h>
+#include <csh/prometheus.h>
+#include <csh/victoria_metrics.h>
+#include <csh/vts.h>
 
 extern int prometheus_started;
 extern int vm_running;
