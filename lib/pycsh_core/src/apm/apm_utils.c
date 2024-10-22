@@ -167,7 +167,7 @@ PyObject * pycsh_load_pymod(const char * const _filepath, const char * const ini
 
 		if (init_function_name == NULL) {
 			if (verbose) {
-				printf("Skipping init function for module '%s'", filename);
+				printf("Skipping init function for module '%s'\n", filename);
 			}
 			return Py_NewRef(pModule);
 		}
@@ -177,7 +177,7 @@ PyObject * pycsh_load_pymod(const char * const _filepath, const char * const ini
 		PyObject *init_function AUTO_DECREF = PyObject_GetAttrString(pModule, init_function_name);
 		if (init_function == NULL) {
 			PyErr_Clear();
-			printf("Skipping missing init function '%s()' in module '%s'", init_function_name, filename);
+			printf("Skipping missing init function '%s()' in module '%s'\n", init_function_name, filename);
 			//fprintf(stderr, "Cannot find function \"%s()\" in %s\n", init_function_name, filename); // This print is a good idea for debugging, but since the apm_init(main) is not required this print can be a bit confusing.
 			return Py_NewRef(pModule);
 		}
