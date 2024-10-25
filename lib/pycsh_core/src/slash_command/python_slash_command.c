@@ -645,7 +645,7 @@ static PythonSlashCommandObject * SlashCommand_create_new(PyTypeObject *type, ch
 
     return self;
 }
-
+#if 0 // TODO Kevin: (Causes seg fault when paramteres are dealocated) Find out what went wrong here. After outcommenting this function we can exit without any hang ups or seg faults.
 __attribute__((destructor(151))) static void remove_python_slash_commands(void) {
     struct slash_command * cmd;
     slash_list_iterator i = {};
@@ -657,7 +657,7 @@ __attribute__((destructor(151))) static void remove_python_slash_commands(void) 
         }
     }
 }
-
+#endif
 static void PythonSlashCommand_dealloc(PythonSlashCommandObject *self) {
 
     /* Calling Py_XDECREF() while Python is finalizing, seems to cause a segfault (due to the GIL not being held)
@@ -681,7 +681,9 @@ static void PythonSlashCommand_dealloc(PythonSlashCommandObject *self) {
     //self->command_heap.name = NULL;
     //((char*)self->command_heap.args) = NULL;
     // Get the type of 'self' in case the user has subclassed 'SlashCommand'.
-    Py_TYPE(self)->tp_free((PyObject *) self);
+    // Py_TYPE(self)->tp_free((PyObject *) self);
+    PyTypeObject *baseclass = pycsh_get_base_dealloc_class(&PythonSlashCommandType);
+    baseclass->tp_dealloc((PyObject*)self);
 }
 
 static PyObject * PythonSlashCommand_new(PyTypeObject *type, PyObject * args, PyObject * kwds) {

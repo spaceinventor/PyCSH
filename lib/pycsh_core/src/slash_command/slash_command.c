@@ -53,14 +53,14 @@ static PyObject * SlashCommand_richcompare(PyObject *self, PyObject *other, int 
 static PyObject * SlashCommand_str(SlashCommandObject *self) {
 	return PyUnicode_FromString(self->command->name);
 }
-
+#if 0
 static void SlashCommand_dealloc(SlashCommandObject *self) {
 
 	// Get the type of 'self' in case the user has subclassed 'SlashCommand'.
 	Py_TYPE(self)->tp_free((PyObject *) self);
 }
-
 __attribute__((malloc(SlashCommand_dealloc, 1)))
+#endif
 static PyObject * SlashCommand_new(PyTypeObject *type, PyObject *args, PyObject *kwds) {
 
 	static char *kwlist[] = {"name", NULL};
@@ -280,7 +280,7 @@ PyTypeObject SlashCommandType = {
     .tp_itemsize = 0,
     .tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
     .tp_new = SlashCommand_new,
-    .tp_dealloc = (destructor)SlashCommand_dealloc,
+    // .tp_dealloc = (destructor)SlashCommand_dealloc,
 	.tp_getset = Parameter_getsetters,
 	// .tp_members = Parameter_members,
 	// .tp_methods = Parameter_methods,
