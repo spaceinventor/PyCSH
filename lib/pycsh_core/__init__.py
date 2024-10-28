@@ -54,6 +54,7 @@ except (ImportError, ModuleNotFoundError, OSError):
 from pycsh import *
 
 try:
+    # Trick stubborn IDEs into showing type-hints, by trying to import them.
     from .pycsh import *
 except ImportError:
     pass

@@ -61,8 +61,7 @@
 #include "parameter/parameterlist.h"
 
 #include "csp_classes/ident.h"
-
-#include "csp_classes/ident.h"
+#include "csp_classes/ifstat.h"
 
 #ifdef PYCSH_HAVE_SLASH
 #include "slash_command/slash_command.h"
@@ -228,8 +227,6 @@ static PyObject * pycsh_init(PyObject * self, PyObject * args, PyObject *kwds) {
 	void serial_init(void);
 	serial_init();
 
-	/* TODO Kevin: If we include slash as a submodule, we should init it here. */
-
 #ifdef PARAM_HAVE_COMMANDS
 	vmem_file_init(&vmem_commands);
 	param_command_server_init();
@@ -276,6 +273,7 @@ static PyMethodDef methods[] = {
 	/* Converted CSH commands from csh/src/slash_csp.c */
 	{"ping", 		(PyCFunction)pycsh_slash_ping, 	METH_VARARGS | METH_KEYWORDS, "Ping the specified node."},
 	{"ident", 		(PyCFunction)pycsh_slash_ident,	METH_VARARGS | METH_KEYWORDS, "Print the identity of the specified node."},
+	{"ifstat", 		(PyCFunction)pycsh_csp_cmp_ifstat,	METH_VARARGS | METH_KEYWORDS, "Return information about the specified interface."},
 	{"reboot", 		pycsh_slash_reboot, 			 	METH_VARARGS, 				  "Reboot the specified node."},
 
 	/* Utility functions */
@@ -359,6 +357,9 @@ PyMODINIT_FUNC PyInit_pycsh(void) {
 
 
 	if (PyType_Ready(&IdentType) < 0)
+        return NULL;
+
+	if (PyType_Ready(&IfstatType) < 0)
         return NULL;
 
 
@@ -456,6 +457,13 @@ PyMODINIT_FUNC PyInit_pycsh(void) {
         return NULL;
 	}
 
+	Py_INCREF(&IfstatType);
+	if (PyModule_AddObject(m, "Ifstat", (PyObject *) &IfstatType) < 0) {
+		Py_DECREF(&IfstatType);
+        Py_DECREF(m);
+        return NULL;
+	}
+
 
 #ifdef PYCSH_HAVE_SLASH
 	Py_INCREF(&SlashCommandType);
@@ -523,8 +531,10 @@ PyMODINIT_FUNC PyInit_pycsh(void) {
 	param_callback_dict = (PyDictObject *)PyDict_New();
 
 	{  /* Argumentless CSH init */
+		#ifndef PYCSH_HAVE_APM
 		#ifdef PYCSH_HAVE_SLASH
 			slash_list_init();
+		#endif
 		#endif
 	}
 

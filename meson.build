@@ -32,7 +32,7 @@ dependencies = [
 	#dependency('slash', fallback: ['slash', 'slash_dep'], required: false).partial_dependency(links: false, includes: true),
 ]
 
-# TODO Kevin: Perhaps let us inspire by the meson.build,
+# TODO Kevin: Perhaps let us inspire by the meson.build of numpy,
 #	they check for the presence of the python.h header.
 #	- https://github.com/numpy/numpy/blob/main/meson.build#L44
 

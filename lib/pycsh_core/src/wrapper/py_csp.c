@@ -11,6 +11,7 @@
 #include <csp/csp_cmp.h>
 
 #include "../pycsh.h"
+#include "../csp_classes/ifstat.h"
 #include <csh/known_hosts.h>
 
 #include "py_csp.h"
@@ -105,6 +106,10 @@ PyObject * pycsh_slash_ident(PyObject * self, PyObject * args, PyObject * kwds) 
 
     return list_string;
     
+}
+
+PyObject * pycsh_csp_cmp_ifstat(PyObject * self, PyObject * args, PyObject * kwds) {
+    return Ifstat_new(&IfstatType, args, kwds);
 }
 
 PyObject * pycsh_slash_reboot(PyObject * self, PyObject * args) {

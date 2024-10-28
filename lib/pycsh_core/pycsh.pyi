@@ -9,7 +9,7 @@ These provide an object-oriented interface to libparam, but are largely meant fo
 
 from __future__ import annotations
 
-from _typeshed import Self
+from _typeshed import Self as _Self
 from types import ModuleType as _ModuleType
 from typing import \
     Any as _Any, \
@@ -373,7 +373,7 @@ class SlashCommand:
     def args(self):
         """ :returns: the argument documentation string """
 
-    def __new__(cls: type[Self], name: str) -> Self:
+    def __new__(cls: type[_Self], name: str) -> _Self:
         """
         Finds an existing slash command from the provided 'name'
 
@@ -400,7 +400,7 @@ class SlashCommand:
 class PythonSlashCommand(SlashCommand):
     """ Allows for creating new slash commands in Python, that may then later be called from CSH """
 
-    def __new__(cls: type[Self], name: str, function: _Callable[..., _Any], args: str = None) -> Self:
+    def __new__(cls: type[_Self], name: str, function: _Callable[..., _Any], args: str = None) -> _Self:
         """
         Finds an existing slash command from the provided 'name'
 
@@ -474,6 +474,45 @@ class Ident:
 
     def __hash__(self) -> int:
         """ Uses all Ident fields to generate a hash """
+
+
+class Ifstat:
+    """Convenient wrapper class for 'ifstat' replies."""
+
+    interface: str
+    "interface of the ifstat reply"
+    tx: int
+    "tx of the ifstat reply"
+    rx: int
+    "rx of the ifstat reply"
+    tx_error: int
+    "tx_error of the ifstat reply"
+    rx_error: int
+    "rx_error of the ifstat reply"
+    drop: int
+    "drop of the ifstat reply"
+    autherr: int
+    "autherr of the ifstat reply"
+    frame: int
+    "frame of the ifstat reply"
+    txbytes: int
+    "txbytes of the ifstat reply"
+    rxbytes: int
+    "rxbytes of the ifstat reply"
+
+    def __new__(cls, if_name: str, node: int = None, timeout: int = None) -> Ifstat:
+        """
+        Potentially makes a blocking request to a remote node.
+
+        :param if_name: Name of the interface to query.
+        :param node: Node on which the interface is located.
+        :param timeout: Timeout for remote node requests.
+
+        :raises RuntimeError: When called before .init().
+        :raises ConnectionError: When no response is received.
+
+        :return: Ifstat object with fields indicating status.
+        """
 
 
 _param_ident_hint = int | str | Parameter  # Types accepted for finding a param_t
@@ -651,6 +690,21 @@ def ident(node: int = None, timeout: int = None, override: bool = False) -> str:
     :raises RuntimeError: When called before .init().
     """
 
+def ifstat(if_name: str, node: int = None, timeout: int = None) -> Ifstat:
+    """
+    Return information about the specified interface.
+    Potentially makes a blocking request to a remote node.
+
+    :param if_name: Name of the interface to query.
+    :param node: Node on which the interface is located.
+    :param timeout: Timeout for remote node requests.
+
+    :raises RuntimeError: When called before .init().
+    :raises ConnectionError: When no response is received.
+
+    :return: Ifstat object with fields indicating status
+    """
+
 def reboot(node: int = None) -> None:
     """ Reboot the specified node. """
 
@@ -757,7 +811,7 @@ def sps(from: int, to: int, filename: str, node: int = None, window: int = None,
     :raises ProgramDiffError: See class docstring.
     """
 
-def apm_load(path: str = '~/.local/lib/csh/pyapms/', filename: str = None, stop_on_error: bool = False) -> dict[str, _ModuleType | Exception]:
+def apm_load(path: str = '~/.local/lib/csh/', filename: str = None, stop_on_error: bool = False) -> dict[str, _ModuleType | Exception]:
     """
     Loads both .py and .so APMs
 
