@@ -101,6 +101,10 @@ static PyObject * Parameter_get_node(ParameterObject *self, void *closure) {
 	return Py_BuildValue("H", self->param->node);
 }
 
+static PyObject * Parameter_get_storage_type(ParameterObject *self, void *closure) {
+	return Py_BuildValue("H", self->param->vmem->type);
+}
+
 /* This will change self->param to be one by the same name at the specified node. */
 static int Parameter_set_node(ParameterObject *self, PyObject *value, void *closure) {
 
@@ -346,6 +350,8 @@ static PyGetSetDef Parameter_getsetters[] = {
      "timestamp of the parameter", NULL},
 	{"node", (getter)Parameter_get_node, (setter)Parameter_set_node,
      "node of the parameter", NULL},
+	{"node", (getter)Parameter_get_node, (setter)Parameter_set_node,
+     "node of the parameter", NULL},
 #endif
 
 #if 1  // Parameter getsetters
@@ -359,6 +365,8 @@ static PyGetSetDef Parameter_getsetters[] = {
      "value of the parameter", NULL},
 	{"is_vmem", (getter)Parameter_is_vmem, NULL,
      "whether the parameter is a vmem parameter", NULL},
+	{"storage_type", (getter)Parameter_get_storage_type, NULL,
+     "storage type of the parameter", NULL},
 	{"timeout", (getter)Parameter_get_timeout, (setter)Parameter_set_timeout,
      "timeout of the parameter", NULL},
 	{"retries", (getter)Parameter_get_retries, (setter)Parameter_set_retries,
