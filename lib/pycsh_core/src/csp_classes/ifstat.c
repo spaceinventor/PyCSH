@@ -68,16 +68,16 @@ PyObject * Ifstat_new(PyTypeObject *type, PyObject *args, PyObject *kwds) {
 }
 
 static PyMemberDef Ifstat_members[] = {
-    {"interface", Py_T_STRING_INPLACE, offsetof(IfstatObject, message.if_stats.interface), READONLY, "interface of the ifstat reply"},
-    {"tx", Py_T_UINT, offsetof(IfstatObject, message.if_stats.tx), READONLY, "tx of the ifstat reply"},
-    {"rx", Py_T_UINT, offsetof(IfstatObject, message.if_stats.rx), READONLY, "rx of the ifstat reply"},
-    {"tx_error", Py_T_UINT, offsetof(IfstatObject, message.if_stats.tx_error), READONLY, "tx_error of the ifstat reply"},
-    {"rx_error", Py_T_UINT, offsetof(IfstatObject, message.if_stats.rx_error), READONLY, "rx_error of the ifstat reply"},
-    {"drop", Py_T_UINT, offsetof(IfstatObject, message.if_stats.drop), READONLY, "drop of the ifstat reply"},
-    {"autherr", Py_T_UINT, offsetof(IfstatObject, message.if_stats.autherr), READONLY, "autherr of the ifstat reply"},
-    {"frame", Py_T_UINT, offsetof(IfstatObject, message.if_stats.frame), READONLY, "frame of the ifstat reply"},
-    {"txbytes", Py_T_UINT, offsetof(IfstatObject, message.if_stats.txbytes), READONLY, "txbytes of the ifstat reply"},
-    {"rxbytes", Py_T_UINT, offsetof(IfstatObject, message.if_stats.rxbytes), READONLY, "rxbytes of the ifstat reply"},
+    {"interface", T_STRING_INPLACE, offsetof(IfstatObject, message.if_stats.interface), READONLY, "interface of the ifstat reply"},
+    {"tx", T_UINT, offsetof(IfstatObject, message.if_stats.tx), READONLY, "tx of the ifstat reply"},
+    {"rx", T_UINT, offsetof(IfstatObject, message.if_stats.rx), READONLY, "rx of the ifstat reply"},
+    {"tx_error", T_UINT, offsetof(IfstatObject, message.if_stats.tx_error), READONLY, "tx_error of the ifstat reply"},
+    {"rx_error", T_UINT, offsetof(IfstatObject, message.if_stats.rx_error), READONLY, "rx_error of the ifstat reply"},
+    {"drop", T_UINT, offsetof(IfstatObject, message.if_stats.drop), READONLY, "drop of the ifstat reply"},
+    {"autherr", T_UINT, offsetof(IfstatObject, message.if_stats.autherr), READONLY, "autherr of the ifstat reply"},
+    {"frame", T_UINT, offsetof(IfstatObject, message.if_stats.frame), READONLY, "frame of the ifstat reply"},
+    {"txbytes", T_UINT, offsetof(IfstatObject, message.if_stats.txbytes), READONLY, "txbytes of the ifstat reply"},
+    {"rxbytes", T_UINT, offsetof(IfstatObject, message.if_stats.rxbytes), READONLY, "rxbytes of the ifstat reply"},
     {NULL}  /* Sentinel */
 };
 
