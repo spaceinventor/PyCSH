@@ -642,15 +642,17 @@ def list_forget(node: int = None, verbose: int = None) -> int:
     :returns: Count of parameters removed.
     """
 
-def list_save(filename: str = None, node: int = None, include_node: bool = True) -> None:
+def list_save(filename: str = None, node: int = None, skip_node: bool = False) -> None:
     """
     Save a list of parameters to a file
 
     :param filename: Name of file to save "list add" commands to, defaults to stdout.
     :param node: Save parameters on the specified node, use <1 for all nodes.
-    :param include_node: Whether to include the node of the parameter in the "last add" command.
+    :param skip_node: Whether to include the node of the parameter in the "last add" command.
+
     :returns: Currently returns None, may return string of "list add" commands in future versions.
     """
+
 def list_add(node: int, length: int, id: int, name: str, type: int, mask: int | str = None,  comment: str = None, unit: str = None) -> Parameter:
     """
     Add a parameter to the global list
@@ -665,6 +667,7 @@ def list_add(node: int, length: int, id: int, name: str, type: int, mask: int | 
     :param unit: Unit of measurement for the parameter.
     :returns: Returns the created parameter.
     """
+
 # Commands from CSP
 def ping(node: int = None, timeout: int = None, size: int = None) -> int:
     """
