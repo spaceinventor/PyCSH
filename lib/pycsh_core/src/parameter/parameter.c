@@ -350,8 +350,6 @@ static PyGetSetDef Parameter_getsetters[] = {
      "timestamp of the parameter", NULL},
 	{"node", (getter)Parameter_get_node, (setter)Parameter_set_node,
      "node of the parameter", NULL},
-	{"node", (getter)Parameter_get_node, (setter)Parameter_set_node,
-     "node of the parameter", NULL},
 #endif
 
 #if 1  // Parameter getsetters
