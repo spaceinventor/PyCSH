@@ -814,7 +814,7 @@ def sps(from: int, to: int, filename: str, node: int = None, window: int = None,
     :raises ProgramDiffError: See class docstring.
     """
 
-def apm_load(path: str = '~/.local/lib/csh/', filename: str = None, stop_on_error: bool = False) -> dict[str, _ModuleType | Exception]:
+def apm_load(path: str = '~/.local/lib/csh/', filename: str = None, stop_on_error: bool = False, verbose: int = ...) -> dict[str, _ModuleType | Exception]:
     """
     Loads both .py and .so APMs
 
@@ -823,6 +823,7 @@ def apm_load(path: str = '~/.local/lib/csh/', filename: str = None, stop_on_erro
     :param path: Directory to scan for APMs to load
     :param filename: Specific file/APM to load in the 'path' directory.
     :param stop_on_error: Whether to stop and raise an exception when an APM fails to load.
+    :param verbose: How much to print, defaults to environment value.
 
     :raises Exception: When stop_on_error==True and an APM fails to import.
 

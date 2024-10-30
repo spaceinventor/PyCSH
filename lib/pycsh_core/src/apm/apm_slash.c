@@ -173,6 +173,9 @@ static int py_apm_load_cmd(struct slash *slash) {
 				continue;
 			}
 			lib_count++;
+
+			// TODO Kevin: Verbose argument?
+			printf("\033[32mLoaded: %s\033[0m\n", fullpath);
 		}
 	}
 

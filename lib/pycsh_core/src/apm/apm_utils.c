@@ -166,7 +166,7 @@ PyObject * pycsh_load_pymod(const char * const _filepath, const char * const ini
 		}
 
 		if (init_function_name == NULL) {
-			if (verbose) {
+			if (verbose >= 2) {
 				printf("Skipping init function for module '%s'\n", filename);
 			}
 			return Py_NewRef(pModule);
@@ -174,11 +174,13 @@ PyObject * pycsh_load_pymod(const char * const _filepath, const char * const ini
 
 		// TODO Kevin: Consider the consequences of throwing away the module when failing to call init function.
 
+		assert(!PyErr_Occurred());
 		PyObject *init_function AUTO_DECREF = PyObject_GetAttrString(pModule, init_function_name);
 		if (init_function == NULL) {
 			PyErr_Clear();
-			printf("Skipping missing init function '%s()' in module '%s'\n", init_function_name, filename);
-			//fprintf(stderr, "Cannot find function \"%s()\" in %s\n", init_function_name, filename); // This print is a good idea for debugging, but since the apm_init(main) is not required this print can be a bit confusing.
+			if (verbose >= 2) {
+				fprintf(stderr, "Skipping missing init function '%s()' in module '%s'\n", init_function_name, filename);
+			}
 			return Py_NewRef(pModule);
 		}
 
@@ -196,9 +198,6 @@ PyObject * pycsh_load_pymod(const char * const _filepath, const char * const ini
 			return NULL;
 		}
 
-		if (verbose)
-			printf("Calling '%s.%s()'\n", filename, init_function_name);
-
 		PyObject *pValue AUTO_DECREF = PyObject_CallObject(init_function, pArgs);
 
 		if (pValue == NULL) {
@@ -207,8 +206,9 @@ PyObject * pycsh_load_pymod(const char * const _filepath, const char * const ini
 			return NULL;
 		}
 
-		if (verbose)
+		if (verbose >= 2) {
 			printf("Script executed successfully: %s.%s()\n", filename, init_function_name);
+		}
 
 		return Py_NewRef(pModule);
 	}

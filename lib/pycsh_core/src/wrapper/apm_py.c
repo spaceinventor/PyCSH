@@ -26,10 +26,11 @@ PyObject * pycsh_apm_load(PyObject * self, PyObject * args, PyObject * kwds) {
 	char * path = NULL;
     char * filename = NULL;  // TODO Kevin: Actually use the provided filename
     bool stop_on_error = false;
+	int verbose = pycsh_dfl_verbose;
 
-    static char *kwlist[] = {"path", "filename", "stop_on_error", NULL};
+    static char *kwlist[] = {"path", "filename", "stop_on_error", "verbose", NULL};
 
-	if (!PyArg_ParseTupleAndKeywords(args, kwds, "|ssp:apm_load", kwlist, &path, &filename, &stop_on_error))
+	if (!PyArg_ParseTupleAndKeywords(args, kwds, "|ssp:apm_load", kwlist, &path, &filename, &stop_on_error, &verbose))
 		return NULL;  // TypeError is thrown
 
 	// TODO Kevin: This wrapper should probably ALSO load C APMs. But we can clean up the C APM API a bit before that.
@@ -82,7 +83,7 @@ PyObject * pycsh_apm_load(PyObject * self, PyObject * args, PyObject * kwds) {
 
 			/* Actually load the module. */
 			assert(!PyErr_Occurred());
-			PyObject * pymod AUTO_DECREF = pycsh_load_pymod(fullpath, DEFAULT_INIT_FUNCTION, 1);
+			PyObject * pymod AUTO_DECREF = pycsh_load_pymod(fullpath, DEFAULT_INIT_FUNCTION, verbose);
 			if (pymod == NULL && stop_on_error) {
 				if (!PyErr_Occurred()) {
 					PyErr_Format(PyExc_ImportError, "Failed to import module: '%s'", fullpath);
@@ -106,6 +107,9 @@ PyObject * pycsh_apm_load(PyObject * self, PyObject * args, PyObject * kwds) {
 				return NULL;
 			}
 
+			if (pymod != NULL && verbose >= 1) {
+				printf("\033[32mLoaded: %s\033[0m\n", fullpath);
+			}
 		}
 	}
 
