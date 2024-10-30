@@ -208,7 +208,7 @@ PyObject * pycsh_param_list_save(PyObject * self, PyObject * args, PyObject * kw
     int node = pycsh_dfl_node;
     int skip_node = false;  // Make node optional, as to support adding to env node
 
-    static char *kwlist[] = {"filename", "node", "include_node", NULL};
+    static char *kwlist[] = {"filename", "node", "skip_node", NULL};
 
     if (!PyArg_ParseTupleAndKeywords(args, kwds, "|sip", kwlist, &filename, &node, &skip_node)) {
         return NULL;  // TypeError is thrown
