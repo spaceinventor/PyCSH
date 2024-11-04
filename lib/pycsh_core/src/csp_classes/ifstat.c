@@ -64,8 +64,21 @@ PyObject * Ifstat_new(PyTypeObject *type, PyObject *args, PyObject *kwds) {
 		return NULL;
 	}
 
+    self->message.if_stats.tx =       be32toh(self->message.if_stats.tx);
+	self->message.if_stats.rx =       be32toh(self->message.if_stats.rx);
+	self->message.if_stats.tx_error = be32toh(self->message.if_stats.tx_error);
+	self->message.if_stats.rx_error = be32toh(self->message.if_stats.rx_error);
+	self->message.if_stats.drop =     be32toh(self->message.if_stats.drop);
+	self->message.if_stats.autherr =  be32toh(self->message.if_stats.autherr);
+	self->message.if_stats.frame =    be32toh(self->message.if_stats.frame);
+	self->message.if_stats.txbytes =  be32toh(self->message.if_stats.txbytes);
+	self->message.if_stats.rxbytes =  be32toh(self->message.if_stats.rxbytes);
+	self->message.if_stats.irq = 	 be32toh(self->message.if_stats.irq);
+
     return (PyObject*)self;
 }
+
+static_assert(sizeof(uint32_t) == sizeof(unsigned int));
 
 static PyMemberDef Ifstat_members[] = {
     {"interface", T_STRING_INPLACE, offsetof(IfstatObject, message.if_stats.interface), READONLY, "interface of the ifstat reply"},
