@@ -163,6 +163,12 @@ static int py_apm_load_cmd(struct slash *slash) {
 		
 		struct dirent *entry;
 		while ((entry = readdir(dir)) != NULL)  {
+
+			/* Verify file has search string */
+			if (search_str && !strstr(entry->d_name, search_str)) {
+				continue;
+			}
+
 			int fullpath_len = strnlen(path, WALKDIR_MAX_PATH_SIZE) + strnlen(entry->d_name, WALKDIR_MAX_PATH_SIZE);
 			char fullpath[fullpath_len+1];
 			strncpy(fullpath, path, fullpath_len);
