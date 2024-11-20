@@ -2,6 +2,7 @@
 #include <slash/slash.h>
 #include <stdlib.h>
 #include <string.h>
+#include "../utils.h"
 
 #define PY_SSIZE_T_CLEAN
 #include <Python.h>
@@ -28,11 +29,9 @@ PyObject * pycsh_slash_execute(PyObject * self, PyObject * args, PyObject * kwds
     char hist_buf[HISTORY_SIZE];
     slash_create_static(&slas, line_buf, LINE_SIZE, hist_buf, HISTORY_SIZE);
 
-    char * cmd_cpy = strdup(command);
+    char * cmd_cpy CLEANUP_FREE = strdup(command);
 
     PyObject * ret = Py_BuildValue("i", slash_execute(&slas, cmd_cpy));
-
-    free(cmd_cpy);
 
     return ret;
 }
