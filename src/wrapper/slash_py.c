@@ -29,7 +29,6 @@ PyObject * pycsh_slash_execute(PyObject * self, PyObject * args, PyObject * kwds
     slash_create_static(&slas, line_buf, LINE_SIZE, hist_buf, HISTORY_SIZE);
 
     char * cmd_cpy = strdup(command);
-    slash_printf(&slas, "executing: '%s'\n", cmd_cpy);
 
     PyObject * ret = Py_BuildValue("i", slash_execute(&slas, cmd_cpy));
 
