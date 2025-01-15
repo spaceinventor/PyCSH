@@ -1,5 +1,5 @@
 project('csh_bindings', 'c', subproject_dir: 'lib', default_options: [
-	'buildtype=release',
+	'buildtype=debug',
 	'c_std=gnu11',
 	'b_lto=false',
 	'default_library=static',
