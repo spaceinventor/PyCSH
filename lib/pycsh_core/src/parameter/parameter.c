@@ -53,7 +53,7 @@ static PyObject * Parameter_richcompare(PyObject *self, PyObject *other, int op)
 
 static PyObject * Parameter_str(ParameterObject *self) {
 	char buf[100];
-	sprintf(buf, "[id:%i|node:%i] %s | %s", self->param->id, self->param->node, self->param->name, self->type->tp_name);
+	sprintf(buf, "[id:%i|node:%i] %s | %s", self->param->id, *self->param->node, self->param->name, self->type->tp_name);
 	return Py_BuildValue("s", buf);
 }
 
@@ -319,7 +319,7 @@ static void Parameter_dealloc(ParameterObject *self) {
 		It should therefore follow that we are now responsible for its memory (<-- TODO Kevin: Is this true? It has probably already been freed).
 		We must therefore free() it, now that we are being deallocated.
 		We check that (self->param != NULL), just in case we allow that to raise exceptions in the future. */
-	if (param_list_find_id(self->param->node, self->param->id) != self->param && self->param != NULL) {
+	if (param_list_find_id(*self->param->node, self->param->id) != self->param && self->param != NULL) {
 		param_list_destroy(self->param);
 	}
 

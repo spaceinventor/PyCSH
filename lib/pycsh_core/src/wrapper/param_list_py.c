@@ -161,7 +161,7 @@ static int param_list_remove_py(int node, uint8_t verbose) {
 		uint8_t match = node < 0;  // -1 means all nodes (except for 0)
 
 		if (node > 0)
-			match = param->node == node;
+			match = *param->node == node;
 
 		if (match) {
             ParameterObject *python_parameter = Parameter_wraps_param(param);

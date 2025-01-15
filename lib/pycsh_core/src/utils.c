@@ -345,7 +345,7 @@ PyObject * pycsh_util_get_type(PyObject * self, PyObject * args) {
 	if (self && PyObject_TypeCheck(self, &ParameterType)) {
 		ParameterObject *_self = (ParameterObject *)self;
 
-		node = _self->param->node;
+		node = *_self->param->node;
 		param = _self->param;
 
 	} else {
@@ -503,7 +503,7 @@ PyObject * pycsh_util_parameter_list(uint32_t mask, int node, const char * globs
 	param_list_iterator i = {};
 	while ((param = param_list_iterate(&i)) != NULL) {
 
-		if ((node >= 0) && (param->node != node)) {
+		if ((node >= 0) && (*param->node != node)) {
 			continue;
 		}
 		if ((param->mask & mask) == 0) {
@@ -558,7 +558,7 @@ PyObject * _pycsh_util_get_single(param_t *param, int offset, int autopull, int 
 		for (size_t i = 0; i < (retries > 0 ? retries : 1); i++) {
 			int param_pull_res;
 			Py_BEGIN_ALLOW_THREADS;
-			param_pull_res = param_pull_single(param, offset,  CSP_PRIO_NORM, 1, (host != INT_MIN ? host : param->node), timeout, paramver);
+			param_pull_res = param_pull_single(param, offset,  CSP_PRIO_NORM, 1, (host != INT_MIN ? host : *param->node), timeout, paramver);
 			Py_END_ALLOW_THREADS;
 			if (param_pull_res)
 				if (i >= retries-1) {
@@ -690,7 +690,7 @@ PyObject * _pycsh_util_get_array(param_t *param, int autopull, int host, int tim
 		}
 
 		for (size_t i = 0; i < (retries > 0 ? retries : 1); i++) {
-			if (param_pull_queue(&queue, CSP_PRIO_NORM, 0, param->node, timeout)) {
+			if (param_pull_queue(&queue, CSP_PRIO_NORM, 0, *param->node, timeout)) {
 				PyErr_SetString(PyExc_ConnectionError, "No response.");
 				free(queuebuffer);
 				return 0;
@@ -841,7 +841,7 @@ int _pycsh_util_set_single(param_t *param, PyObject *value, int offset, int host
 		param_str_to_value(param->type, (char*)PyUnicode_AsUTF8(strvalue), valuebuf);
 	}
 
-	int dest = (host != INT_MIN ? host : param->node);
+	int dest = (host != INT_MIN ? host : *param->node);
 
 	// TODO Kevin: The way we set the parameters has been refactored,
 	//	confirm that it still behaves like the original (especially for remote host parameters).
@@ -850,7 +850,7 @@ int _pycsh_util_set_single(param_t *param, PyObject *value, int offset, int host
 		for (size_t i = 0; i < (retries > 0 ? retries : 1); i++) {
 			int param_push_res;
 			Py_BEGIN_ALLOW_THREADS;  // Only allow threads for remote parameters, as local ones could have Python callbacks.
-			param_push_res = param_push_single(param, offset, valuebuf, 1, dest, timeout, paramver, false);
+			param_push_res = param_push_single(param, offset, 0, valuebuf, 1, dest, timeout, paramver, false);
 			Py_END_ALLOW_THREADS;
 			if (param_push_res < 0)
 				if (i >= retries-1) {
@@ -952,8 +952,8 @@ int _pycsh_util_set_array(param_t *param, PyObject *value, int host, int timeout
 
 	param_queue_print(&queue);
 	
-	if (param->node != 0)
-		if (param_push_queue(&queue, 1, param->node, 100, 0, false) < 0) {  // TODO Kevin: We should probably have a parameter for hwid here.
+	if (*param->node != 0)
+		if (param_push_queue(&queue, 1, 0, *param->node, 100, 0, false) < 0) {  // TODO Kevin: We should probably have a parameter for hwid here.
 			PyErr_SetString(PyExc_ConnectionError, "No response.");
 			free(queuebuffer);
 			Py_DECREF(value);

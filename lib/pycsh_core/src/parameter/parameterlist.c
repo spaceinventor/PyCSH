@@ -142,7 +142,7 @@ static PyObject * ParameterList_push(ParameterListObject *self, PyObject *args, 
 		}
 	}
 
-	if (param_push_queue(&queue, 1, node, timeout, hwid, false) < 0) {
+	if (param_push_queue(&queue, 1, 0, node, timeout, hwid, false) < 0) {
 		PyErr_SetString(PyExc_ConnectionError, "No response.");
 		return NULL;
 	}
