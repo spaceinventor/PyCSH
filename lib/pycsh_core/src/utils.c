@@ -553,7 +553,7 @@ PyObject * _pycsh_util_get_single(param_t *param, int offset, int autopull, int 
 	} else
 		offset = -1;
 
-	if (autopull && (param->node != 0)) {
+	if (autopull && (*param->node != 0)) {
 
 		for (size_t i = 0; i < (retries > 0 ? retries : 1); i++) {
 			int param_pull_res;
@@ -680,7 +680,7 @@ PyObject * _pycsh_util_get_array(param_t *param, int autopull, int host, int tim
 
 	// Pull the value for every index using a queue (if we're allowed to),
 	// instead of pulling them individually.
-	if (autopull && param->node != 0) {
+	if (autopull && *param->node != 0) {
 		void * queuebuffer = malloc(PARAM_SERVER_MTU);
 		param_queue_t queue = { };
 		param_queue_init(&queue, queuebuffer, PARAM_SERVER_MTU, 0, PARAM_QUEUE_TYPE_GET, paramver);
@@ -943,7 +943,7 @@ int _pycsh_util_set_array(param_t *param, PyObject *value, int host, int timeout
 
 #if 0  /* TODO Kevin: When should we use queues with the new cmd system? */
 		// Set local parameters immediately, use the global queue if autosend if off.
-		param_queue_t *usequeue = (!autosend ? &param_queue_set : ((param->node != 0) ? &queue : NULL));
+		param_queue_t *usequeue = (!autosend ? &param_queue_set : ((*param->node != 0) ? &queue : NULL));
 #endif
 		_pycsh_util_set_single(param, item, i, host, timeout, retries, paramver, 1, verbose);
 		
