@@ -186,6 +186,22 @@ static int _handle_stream(PyObject * stream_identifier, FILE **std_stream, FILE 
 
 static PyObject * pycsh_init(PyObject * self, PyObject * args, PyObject *kwds) {
 
+	/* It seems that we (PyCSH) cannot control the symbol visibility of libparam (static libraries),
+		at least using linking/compile options.
+		This is unfortunate as libparams symbols are also considered part of the API that PyCSH exposes.
+		It is therefore only possible ensure the presence of library symbols by also using them in PyCSH itself,
+		to prevent them from being optimized out.
+		Many thanks to JB for helping sort this out! :) */
+	/* param_command_rm() is not in a public header. But it's probably okay to declare it here,
+		since we only care about the name, not the prototype. */
+	int param_command_rm(int server, int verbose, char command_name[], int timeout);
+	if (param_command_rm == NULL) {
+		fprintf(stderr, "param_command_rm was optimized out\n");
+		exit(1);
+		assert(false);
+		return NULL;
+	}
+
 	// if (_csp_initialized) {
 	// 	PyErr_SetString(PyExc_RuntimeError,
 	// 		"Cannot initialize multiple instances of libparam bindings. Please use a previous binding.");
