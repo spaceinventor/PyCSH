@@ -186,10 +186,14 @@ static int _handle_stream(PyObject * stream_identifier, FILE **std_stream, FILE 
 
 static PyObject * pycsh_init(PyObject * self, PyObject * args, PyObject *kwds) {
 
+	// Suppress the "comparison will always evaluate as ‘false’" warning
+    #pragma GCC diagnostic push
+    #pragma GCC diagnostic ignored "-Waddress"
+
 	/* It seems that we (PyCSH) cannot control the symbol visibility of libparam (static libraries),
 		at least using linking/compile options.
 		This is unfortunate as libparams symbols are also considered part of the API that PyCSH exposes.
-		It is therefore only possible ensure the presence of library symbols by also using them in PyCSH itself,
+		It is therefore only possible ensure to the presence of library symbols by also using them in PyCSH itself,
 		to prevent them from being optimized out.
 		Many thanks to JB for helping sort this out! :) */
 	/* param_command_rm() is not in a public header. But it's probably okay to declare it here,
@@ -201,6 +205,9 @@ static PyObject * pycsh_init(PyObject * self, PyObject * args, PyObject *kwds) {
 		assert(false);
 		return NULL;
 	}
+
+	// Re-enable the warning
+    #pragma GCC diagnostic pop
 
 	// if (_csp_initialized) {
 	// 	PyErr_SetString(PyExc_RuntimeError,
@@ -319,8 +326,10 @@ static PyMethodDef methods[] = {
 	{"csp_add_can", (PyCFunction)pycsh_csh_csp_ifadd_can,   METH_VARARGS | METH_KEYWORDS, "Add a new UDP interface"},
 #endif
 	{"csp_add_eth", (PyCFunction)pycsh_csh_csp_ifadd_eth,   METH_VARARGS | METH_KEYWORDS, "Add a new ethernet interface"},
-	{"csp_add_udp", (PyCFunction)pycsh_csh_csp_ifadd_udp,   METH_VARARGS | METH_KEYWORDS, "Add a new TUN interface"},
-	{"csp_add_tun", (PyCFunction)pycsh_csh_csp_ifadd_tun,   METH_VARARGS | METH_KEYWORDS, "Add a new route"},
+	{"csp_add_udp", (PyCFunction)pycsh_csh_csp_ifadd_udp,   METH_VARARGS | METH_KEYWORDS, "Add a new UDP interface"},
+	{"csp_add_tun", (PyCFunction)pycsh_csh_csp_ifadd_tun,   METH_VARARGS | METH_KEYWORDS, "Add a new TUN interface"},
+
+	{"csp_add_route", (PyCFunction)pycsh_csh_csp_routeadd_cmd,   METH_VARARGS | METH_KEYWORDS, "Add a new route"},
 
 	/* Misc */
 	{"init", (PyCFunction)pycsh_init, 				METH_VARARGS | METH_KEYWORDS, "Initializes the module, with the provided settings."},
@@ -540,6 +549,8 @@ PyMODINIT_FUNC PyInit_pycsh(void) {
 		PyModule_AddObject(m, "PM_PRIO2", PyLong_FromLong(PM_PRIO2));
 		PyModule_AddObject(m, "PM_PRIO3", PyLong_FromLong(PM_PRIO3));
 		PyModule_AddObject(m, "PM_PRIO_MASK", PyLong_FromLong(PM_PRIO_MASK));
+
+		PyModule_AddObject(m, "CSP_NO_VIA_ADDRESS", PyLong_FromLong(CSP_NO_VIA_ADDRESS));
 
 		// TODO Kevin: We should probably add constants for SLASH_SUCCESS and such
 	}

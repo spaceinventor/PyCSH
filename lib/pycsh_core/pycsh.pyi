@@ -66,6 +66,9 @@ PM_PRIO2: int
 PM_PRIO3: int
 PM_PRIO_MASK: int
 
+CSP_NO_VIA_ADDRESS: int = 0xFFFF
+
+
 # Custom Exceptions
 class ProgramDiffError(ConnectionError):
     """
@@ -882,6 +885,18 @@ def csp_add_can(addr: int, promisc: int = 0, mask: int = 8, default: int = 0, ba
     :raises SystemError: When failing to add interface
     """
 
+def csp_add_eth(addr: int, device: str, promisc: int = 0, mask: int = 8, default: int = 0, mtu: int = 1200) -> None:
+    """
+    Add a new ethernet interface
+
+    :param addr: Node of the interface
+    :param device: Ethernet device
+    :param promisc: Promiscuous Mode
+    :param mask: Netmask (defaults to 8)
+    :param default: Set as default
+    :param mtu: Maximum Transmission Unit
+    """
+
 def csp_add_udp(addr: int, server: str, promisc: int = 0, mask: int = 8, default: int = 0, listen_port: int = 9220, remote_port: int = 9220) -> None:
     """
     Add a new UDP interface
@@ -895,18 +910,6 @@ def csp_add_udp(addr: int, server: str, promisc: int = 0, mask: int = 8, default
     :param remote_port: Port to send to
     """
 
-def csp_add_eth(addr: int, device: str, promisc: int = 0, mask: int = 8, default: int = 0, mtu: int = 1200) -> None:
-    """
-    Add a new ethernet interface
-
-    :param addr: Node of the interface
-    :param device: Ethernet device
-    :param promisc: Promiscuous Mode
-    :param mask: Netmask (defaults to 8)
-    :param default: Set as default
-    :param mtu: Maximum Transmission Unit
-    """
-
 def csp_add_tun(addr: int, tun_src: int, tun_dst: int, promisc: int = 0, mask: int = 8, default: int = 0) -> None:
     """
     Add a new TUN interface
@@ -915,6 +918,16 @@ def csp_add_tun(addr: int, tun_src: int, tun_dst: int, promisc: int = 0, mask: i
     :param promisc: Promiscuous Mode
     :param mask: Netmask (defaults to 8)
     :param default: Set as default
+    """
+
+def csp_add_route(addr: int, mask: int, interface: str, via: int = CSP_NO_VIA_ADDRESS) -> None:
+    """
+    Add a new route
+    
+    :param addr: Network address of the target subnet
+    :param mask: Subnet mask of the target subnet
+    :param interface: Which of our interfaces to use when routing to the specified subnet (i.e ZMQ0, CAN1, etc.)
+    :param via: Via address (whatever that is)
     """
 
 def init(quiet: int = None, stdout: int | str = None, stderr: int | str = None) -> None:

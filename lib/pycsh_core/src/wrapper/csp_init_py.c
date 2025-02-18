@@ -12,6 +12,7 @@
 #include <stdlib.h>
 
 #include <csp/csp.h>
+#include <csp/csp_id.h>
 
 #include <pthread.h>
 #include <param/param_server.h>
@@ -53,7 +54,7 @@ PyObject * pycsh_csh_csp_init(PyObject * self, PyObject * args, PyObject * kwds)
 
 	static char *kwlist[] = {"host", "model", "revision", "version", "dedup", NULL};
 
-	if (!PyArg_ParseTupleAndKeywords(args, kwds, "|sssii", kwlist, &hostname, &model, &revision, &version, &dedup))
+	if (!PyArg_ParseTupleAndKeywords(args, kwds, "|sssii:csp_init", kwlist, &hostname, &model, &revision, &version, &dedup))
 		return NULL;  // TypeError is thrown
 
 	static struct utsname info;
@@ -123,7 +124,7 @@ PyObject * pycsh_csh_csp_ifadd_zmq(PyObject * self, PyObject * args, PyObject * 
 
     static char *kwlist[] = {"addr", "server", "promisc", "mask", "default", "pub_port", "sub_port", "sec_key", NULL};
 
-	if (!PyArg_ParseTupleAndKeywords(args, kwds, "Is|iiiiis", kwlist, &addr, &server, &promisc, &mask, &dfl, &pub_port, &sub_port, &sec_key))
+	if (!PyArg_ParseTupleAndKeywords(args, kwds, "Is|iiiiis:csp_add_zmq", kwlist, &addr, &server, &promisc, &mask, &dfl, &pub_port, &sub_port, &sec_key))
 		return NULL;  // TypeError is thrown
 
     csp_iface_t * iface;
@@ -152,7 +153,7 @@ PyObject * pycsh_csh_csp_ifadd_kiss(PyObject * self, PyObject * args, PyObject *
 
     static char *kwlist[] = {"addr", "promisc", "mask", "default", "baud", "uart", NULL};
 
-	if (!PyArg_ParseTupleAndKeywords(args, kwds, "I|iiiis", kwlist, &addr, &promisc, &mask, &dfl, &baud, &device))
+	if (!PyArg_ParseTupleAndKeywords(args, kwds, "I|iiiis:csp_add_kiss", kwlist, &addr, &promisc, &mask, &dfl, &baud, &device))
 		return NULL;  // TypeError is thrown
 
     csp_usart_conf_t conf = {
@@ -196,7 +197,7 @@ PyObject * pycsh_csh_csp_ifadd_can(PyObject * self, PyObject * args, PyObject * 
 
     static char *kwlist[] = {"addr", "promisc", "mask", "default", "baud", "can", NULL};
 
-	if (!PyArg_ParseTupleAndKeywords(args, kwds, "I|iiiis", kwlist, &addr, &promisc, &mask, &dfl, &baud, &device))
+	if (!PyArg_ParseTupleAndKeywords(args, kwds, "I|iiiis:csp_add_can", kwlist, &addr, &promisc, &mask, &dfl, &baud, &device))
 		return NULL;  // TypeError is thrown
 
    csp_iface_t * iface;
@@ -262,7 +263,7 @@ PyObject * pycsh_csh_csp_ifadd_eth(PyObject * self, PyObject * args, PyObject * 
 
     static char *kwlist[] = {"addr", "device", "promisc", "mask", "default", "mtu", NULL};
 
-	if (!PyArg_ParseTupleAndKeywords(args, kwds, "I|siiii", kwlist, &addr, &device, &promisc, &mask, &dfl, &mtu))
+	if (!PyArg_ParseTupleAndKeywords(args, kwds, "I|siiii:csp_add_eth", kwlist, &addr, &device, &promisc, &mask, &dfl, &mtu))
 		return NULL;  // TypeError is thrown
 
     eth_select_interface(&device);
@@ -303,7 +304,7 @@ PyObject * pycsh_csh_csp_ifadd_udp(PyObject * self, PyObject * args, PyObject * 
 
     static char *kwlist[] = {"addr", "server", "promisc", "mask", "default", "listen_port", "remote_port", NULL};
 
-	if (!PyArg_ParseTupleAndKeywords(args, kwds, "Is|iiiii", kwlist, &addr, &server, &promisc, &mask, &dfl, &listen_port, &remote_port))
+	if (!PyArg_ParseTupleAndKeywords(args, kwds, "Is|iiiii:csp_add_udp", kwlist, &addr, &server, &promisc, &mask, &dfl, &listen_port, &remote_port))
 		return NULL;  // TypeError is thrown
 
     csp_iface_t * iface = malloc(sizeof(csp_iface_t));
@@ -349,7 +350,7 @@ PyObject * pycsh_csh_csp_ifadd_tun(PyObject * self, PyObject * args, PyObject * 
 
     static char *kwlist[] = {"addr", "tun_src", "tun_dst", "promisc", "mask", "default", NULL};
 
-	if (!PyArg_ParseTupleAndKeywords(args, kwds, "III|iii", kwlist, &addr, &tun_src, &tun_dst, &promisc, &mask, &dfl))
+	if (!PyArg_ParseTupleAndKeywords(args, kwds, "III|iii:csp_add_tun", kwlist, &addr, &tun_src, &tun_dst, &promisc, &mask, &dfl))
 		return NULL;  // TypeError is thrown
 
     csp_iface_t * iface;
@@ -363,6 +364,69 @@ PyObject * pycsh_csh_csp_ifadd_tun(PyObject * self, PyObject * args, PyObject * 
     iface->is_default = dfl;
     iface->addr = addr;
 	iface->netmask = mask;
+
+    Py_RETURN_NONE;
+}
+
+PyObject * pycsh_csh_csp_routeadd_cmd(PyObject * self, PyObject * args, PyObject * kwds) {
+
+    unsigned int addr;
+    unsigned int mask;
+    char * interface_name = NULL;  // TODO Kevin: Create and accept Interface wrapper class here
+    unsigned int via = CSP_NO_VIA_ADDRESS;
+
+    static char *kwlist[] = {"addr", "mask", "interface", "via", NULL};
+
+	if (!PyArg_ParseTupleAndKeywords(args, kwds, "IIs|I:csp_add_route", kwlist, &addr, &mask, &interface_name, &via)) {
+		return NULL;  // TypeError is thrown
+    }
+
+    /* TODO Kevin: Can't quite decide between exceptions and error-as-value here.
+        We should let the user see the returned error number. But a exception string is also quite nice. */
+
+    if (via > UINT16_MAX) {
+        /* TODO Kevin: shouldn't this be UINT14_MAX ? */
+        PyErr_SetString(PyExc_ValueError, "Via address cannot be larger than 65535");
+        return NULL;
+    }
+
+    if (addr > csp_id_get_max_nodeid()) {
+        csp_dbg_errno = CSP_DBG_ERR_INVALID_RTABLE_ENTRY;  // TODO Kevin: Should we really set errno here?
+        PyErr_Format(PyExc_ValueError, "Address cannot be larger than %d", csp_id_get_max_nodeid());
+        return NULL;
+    }
+
+    if (mask > (int)csp_id_get_host_bits()) {
+        csp_dbg_errno = CSP_DBG_ERR_INVALID_RTABLE_ENTRY;  // TODO Kevin: Should we really set errno here?
+        PyErr_Format(PyExc_ValueError, "Mask cannot be larger than %d", (int)csp_id_get_host_bits());
+        return NULL;
+    }
+
+    {   /* Checking for misaligned network address */
+        const unsigned int subnet_size = pow(2, csp_id_get_host_bits()-mask);
+        const unsigned int address_error = addr%subnet_size;
+        if (address_error != 0) {
+            /* TODO Kevin: Should we automatically use the floored address instead of erroring? */
+            const unsigned int floor_address = addr-address_error;
+            const unsigned int ceil_address = floor_address+subnet_size;
+            PyErr_Format(PyExc_ValueError, "Invalid network address for route (%d/%d). Nearest valid lower address: %d, Nearest valid upper address %d", addr, mask, floor_address, ceil_address);
+            return NULL;
+        }
+    }
+
+    csp_iface_t * ifc = csp_iflist_get_by_name(interface_name);
+    if (NULL == ifc) {
+        /* NOTE: csp_rtable_set() already checks for valid ifc,
+            but an explicit exception is probably more user-friendly. */
+        PyErr_Format(PyExc_ValueError, "Failed to find interface by name '%s'", interface_name);
+        return NULL;
+    }
+
+    int res = csp_rtable_set(addr, mask, ifc, via);
+    if (CSP_ERR_NONE != res) {
+        PyErr_Format(PyExc_ValueError, "Error while adding route. Returned error: %d", res);
+        return NULL;
+    }
 
     Py_RETURN_NONE;
 }
