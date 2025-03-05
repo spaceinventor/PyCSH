@@ -13,6 +13,8 @@
 
 #include "vmem_client_py.h"
 
+#include "../utils.h"
+
 #include "../pycsh.h"
 
 PyObject * pycsh_vmem_download(PyObject * self, PyObject * args, PyObject * kwds) {
@@ -53,6 +55,51 @@ PyObject * pycsh_vmem_download(PyObject * self, PyObject * args, PyObject * kwds
 
 }
 
+static int is_file_object(PyObject *obj) {
+
+	assert(obj);
+
+    PyObject *io_module AUTO_DECREF = PyImport_ImportModule("io");
+    if (!io_module) {
+        fprintf(stderr, "Failed to import standard Python module ´io´, assert(false)");
+		assert(false);
+    }
+
+    PyObject *io_base AUTO_DECREF = PyObject_GetAttrString(io_module, "IOBase");
+    if (!io_base) {
+        fprintf(stderr, "Failed to import standard Python class ´io.IOBase´, assert(false)");
+		assert(false);
+    }
+
+    int result = PyObject_IsInstance(obj, io_base);
+    return result;
+}
+
+static PyObject* io_object_to_bytes(PyObject *file_obj) {
+    
+	assert(file_obj);
+
+    PyObject *read_method AUTO_DECREF = PyObject_GetAttrString(file_obj, "read");
+    if (!read_method) {
+        PyErr_SetString(PyExc_TypeError, "Object does not have a read() method");
+        return NULL;
+    }
+
+    PyObject *result = PyObject_CallObject(read_method, NULL);
+    if (!result) {
+        return NULL;  // Error occurred in calling read()
+    }
+
+    // Ensure the result is actually bytes
+    if (!PyBytes_Check(result)) {
+        Py_DECREF(result);
+        PyErr_SetString(PyExc_TypeError, "read() did not return bytes");
+        return NULL;
+    }
+
+    return result;  // Return new reference to bytes object (caller must Py_DECREF it)
+}
+
 PyObject * pycsh_vmem_upload(PyObject * self, PyObject * args, PyObject * kwds) {
 	
 	CSP_INIT_CHECK()
@@ -68,11 +115,11 @@ PyObject * pycsh_vmem_upload(PyObject * self, PyObject * args, PyObject * kwds) 
 	unsigned int ack_timeout = 2000;
 	unsigned int ack_count = 2;
 	unsigned int address = 0;
-	PyObject * data_in = NULL;
+	PyObject * data_in AUTO_DECREF = NULL;
 
-    static char *kwlist[] = {"address", "data_in", "node", "window", "conn_timeout", "packet_timeout", "ack_timeout", "ack_count", NULL};
+    static char *kwlist[] = {"address", "data_in", "node", "window", "conn_timeout", "packet_timeout", "ack_timeout", "ack_count", "version", NULL};
 
-	if (!PyArg_ParseTupleAndKeywords(args, kwds, "IO|IIIIII", kwlist, &address, &data_in, &node, &window, &conn_timeout, &packet_timeout, &ack_timeout, &ack_count))
+	if (!PyArg_ParseTupleAndKeywords(args, kwds, "IO|IIIIIII:vmem_upload", kwlist, &address, &data_in, &node, &window, &conn_timeout, &packet_timeout, &ack_timeout, &ack_count, &version))
 		return NULL;  // TypeError is thrown
 
 	printf("Setting rdp options: %u %u %u %u %u\n", window, conn_timeout, packet_timeout, ack_timeout, ack_count);
@@ -81,6 +128,16 @@ PyObject * pycsh_vmem_upload(PyObject * self, PyObject * args, PyObject * kwds) 
 	printf("Uploading from: %08"PRIX32"\n", address);
 	char *idata = NULL;
 	Py_ssize_t idata_len = 0;
+
+	if (is_file_object(data_in)) {
+		data_in = io_object_to_bytes(data_in);
+		if (data_in == NULL) {
+			return NULL;
+		}
+	} else {
+		/* We must call Py_DECREF() on io.IOBase.read(), so ensure we can do it on the original argument too. */
+		Py_INCREF(data_in);
+	}
 
 	PyBytes_AsStringAndSize(data_in, &idata, &idata_len);
 	if (idata_len > 0 && idata != NULL) {
