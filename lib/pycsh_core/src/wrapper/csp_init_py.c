@@ -145,15 +145,14 @@ PyObject * pycsh_csh_csp_ifadd_kiss(PyObject * self, PyObject * args, PyObject *
     sprintf(name, "KISS%u", ifidx++);
 
     unsigned int addr;
-    int promisc = 0;
     int mask = 8;
     int dfl = 0;
     int baud = 1000000;
     char * device = "ttyUSB0";
 
-    static char *kwlist[] = {"addr", "promisc", "mask", "default", "baud", "uart", NULL};
+    static char *kwlist[] = {"addr", "mask", "default", "baud", "uart", NULL};
 
-	if (!PyArg_ParseTupleAndKeywords(args, kwds, "I|iiiis:csp_add_kiss", kwlist, &addr, &promisc, &mask, &dfl, &baud, &device))
+	if (!PyArg_ParseTupleAndKeywords(args, kwds, "I|iiis:csp_add_kiss", kwlist, &addr, &mask, &dfl, &baud, &device))
 		return NULL;  // TypeError is thrown
 
     csp_usart_conf_t conf = {

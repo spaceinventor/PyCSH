@@ -857,7 +857,7 @@ def csp_add_zmq(addr: int, server: str, promisc: int = 0, mask: int = 8, default
     :param sec_key: Auth key for zmqproxy
     """
 
-def csp_add_kiss(addr: int, promisc: int = 0, mask: int = 8, default: int = 0, baud: int = 1000000, uart: str = "ttyUSB0") -> None:
+def csp_add_kiss(addr: int, mask: int = 8, default: int = 0, baud: int = 1000000, uart: str = "ttyUSB0") -> None:
     """
     Add a new KISS/UART interface
 
