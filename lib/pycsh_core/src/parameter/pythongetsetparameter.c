@@ -66,7 +66,7 @@ static PyObject *_pycsh_val_to_pyobject(param_type_e type, const void * value) {
 
 /**
  * @brief Convert an arbritrary value to a parameter value, based on parameter type.
- * 
+ *
  * @param type Parameter type, to determine desired output value type from.
  * @param value_in PyObject* value to parse.
  * @param dataout Buffer for retrieved value.
@@ -176,10 +176,12 @@ static int _pycsh_param_pyval_to_cval(param_type_e type, PyObject * value_in, vo
     return 0;
 }
 
+#include <stdio.h>
 /**
  * @brief Shared getter for all param_t's wrapped by a Parameter instance.
  */
 void Parameter_getter(vmem_t * vmem, uint64_t addr, void * dataout, uint32_t len) {
+
 
     PyGILState_STATE CLEANUP_GIL gstate = PyGILState_Ensure();
     assert(!PyErr_Occurred());  // Callback may raise an exception. But we don't want to override an existing one.
@@ -201,7 +203,10 @@ void Parameter_getter(vmem_t * vmem, uint64_t addr, void * dataout, uint32_t len
 
     // Undo VMEM addr conversion to find parameter index.
     const param_t *param = python_param->parameter_object.parameter_object.param;
-    const int offset = (addr-(intptr_t)param->addr)/param->array_step;
+    int offset = addr/param->array_step;
+    // if (0 == addr) {
+    //     offset = 1;
+    // }
 
     assert(PyCallable_Check(python_getter));
     /* Create the arguments. */
@@ -275,7 +280,7 @@ void Parameter_setter(vmem_t * vmem, uint64_t addr, const void * datain, uint32_
 
 /**
  * @brief Check if this vmem is wrapped by a PythonGetSetParameterObject.
- * 
+ *
  * @return borrowed reference to the wrapping PythonSlashCommandObject if wrapped, otherwise NULL.
  */
 PythonGetSetParameterObject *python_wraps_vmem(const vmem_t * vmem) {
@@ -290,9 +295,9 @@ PythonGetSetParameterObject *python_wraps_vmem(const vmem_t * vmem) {
 /**
  * @brief Check that the getter accepts exactly one Parameter and one (index) integer,
  *  as specified by "void (*callback)(struct param_s * param, int offset)"
- * 
+ *
  * Currently also checks type-hints (if specified).
- * 
+ *
  * @param callback function to check
  * @param raise_exc Whether to set exception message when returning false.
  * @return true for success
@@ -485,7 +490,7 @@ int Parameter_set_getter(PythonGetSetParameterObject *self, PyObject *value, voi
         }
 
         if (self->getter_func != Py_None) {
-            /* We should not arrive here when the old value is Py_None, 
+            /* We should not arrive here when the old value is Py_None,
                 but prevent Py_DECREF() on at all cost. */
             Py_XDECREF(self->getter_func);
         }
@@ -533,7 +538,7 @@ int Parameter_set_setter(PythonGetSetParameterObject *self, PyObject *value, voi
         }
 
         if (self->setter_func != Py_None) {
-            /* We should not arrive here when the old value is Py_None, 
+            /* We should not arrive here when the old value is Py_None,
                 but prevent Py_DECREF() on at all cost. */
             Py_XDECREF(self->setter_func);
         }
@@ -620,7 +625,7 @@ static PyObject * PythonGetSetParameter_new(PyTypeObject *type, PyObject * args,
         self->vmem_heap.backup = NULL;
         self->vmem_heap.big_endian = false;
         self->vmem_heap.restore = NULL;
-        
+
         if (getter_func != NULL && getter_func != Py_None) {
             self->getter_func = Py_NewRef(getter_func);
             self->vmem_heap.read = Parameter_getter;
