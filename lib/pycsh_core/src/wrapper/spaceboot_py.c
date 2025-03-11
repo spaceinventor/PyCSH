@@ -131,7 +131,7 @@ static vmem_list_t vmem_list_find(int node, int timeout, char * name, int namele
 	/* Wait for response */
 	packet = csp_read(conn, timeout);
 	if (packet == NULL) {
-		printf("No response\n");
+		fprintf(stderr, "No response\n");
 		csp_close(conn);
 		return ret;
 	}
@@ -308,7 +308,7 @@ PyObject * pycsh_csh_program(PyObject * self, PyObject * args, PyObject * kwds) 
     printf("ABOUT TO PROGRAM: %s\n", path);
     printf("\033[0m\n");
     if (ping(node) < 0) {
-        PyErr_SetString(PyExc_ConnectionError, "No Response");
+        PyErr_Format(PyExc_ConnectionError, "No Response from node %d", node);
 		return NULL;
 	}
     printf("\n");

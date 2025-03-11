@@ -73,7 +73,7 @@ PyObject * pycsh_slash_verbose(PyObject * self, PyObject * args) {
 		printf("Default verbose = %d\n", pycsh_dfl_verbose);
 	else {
 		pycsh_dfl_verbose = verbose;
-		printf("Set default vebose to %d\n", pycsh_dfl_verbose);
+		printf("Set default verbosity to %d\n", pycsh_dfl_verbose);
 	}
 
 	return Py_BuildValue("i", pycsh_dfl_verbose);

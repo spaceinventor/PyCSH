@@ -166,7 +166,7 @@ PyObject * pycsh_param_vmem(PyObject * self, PyObject * args, PyObject * kwds) {
 
 	csp_conn_t * conn = csp_connect(CSP_PRIO_HIGH, node, VMEM_PORT_SERVER, timeout, CSP_O_NONE);
 	if (conn == NULL) {
-		PyErr_SetString(PyExc_ConnectionError, "No response.");
+		PyErr_Format(PyExc_ConnectionError, "No response (node=%d, timeout=%d)", node, timeout);
 		return NULL;
 	}
 
@@ -186,7 +186,7 @@ PyObject * pycsh_param_vmem(PyObject * self, PyObject * args, PyObject * kwds) {
 	/* Wait for response */
 	packet = csp_read(conn, timeout);
 	if (packet == NULL) {
-		PyErr_SetString(PyExc_ConnectionError, "No response.");
+		PyErr_Format(PyExc_ConnectionError, "No response (node=%d, timeout=%d)", node, timeout);
 		csp_close(conn);
 		return NULL;
 	}

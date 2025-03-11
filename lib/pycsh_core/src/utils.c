@@ -562,7 +562,7 @@ PyObject * _pycsh_util_get_single(param_t *param, int offset, int autopull, int 
 			Py_END_ALLOW_THREADS;
 			if (param_pull_res)
 				if (i >= retries-1) {
-					PyErr_SetString(PyExc_ConnectionError, "No response");
+					PyErr_Format(PyExc_ConnectionError, "No response from node %d", *param->node);
 					return NULL;
 				}
 		}	
@@ -691,7 +691,7 @@ PyObject * _pycsh_util_get_array(param_t *param, int autopull, int host, int tim
 
 		for (size_t i = 0; i < (retries > 0 ? retries : 1); i++) {
 			if (param_pull_queue(&queue, CSP_PRIO_NORM, 0, *param->node, timeout)) {
-				PyErr_SetString(PyExc_ConnectionError, "No response.");
+				PyErr_Format(PyExc_ConnectionError, "No response from node %d", *param->node);
 				free(queuebuffer);
 				return 0;
 			}
@@ -854,7 +854,7 @@ int _pycsh_util_set_single(param_t *param, PyObject *value, int offset, int host
 			Py_END_ALLOW_THREADS;
 			if (param_push_res < 0)
 				if (i >= retries-1) {
-					PyErr_SetString(PyExc_ConnectionError, "No response");
+					PyErr_Format(PyExc_ConnectionError, "No response from node %d", dest);
 					return -2;
 				}
 		}
@@ -954,7 +954,7 @@ int _pycsh_util_set_array(param_t *param, PyObject *value, int host, int timeout
 	
 	if (*param->node != 0)
 		if (param_push_queue(&queue, 1, 0, *param->node, 100, 0, false) < 0) {  // TODO Kevin: We should probably have a parameter for hwid here.
-			PyErr_SetString(PyExc_ConnectionError, "No response.");
+			PyErr_Format(PyExc_ConnectionError, "No response from node %d", *param->node);
 			free(queuebuffer);
 			Py_DECREF(value);
 			return -6;

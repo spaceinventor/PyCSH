@@ -91,7 +91,7 @@ static PyObject * ParameterList_pull(ParameterListObject *self, PyObject *args, 
 	}
 
 	if (param_pull_queue(&queue, CSP_PRIO_NORM, 0, node, timeout)) {
-		PyErr_SetString(PyExc_ConnectionError, "No response.");
+		PyErr_Format(PyExc_ConnectionError, "No response (node=%d, timeout=%d)", node, timeout);
 		return 0;
 	}
 
@@ -143,7 +143,7 @@ static PyObject * ParameterList_push(ParameterListObject *self, PyObject *args, 
 	}
 
 	if (param_push_queue(&queue, 1, 0, node, timeout, hwid, false) < 0) {
-		PyErr_SetString(PyExc_ConnectionError, "No response.");
+		PyErr_Format(PyExc_ConnectionError, "No response (node=%d, timeout=%d)", node, timeout);
 		return NULL;
 	}
 

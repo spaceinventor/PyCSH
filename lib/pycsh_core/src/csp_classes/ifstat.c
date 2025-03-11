@@ -60,7 +60,7 @@ PyObject * Ifstat_new(PyTypeObject *type, PyObject *args, PyObject *kwds) {
 
 	if (no_reply) {
 		Py_DECREF((PyObject*)self);
-		PyErr_SetString(PyExc_ConnectionError, "No response");
+		PyErr_Format(PyExc_ConnectionError, "No response (node=%d, timeout=%d)", node, timeout);
 		return NULL;
 	}
 

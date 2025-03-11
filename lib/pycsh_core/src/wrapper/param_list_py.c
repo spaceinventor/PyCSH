@@ -65,7 +65,7 @@ PyObject * pycsh_param_list_download(PyObject * self, PyObject * args, PyObject 
         // TODO Kevin: Downloading parameters with an incorrect version, can lead to a segmentation fault.
         //	Had it been easier to detect when an incorrect version is used, we would've raised an exception instead.
         if (list_download_res < 1) {  // We assume a connection error has occurred if we don't receive any parameters.
-            PyErr_SetString(PyExc_ConnectionError, "No response.");
+            PyErr_Format(PyExc_ConnectionError, "No response (node=%d, timeout=%d)", node, timeout);
             return NULL;
         }
     }
