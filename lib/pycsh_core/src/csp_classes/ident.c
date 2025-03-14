@@ -162,11 +162,13 @@ static PyObject * Ident_new(PyTypeObject *type, PyObject *args, PyObject *kwds) 
 
         memcpy(&self->id, &packet->id, sizeof(csp_id_t));
 
-		self->hostname = PyUnicode_FromStringAndSize(msg.ident.hostname, CSP_HOSTNAME_LEN);
-		self->model = PyUnicode_FromStringAndSize(msg.ident.model, CSP_MODEL_LEN);
-		self->revision = PyUnicode_FromStringAndSize(msg.ident.revision, CSP_CMP_IDENT_REV_LEN);
-		self->date = PyUnicode_FromStringAndSize(msg.ident.date, CSP_CMP_IDENT_DATE_LEN);
-		self->time = PyUnicode_FromStringAndSize(msg.ident.time, CSP_CMP_IDENT_TIME_LEN);
+        /* ´PyUnicode_FromStringAndSize()´ will pad the string with \x00 up to the specified size.
+            So we use strnlen() first to strip them, while respecting the maximum length from libcsp. */
+        self->hostname = PyUnicode_FromStringAndSize(msg.ident.hostname, strnlen(msg.ident.hostname, CSP_HOSTNAME_LEN));
+        self->model = PyUnicode_FromStringAndSize(msg.ident.model, strnlen(msg.ident.model, CSP_MODEL_LEN));
+        self->revision = PyUnicode_FromStringAndSize(msg.ident.revision, strnlen(msg.ident.revision, CSP_CMP_IDENT_REV_LEN));
+        self->date = PyUnicode_FromStringAndSize(msg.ident.date, strnlen(msg.ident.date, CSP_CMP_IDENT_DATE_LEN));
+        self->time = PyUnicode_FromStringAndSize(msg.ident.time, strnlen(msg.ident.time, CSP_CMP_IDENT_TIME_LEN));
 
 		if (!(self->hostname && self->model && self->revision && self->date && self->time)) {
 			PyErr_SetString(PyExc_MemoryError, "Failed to allocate memory for ident strings");
