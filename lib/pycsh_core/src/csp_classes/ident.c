@@ -63,6 +63,11 @@ static PyObject * Ident_str(IdentObject *self) {
     );
 }
 
+static PyObject * Ident_repr(IdentObject *self) {
+    assert(self->model);
+    return PyUnicode_FromFormat("%s@%d", PyUnicode_AsUTF8(self->hostname), self->id.src);
+}
+
 static void Ident_dealloc(IdentObject *self) {
 
 	Py_XDECREF(self->hostname);
@@ -259,10 +264,5 @@ PyTypeObject IdentType = {
     .tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
     .tp_new = Ident_new,
     .tp_dealloc = (destructor)Ident_dealloc,
-	// .tp_getset = Ident_getsetters,
-	.tp_members = Ident_members,
-	// .tp_methods = Parameter_methods,
-	.tp_str = (reprfunc)Ident_str,
-	.tp_richcompare = (richcmpfunc)Ident_richcompare,
-	.tp_hash = (hashfunc)Ident_hash,
+    .tp_repr = (reprfunc)Ident_repr,
 };
