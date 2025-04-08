@@ -850,7 +850,7 @@ int _pycsh_util_set_single(param_t *param, PyObject *value, int offset, int host
 		for (size_t i = 0; i < (retries > 0 ? retries : 1); i++) {
 			int param_push_res;
 			Py_BEGIN_ALLOW_THREADS;  // Only allow threads for remote parameters, as local ones could have Python callbacks.
-			param_push_res = param_push_single(param, offset, 0, valuebuf, 1, dest, timeout, paramver, false);
+			param_push_res = param_push_single(param, offset, 0, valuebuf, 1, dest, timeout, paramver, true);
 			Py_END_ALLOW_THREADS;
 			if (param_push_res < 0)
 				if (i >= retries-1) {
