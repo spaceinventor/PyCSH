@@ -1,4 +1,5 @@
 {
+	"cmake.configureOnOpen": false,
 	"mesonbuild.buildFolder": "builddir",
 	"mesonbuild.configureOnOpen": false,
 	"files.associations": {
