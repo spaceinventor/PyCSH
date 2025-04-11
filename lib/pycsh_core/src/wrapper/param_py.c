@@ -20,11 +20,13 @@
 
 #include "param_py.h"
 
-#ifdef PYCSH_HAVE_SLASH
+#ifdef PYCSH_HAVE_APM
 /* Assumes that param:slash if we have slash, and that we want to use the queue from there.
 	This makes slash_execute() use the same queue as PyCSH */
 /* param_slash.h is not exposed, but we need the queue from there, so please close your eyes */
 extern param_queue_t param_queue;
+//static char queue_buf[PARAM_SERVER_MTU];
+//static param_queue_t param_queue = { .buffer = queue_buf, .buffer_size = PARAM_SERVER_MTU, .type = PARAM_QUEUE_TYPE_EMPTY, .version = 2 };
 #else
 static char queue_buf[PARAM_SERVER_MTU];
 param_queue_t param_queue = { .buffer = queue_buf, .buffer_size = PARAM_SERVER_MTU, .type = PARAM_QUEUE_TYPE_EMPTY, .version = 2 };

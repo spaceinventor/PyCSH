@@ -111,12 +111,12 @@ uint8_t csp_initialized() {
 	return _csp_initialized;
 }
 
-#ifndef PYCSH_HAVE_SLASH
+#ifdef PYCSH_HAVE_APM
+#include <slash/dflopt.h>
+#else
 // TODO Kevin: Building as APM without slash, will provide its own default node/timeout, which is very much not ideal.
 unsigned int slash_dfl_node = 0;
 unsigned int slash_dfl_timeout = 1000;
-#else
-#include <slash/dflopt.h>
 #endif
 unsigned int pycsh_dfl_verbose = -1;
 

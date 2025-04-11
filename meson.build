@@ -12,15 +12,16 @@ project('csh_bindings', 'c', subproject_dir: 'lib', default_options: [
 	'csp:rdp_max_window=1000',
 	'csp:port_max_bind=16',
 	'csp:use_rtable=true',  # TODO Kevin: rtable should not be necessary
-	'param:have_fopen=true',
-	'param:slash=true',  # TODO Kevin: How should param:slash work if slash is optional
 	'slash:builtins=true',
-	'param:commands=false',
-	'param:scheduler=false',
-	'param:commands_client=true',
-	'param:scheduler_client=true',
+	# 'param:slash=true',  # TODO Kevin: How should param:slash work if slash is optional
+	# 'param:commands=false',
+	# 'param:scheduler=false',
+	# 'param:commands_client=true',
+	# 'param:scheduler_client=true',
+	'param:have_fopen=true',
 	'param:collector=false',
-	'param:list_dynamic=true',],
+	'param:list_dynamic=true',
+	],
 	version: run_command('./lib/pycsh_core/get_pip_ersion.py').stdout().strip(),)
 
 add_global_arguments('-I../include', language: 'c')

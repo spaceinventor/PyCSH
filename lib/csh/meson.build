@@ -18,6 +18,7 @@ dependencies += curl_dep
 # libcsh can't link slash.as_link_whole(), if libcsh needs to .as_link_whole() itself.
 slash_dep = dependency('slash', fallback: ['slash', 'slash_dep'], required: false)#.as_link_whole()
 dependencies += slash_dep
+dependencies += dependency('apm', fallback: ['apm_csh', 'apm_csh_dep'], required: true).partial_dependency(includes: true, links: false)
 
 libcsh_src = [
     'src/vts.c',
@@ -26,6 +27,7 @@ libcsh_src = [
     'src/prometheus.c',
     'src/known_hosts.c',
     'src/param_sniffer.c',
+    'src/param_list_slash.c',
     'src/hk_param_sniffer.c',
     'src/victoria_metrics.c',
 ]

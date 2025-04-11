@@ -2,7 +2,7 @@
 
 #include <semaphore.h>
 
-#include <param/param_scheduler.h>
+#include <inttypes.h>
 #include <time.h>
 
 int si_lock_take(void* lock, int block_time_ms) {
