@@ -10,6 +10,8 @@
 #include "utils.h"
 
 #include <dirent.h>
+#include <csp/csp_hooks.h>
+#include <csp/csp_buffer.h>
 #include <param/param_server.h>
 #include <param/param_client.h>
 #include <param/param_string.h>
@@ -23,6 +25,12 @@
 
 #undef NDEBUG
 #include <assert.h>
+
+
+typedef void (*param_transaction_callback_f)(csp_packet_t *response, int verbose, int version, void * context);
+int param_transaction(csp_packet_t *packet, int host, int timeout, param_transaction_callback_f callback, int verbose, int version, void * context);
+void param_deserialize_from_mpack_to_param(void * context, void * queue, param_t * param, int offset, mpack_reader_t * reader);
+
 
 void cleanup_free(void *const* obj) {
     if (*obj == NULL) {
@@ -529,6 +537,118 @@ PyObject * pycsh_util_parameter_list(uint32_t mask, int node, const char * globs
 
 }
 
+typedef struct param_list_s {
+	size_t cnt;
+	param_t ** param_arr;
+} param_list_t;
+
+static void pycsh_param_transaction_callback_pull(csp_packet_t *response, int verbose, int version, void * context) {
+
+	int from = response->id.src;
+	//csp_hex_dump("pull response", response->data, response->length);
+	//printf("From %d\n", from);
+
+	assert(context != NULL);
+	param_list_t * param_list = (param_list_t *)context;
+
+	param_queue_t queue;
+	csp_timestamp_t time_now;
+	csp_clock_get_time(&time_now);
+	param_queue_init(&queue, &response->data[2], response->length - 2, response->length - 2, PARAM_QUEUE_TYPE_SET, version);
+	queue.last_node = response->id.src;
+	queue.client_timestamp = time_now.tv_sec;
+	queue.last_timestamp = queue.client_timestamp;
+
+	/* Even though we have been provided a `param_t * param`,
+		we still call `param_queue_apply()` to support replies which unexpectedly contain multiple parameters.
+		Although we are SOL if those unexpected parameters are not in the list.
+		TODO Kevin: Make sure ParameterList accounts for this scenario. */
+	param_queue_apply(&queue, 0, from);
+
+	int atomic_write = 0;
+	for (size_t i = 0; i < param_list->cnt; i++) {  /* Apply value to provided param_t* if they aren't in the list. */
+		param_t * param = param_list->param_arr[i];
+
+		/* Loop over paramid's in pull response */
+		mpack_reader_t reader;
+		mpack_reader_init_data(&reader, queue.buffer, queue.used);
+		while(reader.data < reader.end) {
+			int id, node, offset = -1;
+			long unsigned int timestamp = 0;
+			param_deserialize_id(&reader, &id, &node, &timestamp, &offset, &queue);
+			if (node == 0)
+				node = from;
+
+			/* List parameters have already been applied by param_queue_apply(). */
+			param_t * list_param = param_list_find_id(node, id);
+			if (list_param != NULL) {
+				/* Print the local RAM copy of the remote parameter (which is not in the list) */
+				if (verbose) {
+					param_print(param, -1, NULL, 0, verbose, 0);
+				}
+				/* We need to discard the data field, to get to next paramid */
+				mpack_discard(&reader);
+				continue;
+			}
+
+			/* This is not our parameter, let's hope it has been applied by `param_queue_apply(...)` */
+			if (param->id != id) {
+				/* We need to discard the data field, to get to next paramid */
+				mpack_discard(&reader);
+				continue;
+			}
+
+			if ((param->mask & PM_ATOMIC_WRITE) && (atomic_write == 0)) {
+				atomic_write = 1;
+				if (param_enter_critical)
+					param_enter_critical();
+			}
+
+			param_deserialize_from_mpack_to_param(NULL, NULL, param, offset, &reader);
+
+			/* Print the local RAM copy of the remote parameter (which is not in the list) */
+			if (verbose) {
+				param_print(param, -1, NULL, 0, verbose, 0);
+			}
+
+		}
+	}
+
+	if (atomic_write) {
+		if (param_exit_critical)
+			param_exit_critical();
+	}
+
+	csp_buffer_free(response);
+}
+
+static int pycsh_param_pull_single(param_t *param, int offset, int prio, int verbose, int host, int timeout, int version) {
+
+	csp_packet_t * packet = csp_buffer_get(PARAM_SERVER_MTU);
+	if (packet == NULL)
+		return -1;
+
+	if (version == 2) {
+		packet->data[0] = PARAM_PULL_REQUEST_V2;
+	} else {
+		packet->data[0] = PARAM_PULL_REQUEST;
+	}
+	packet->data[1] = 0;
+
+	param_list_t param_list = {
+		.param_arr = &param,
+		.cnt = 1
+	};
+
+	param_queue_t queue;
+	param_queue_init(&queue, &packet->data[2], PARAM_SERVER_MTU - 2, 0, PARAM_QUEUE_TYPE_GET, version);
+	param_queue_add(&queue, param, offset, NULL);
+
+	packet->length = queue.used + 2;
+	packet->id.pri = prio;
+	return param_transaction(packet, host, timeout, pycsh_param_transaction_callback_pull, verbose, version, &param_list);
+}
+
 /* Checks that the specified index is within bounds of the sequence index, raises IndexError if not.
    Supports Python backwards subscriptions, mutates the index to a positive value in such cases. */
 static int _pycsh_util_index(int seqlen, int *index) {
@@ -558,7 +678,7 @@ PyObject * _pycsh_util_get_single(param_t *param, int offset, int autopull, int 
 		for (size_t i = 0; i < (retries > 0 ? retries : 1); i++) {
 			int param_pull_res;
 			Py_BEGIN_ALLOW_THREADS;
-			param_pull_res = param_pull_single(param, offset,  CSP_PRIO_NORM, 1, (host != INT_MIN ? host : *param->node), timeout, paramver);
+			param_pull_res = pycsh_param_pull_single(param, offset,  CSP_PRIO_NORM, 1, (host != INT_MIN ? host : *param->node), timeout, paramver);
 			Py_END_ALLOW_THREADS;
 			if (param_pull_res)
 				if (i >= retries-1) {
@@ -674,6 +794,31 @@ PyObject * _pycsh_util_get_single(param_t *param, int offset, int autopull, int 
 	return NULL;
 }
 
+static int pycsh_param_pull_queue(param_queue_t *queue, uint8_t prio, int verbose, int host, int timeout) {
+
+	if ((queue == NULL) || (queue->used == 0))
+		return 0;
+
+	csp_packet_t * packet = csp_buffer_get(PARAM_SERVER_MTU);
+	if (packet == NULL)
+		return -2;
+
+	if (queue->version == 2) {
+		packet->data[0] = PARAM_PULL_REQUEST_V2;
+	} else {
+		packet->data[0] = PARAM_PULL_REQUEST;
+	}
+
+	packet->data[1] = 0;
+
+	memcpy(&packet->data[2], queue->buffer, queue->used);
+
+	packet->length = queue->used + 2;
+	packet->id.pri = prio;
+	return param_transaction(packet, host, timeout, pycsh_param_transaction_callback_pull, verbose, queue->version, NULL);
+
+}
+
 /* Private interface for getting the value of an array parameter
    Increases the reference count of the returned tuple before returning.  */
 PyObject * _pycsh_util_get_array(param_t *param, int autopull, int host, int timeout, int retries, int paramver, int verbose) {
@@ -681,7 +826,7 @@ PyObject * _pycsh_util_get_array(param_t *param, int autopull, int host, int tim
 	// Pull the value for every index using a queue (if we're allowed to),
 	// instead of pulling them individually.
 	if (autopull && *param->node != 0) {
-		void * queuebuffer = malloc(PARAM_SERVER_MTU);
+		uint8_t queuebuffer[PARAM_SERVER_MTU] = {0};
 		param_queue_t queue = { };
 		param_queue_init(&queue, queuebuffer, PARAM_SERVER_MTU, 0, PARAM_QUEUE_TYPE_GET, paramver);
 
@@ -690,14 +835,11 @@ PyObject * _pycsh_util_get_array(param_t *param, int autopull, int host, int tim
 		}
 
 		for (size_t i = 0; i < (retries > 0 ? retries : 1); i++) {
-			if (param_pull_queue(&queue, CSP_PRIO_NORM, 0, *param->node, timeout)) {
+			if (pycsh_param_pull_queue(&queue, CSP_PRIO_NORM, 0, *param->node, timeout)) {
 				PyErr_Format(PyExc_ConnectionError, "No response from node %d", *param->node);
-				free(queuebuffer);
 				return 0;
 			}
 		}
-
-		free(queuebuffer);
 	}
 	
 	// We will populate this tuple with the values from the indexes.
