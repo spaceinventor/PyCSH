@@ -885,7 +885,7 @@ def csp_add_can(addr: int, promisc: int = 0, mask: int = 8, default: int = 0, ba
     :raises SystemError: When failing to add interface
     """
 
-def csp_add_eth(addr: int, device: str, promisc: int = 0, mask: int = 8, default: int = 0, mtu: int = 1200) -> None:
+def csp_add_eth(addr: int, device: str = "e", promisc: int = 0, mask: int = 8, default: int = 0, mtu: int = 1200) -> None:
     """
     Add a new ethernet interface
 
