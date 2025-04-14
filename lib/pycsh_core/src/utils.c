@@ -794,6 +794,9 @@ PyObject * _pycsh_util_get_single(param_t *param, int offset, int autopull, int 
 	return NULL;
 }
 
+/* TODO Kevin: Consider how we want the internal API for pulling queues to be.
+	We can't use `param_queue_t*` itself, because we need a way to find the `param_t*` for list-less parameters. */
+#if 0
 static int pycsh_param_pull_queue(param_queue_t *queue, uint8_t prio, int verbose, int host, int timeout) {
 
 	if ((queue == NULL) || (queue->used == 0))
@@ -818,6 +821,7 @@ static int pycsh_param_pull_queue(param_queue_t *queue, uint8_t prio, int verbos
 	return param_transaction(packet, host, timeout, pycsh_param_transaction_callback_pull, verbose, queue->version, NULL);
 
 }
+#endif
 
 /* Private interface for getting the value of an array parameter
    Increases the reference count of the returned tuple before returning.  */
@@ -826,6 +830,7 @@ PyObject * _pycsh_util_get_array(param_t *param, int autopull, int host, int tim
 	// Pull the value for every index using a queue (if we're allowed to),
 	// instead of pulling them individually.
 	if (autopull && *param->node != 0) {
+		#if 0  /* Pull array parameters with index -1, like CSH. We may change this in the future */
 		uint8_t queuebuffer[PARAM_SERVER_MTU] = {0};
 		param_queue_t queue = { };
 		param_queue_init(&queue, queuebuffer, PARAM_SERVER_MTU, 0, PARAM_QUEUE_TYPE_GET, paramver);
@@ -833,9 +838,10 @@ PyObject * _pycsh_util_get_array(param_t *param, int autopull, int host, int tim
 		for (int i = 0; i < param->array_size; i++) {
 			param_queue_add(&queue, param, i, NULL);
 		}
+		#endif
 
 		for (size_t i = 0; i < (retries > 0 ? retries : 1); i++) {
-			if (pycsh_param_pull_queue(&queue, CSP_PRIO_NORM, 0, *param->node, timeout)) {
+			if (pycsh_param_pull_single(param, -1, CSP_PRIO_NORM, 0, *param->node, timeout, paramver)) {
 				PyErr_Format(PyExc_ConnectionError, "No response from node %d", *param->node);
 				return 0;
 			}
