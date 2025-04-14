@@ -550,6 +550,21 @@ PyMODINIT_FUNC PyInit_pycsh(void) {
 		PyModule_AddObject(m, "PM_PRIO3", PyLong_FromLong(PM_PRIO3));
 		PyModule_AddObject(m, "PM_PRIO_MASK", PyLong_FromLong(PM_PRIO_MASK));
 
+		/* (Param) VMEM types */
+		PyModule_AddObject(m, "VMEM_TYPE_RAM", PyLong_FromLong(VMEM_TYPE_RAM));
+		PyModule_AddObject(m, "VMEM_TYPE_FRAM", PyLong_FromLong(VMEM_TYPE_FRAM));
+		PyModule_AddObject(m, "VMEM_TYPE_FRAM_SECURE", PyLong_FromLong(VMEM_TYPE_FRAM_SECURE));
+		PyModule_AddObject(m, "VMEM_TYPE_FLASH", PyLong_FromLong(VMEM_TYPE_FLASH));
+		PyModule_AddObject(m, "VMEM_TYPE_DRIVER", PyLong_FromLong(VMEM_TYPE_DRIVER));
+		PyModule_AddObject(m, "VMEM_TYPE_FLASH_QSPI", PyLong_FromLong(VMEM_TYPE_FLASH_QSPI));
+		PyModule_AddObject(m, "VMEM_TYPE_FILE", PyLong_FromLong(VMEM_TYPE_FILE));
+		PyModule_AddObject(m, "VMEM_TYPE_FRAM_CACHE", PyLong_FromLong(VMEM_TYPE_FRAM_CACHE));
+		PyModule_AddObject(m, "VMEM_TYPE_NOR_FLASH", PyLong_FromLong(VMEM_TYPE_NOR_FLASH));
+		PyModule_AddObject(m, "VMEM_TYPE_BLOCK", PyLong_FromLong(VMEM_TYPE_BLOCK));
+		/* Users should probably be a bit careful comparing against VMEM_TYPE_UNKNOWN (-1),
+			since parameters could in theory have unknown types which are not -1. */
+		PyModule_AddObject(m, "VMEM_TYPE_UNKNOWN", PyLong_FromLong(VMEM_TYPE_UNKNOWN));
+
 		PyModule_AddObject(m, "CSP_NO_VIA_ADDRESS", PyLong_FromLong(CSP_NO_VIA_ADDRESS));
 
 		// TODO Kevin: We should probably add constants for SLASH_SUCCESS and such
