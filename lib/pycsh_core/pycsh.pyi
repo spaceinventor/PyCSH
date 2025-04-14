@@ -743,7 +743,7 @@ def vmem(node: int = None, timeout: int = None, version: int = None) -> str:
 
 def vmem_download(address: int = None, length: int = None, node: int = None, window: int = None, timeout: int = None, version: int = None) -> bytes:
     """
-    Downloads a VMEM memory area specified by the argunment, and puts it in data_out
+    Downloads a VMEM memory area specified by the argument, and puts it in data_out
 
     :param address: The VMEM address to download from
     :param length: Number of bytes to download
@@ -760,7 +760,7 @@ def vmem_download(address: int = None, length: int = None, node: int = None, win
 
 def vmem_upload(address: int = None, data_in: bytes | _IOBase = None, node: int = None, window: int = None, conn_timeout: int = None, packet_timeout: int = None, ack_timeout: int = None, ack_count: int = None, version: int = 2) -> None:
     """
-    Uploads data from data_in to a VMEM memory area specified by the argunment, and puts it in data_out
+    Uploads data from data_in to a VMEM memory area specified by the argument.
 
     :param address: The VMEM address to upload to
     :param data_in: The bytes to upload

@@ -145,10 +145,13 @@ PyObject * pycsh_vmem_upload(PyObject * self, PyObject * args, PyObject * kwds) 
 	}
 	assert(!PyErr_Occurred());
 
-	if (idata_len > 0 && idata != NULL) {
-		vmem_upload(node, timeout, address, idata, idata_len, version);
+	if (idata_len == 0 || idata == NULL) {
+		PyErr_SetString(PyExc_ValueError, "Nothing to upload");
 	}
-
+	
+	if (vmem_upload(node, timeout, address, idata, idata_len, version) < 0) {
+		PyErr_Format(PyExc_ConnectionError, "Upload failed (address=%d), (node=%d), (window=%d), (conn_timeout=%d), (packet_timeout=%d), (ack_timeout=%d), (ack_count=%d), (version=%d)", address, data_in, node, &window, conn_timeout, packet_timeout, ack_timeout, ack_count, version);
+	}
 	Py_RETURN_NONE;
 
 }
