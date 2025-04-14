@@ -17,6 +17,7 @@ from typing import \
     Literal as _Literal, \
     Callable as _Callable
 from datetime import datetime as _datetime
+from io import IOBase as _IOBase
 
 _param_value_hint = int | float | str
 _param_type_hint = _param_value_hint | bytearray
@@ -757,7 +758,7 @@ def vmem_download(address: int = None, length: int = None, node: int = None, win
     :return: A series of bytes downloaded from the VMEM area
     """
 
-def vmem_upload(address: int = None, data_in: bytes = None, node: int = None, window: int = None, conn_timeout: int = None, packet_timeout: int = None, ack_timeout: int = None, ack_count: int = None, version: int = 2) -> None:
+def vmem_upload(address: int = None, data_in: bytes | _IOBase = None, node: int = None, window: int = None, conn_timeout: int = None, packet_timeout: int = None, ack_timeout: int = None, ack_count: int = None, version: int = 2) -> None:
     """
     Uploads data from data_in to a VMEM memory area specified by the argunment, and puts it in data_out
 

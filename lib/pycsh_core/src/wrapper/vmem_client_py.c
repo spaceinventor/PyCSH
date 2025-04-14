@@ -139,7 +139,12 @@ PyObject * pycsh_vmem_upload(PyObject * self, PyObject * args, PyObject * kwds) 
 		Py_INCREF(data_in);
 	}
 
-	PyBytes_AsStringAndSize(data_in, &idata, &idata_len);
+	/* `PyBytes_AsStringAndSize(...)` will raise TypeError if `data_in` is a non-bytes object. */
+	if (PyBytes_AsStringAndSize(data_in, &idata, &idata_len) != 0) {
+		return NULL;
+	}
+	assert(!PyErr_Occurred());
+
 	if (idata_len > 0 && idata != NULL) {
 		vmem_upload(node, timeout, address, idata, idata_len, version);
 	}
