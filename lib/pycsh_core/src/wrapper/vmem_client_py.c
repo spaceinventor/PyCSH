@@ -156,6 +156,71 @@ PyObject * pycsh_vmem_upload(PyObject * self, PyObject * args, PyObject * kwds) 
 
 }
 
+static csp_packet_t * vmem_client_list_get(int node, int timeout, int version) {
+
+	csp_conn_t * conn = csp_connect(CSP_PRIO_HIGH, node, VMEM_PORT_SERVER, timeout, CSP_O_CRC32);
+	if (conn == NULL)
+		return NULL;
+
+	csp_packet_t * packet = csp_buffer_get(sizeof(vmem_request_t));
+	if (packet == NULL)
+		return NULL;
+
+	vmem_request_t * request = (void *) packet->data;
+	request->version = version;
+	request->type = VMEM_SERVER_LIST;
+	packet->length = sizeof(vmem_request_t);
+
+	csp_send(conn, packet);
+
+	csp_packet_t *resp = NULL;
+
+	if (version == 3) {
+		/* Allocate the maximum packet length to hold the response for the caller */
+		resp = csp_buffer_get(CSP_BUFFER_SIZE);
+		if (!resp) {
+			printf("Could not allocate CSP buffer for VMEM response.\n");
+			csp_close(conn);
+			return NULL;
+		}
+
+		resp->length = 0;
+		/* Keep receiving until we got everything or we got a timeout */
+		while ((packet = csp_read(conn, timeout)) != NULL) {
+			if (packet->data[0] & 0b01000000) {
+				/* First packet */
+				resp->length = 0;
+			}
+
+			/* Collect the response in the response packet */
+			memcpy(&resp->data[resp->length], &packet->data[1], (packet->length - 1));
+			resp->length += (packet->length - 1);
+
+			if (packet->data[0] & 0b10000000) {
+				/* Last packet, break the loop */
+				csp_buffer_free(packet);
+				break;
+			}
+
+			csp_buffer_free(packet);
+		}
+
+		if (packet == NULL) {
+			printf("No response to VMEM list request\n");
+		}
+	} else {
+		/* Wait for response */
+		packet = csp_read(conn, timeout);
+		if (packet == NULL) {
+			printf("No response to VMEM list request\n");
+		}
+		resp = packet;
+	}
+
+	csp_close(conn);
+
+	return resp;
+}
 
 PyObject * pycsh_param_vmem(PyObject * self, PyObject * args, PyObject * kwds) {
 
@@ -171,54 +236,40 @@ PyObject * pycsh_param_vmem(PyObject * self, PyObject * args, PyObject * kwds) {
 		return NULL;  // Raises TypeError.
 
 	printf("Requesting vmem list from node %u timeout %u version %d\n", node, timeout, version);
-
-	csp_conn_t * conn = csp_connect(CSP_PRIO_HIGH, node, VMEM_PORT_SERVER, timeout, CSP_O_NONE);
-	if (conn == NULL) {
-		PyErr_Format(PyExc_ConnectionError, "No response (node=%d, timeout=%d)", node, timeout);
-		return NULL;
-	}
-
-	csp_packet_t * packet = csp_buffer_get(sizeof(vmem_request_t));
-	if (packet == NULL) {
-		PyErr_SetString(PyExc_MemoryError, "Failed to get CSP buffer");
-		return NULL;
-	}
-
-	vmem_request_t * request = (void *) packet->data;
-	request->version = version;
-	request->type = VMEM_SERVER_LIST;
-	packet->length = sizeof(vmem_request_t);
-
-	csp_send(conn, packet);
-
-	/* Wait for response */
-	packet = csp_read(conn, timeout);
+	
+	csp_packet_t * packet = vmem_client_list_get(node, timeout, version);
 	if (packet == NULL) {
 		PyErr_Format(PyExc_ConnectionError, "No response (node=%d, timeout=%d)", node, timeout);
-		csp_close(conn);
 		return NULL;
 	}
 
 	PyObject * list_string = PyUnicode_New(0, 0);
 
-	if (request->version == 2) {
+	if (version == 3) {
+		for (vmem_list3_t * vmem = (void *) packet->data; (intptr_t) vmem < (intptr_t) packet->data + packet->length; vmem++) {
+			char buf[500];
+			snprintf(buf, sizeof(buf), " %2u: %-16.16s 0x%016"PRIX64" - %"PRIu64" typ %u\r\n", vmem->vmem_id, vmem->name, be64toh(vmem->vaddr), be64toh(vmem->size), vmem->type);
+			printf("%s", buf);
+			PyUnicode_AppendAndDel(&list_string, PyUnicode_FromString(buf));
+		}
+	} else if (version == 2) {
 		for (vmem_list2_t * vmem = (void *) packet->data; (intptr_t) vmem < (intptr_t) packet->data + packet->length; vmem++) {
 			char buf[500];
-			snprintf(buf, sizeof(buf), " %u: %-5.5s 0x%lX - %u typ %u\r\n", vmem->vmem_id, vmem->name, be64toh(vmem->vaddr), (unsigned int) be32toh(vmem->size), vmem->type);
+			snprintf(buf, sizeof(buf), " %2u: %-5.5s 0x%016"PRIX64" - %"PRIu32" typ %u\r\n", vmem->vmem_id, vmem->name, be64toh(vmem->vaddr), be32toh(vmem->size), vmem->type);
 			printf("%s", buf);
 			PyUnicode_AppendAndDel(&list_string, PyUnicode_FromString(buf));
 		}
 	} else {
 		for (vmem_list_t * vmem = (void *) packet->data; (intptr_t) vmem < (intptr_t) packet->data + packet->length; vmem++) {
 			char buf[500];
-			snprintf(buf, sizeof(buf), " %u: %-5.5s 0x%08X - %u typ %u\r\n", vmem->vmem_id, vmem->name, (unsigned int) be32toh(vmem->vaddr), (unsigned int) be32toh(vmem->size), vmem->type);
+			snprintf(buf, sizeof(buf), " %2u: %-5.5s 0x%08"PRIX32" - %"PRIu32" typ %u\r\n", vmem->vmem_id, vmem->name, be32toh(vmem->vaddr), be32toh(vmem->size), vmem->type);
 			printf("%s", buf);
 			PyUnicode_AppendAndDel(&list_string, PyUnicode_FromString(buf));
 		}
+
 	}
 
 	csp_buffer_free(packet);
-	csp_close(conn);
 
 	return list_string;
 }
