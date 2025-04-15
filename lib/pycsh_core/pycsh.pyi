@@ -531,6 +531,37 @@ class Ifstat:
         """
 
 
+class Vmem:
+    """ Convenient wrapper class for 'vmem' replies. Requests all VMEM areas on the specified node. """
+
+    vaddr: int
+    "Starting address of the VMEM area. Used for upload and download I think"
+    size: int
+    "Size of the VMEM area in bytes"
+    vmem_id: int
+    "ID of the VMEM area, used for certain commands"
+    type: int
+    "int type of the VMEM area"
+    name: str
+    "Name of the VMEM area"
+
+    def __new__(cls, node: int = None, timeout: int = None, version: int = 2, verbose: int = None) -> tuple[Vmem]:
+        """
+        Potentially makes a blocking request to a remote node.
+
+        :param node: Node on which the interface is located.
+        :param timeout: Timeout for remote node requests.
+        :param version: Version to use when parsing the reply.
+            There is no version negotiation, so the reply will be garbled if you get this wrong!
+        :param verbose: Whether to print like CSH when requesting.
+
+        :raises RuntimeError: When called before .init().
+        :raises ConnectionError: When no response is received.
+
+        :return: Tuple of Vmem area object instances.
+        """
+
+
 _param_ident_hint = int | str | Parameter  # Types accepted for finding a param_t
 
 

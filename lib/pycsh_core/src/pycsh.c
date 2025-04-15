@@ -62,6 +62,7 @@
 
 #include "csp_classes/ident.h"
 #include "csp_classes/ifstat.h"
+#include "csp_classes/vmem.h"
 
 #ifdef PYCSH_HAVE_SLASH
 #include "slash_command/slash_command.h"
@@ -387,6 +388,9 @@ PyMODINIT_FUNC PyInit_pycsh(void) {
 	if (PyType_Ready(&IfstatType) < 0)
         return NULL;
 
+	if (PyType_Ready(&VmemType) < 0)
+        return NULL;
+
 
 #ifdef PYCSH_HAVE_SLASH
 	if (PyType_Ready(&SlashCommandType) < 0)
@@ -489,6 +493,12 @@ PyMODINIT_FUNC PyInit_pycsh(void) {
         return NULL;
 	}
 
+	Py_INCREF(&VmemType);
+	if (PyModule_AddObject(m, "Vmem", (PyObject *) &VmemType) < 0) {
+		Py_DECREF(&VmemType);
+        Py_DECREF(m);
+        return NULL;
+	}
 
 #ifdef PYCSH_HAVE_SLASH
 	Py_INCREF(&SlashCommandType);
