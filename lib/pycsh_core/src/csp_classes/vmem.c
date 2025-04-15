@@ -100,7 +100,10 @@ PyObject * Vmem_new(PyTypeObject *type, PyObject *args, PyObject *kwds) {
 		printf("Requesting vmem list from node %u timeout %u version %d\n", node, timeout, version);
 	}
 	
-	csp_packet_t * packet = pycsh_vmem_client_list_get(node, timeout, version);
+	csp_packet_t * packet = NULL;
+	Py_BEGIN_ALLOW_THREADS;
+		packet = pycsh_vmem_client_list_get(node, timeout, version);
+	Py_END_ALLOW_THREADS;
 	if (packet == NULL) {
 		PyErr_Format(PyExc_ConnectionError, "No response (node=%d, timeout=%d)", node, timeout);
 		return NULL;
