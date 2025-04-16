@@ -125,6 +125,14 @@ static PyObject * Ident_new(PyTypeObject *type, PyObject *args, PyObject *kwds) 
         return NULL;
     }
 
+    /* AUTO_DECREF used for exception handling, Py_NewRef() returned otherwise. */
+    PyObject * reply_tuple AUTO_DECREF = PyTuple_New(0);
+
+    if (!reply_tuple) {
+        return NULL;  // Let's just assume that Python has set some a MemoryError exception here
+    }
+
+    /* Not really sure it's worth unlocking the GIL for `csp_send(...)`... */
     Py_BEGIN_ALLOW_THREADS;
 
         /* Copy the request */
@@ -134,17 +142,18 @@ static PyObject * Ident_new(PyTypeObject *type, PyObject *args, PyObject *kwds) 
         csp_send(conn, packet);
     Py_END_ALLOW_THREADS;
 
-    /* AUTO_DECREF used for exception handling, Py_NewRef() returned otherwise. */
-    PyObject * reply_tuple AUTO_DECREF = PyTuple_New(0);
-
-    if (!reply_tuple) {
-        return NULL;  // Let's just assume that Python has set some a MemoryError exception here
-    }
-
-    while((packet = csp_read(conn, timeout)) != NULL) {
+    while(true) {
 
         /* Using __attribute__, so we don't forget to free */
         csp_packet_t *__packet __attribute__((cleanup(csp_buffer_cleanup))) = packet;
+
+        Py_BEGIN_ALLOW_THREADS;
+            packet = csp_read(conn, timeout);
+        Py_END_ALLOW_THREADS;
+
+        if (packet == NULL) {
+            break;
+        }
 
         memcpy(&msg, packet->data, packet->length < size ? packet->length : size);
         if (msg.code != CSP_CMP_IDENT) {

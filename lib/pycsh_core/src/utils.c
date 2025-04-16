@@ -675,17 +675,22 @@ PyObject * _pycsh_util_get_single(param_t *param, int offset, int autopull, int 
 
 	if (autopull && (*param->node != 0)) {
 
+		bool no_reply = true;
+		Py_BEGIN_ALLOW_THREADS;
 		for (size_t i = 0; i < (retries > 0 ? retries : 1); i++) {
 			int param_pull_res;
-			Py_BEGIN_ALLOW_THREADS;
 			param_pull_res = pycsh_param_pull_single(param, offset,  CSP_PRIO_NORM, 1, (host != INT_MIN ? host : *param->node), timeout, paramver);
-			Py_END_ALLOW_THREADS;
-			if (param_pull_res)
-				if (i >= retries-1) {
-					PyErr_Format(PyExc_ConnectionError, "No response from node %d", *param->node);
-					return NULL;
-				}
+			if (param_pull_res && i >= retries-1) {
+				no_reply = true;
+				break;
+			}
 		}	
+		Py_END_ALLOW_THREADS;
+
+		if (no_reply) {
+			PyErr_Format(PyExc_ConnectionError, "No response from node %d", *param->node);
+			return NULL;
+		}
 	}
 
 	if (verbose > -1) {
@@ -840,11 +845,19 @@ PyObject * _pycsh_util_get_array(param_t *param, int autopull, int host, int tim
 		}
 		#endif
 
+		bool no_reply = false;
+		Py_BEGIN_ALLOW_THREADS;
 		for (size_t i = 0; i < (retries > 0 ? retries : 1); i++) {
 			if (pycsh_param_pull_single(param, -1, CSP_PRIO_NORM, 0, *param->node, timeout, paramver)) {
-				PyErr_Format(PyExc_ConnectionError, "No response from node %d", *param->node);
-				return 0;
+				no_reply = true;
+				break;
 			}
+		}
+		Py_END_ALLOW_THREADS;
+
+		if (no_reply) {
+			PyErr_Format(PyExc_ConnectionError, "No response from node %d", *param->node);
+			return 0;
 		}
 	}
 	

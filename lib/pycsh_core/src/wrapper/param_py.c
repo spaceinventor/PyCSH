@@ -156,9 +156,9 @@ PyObject * pycsh_param_pull(PyObject * self, PyObject * args, PyObject * kwds) {
 
 	int param_pull_res;
 	Py_BEGIN_ALLOW_THREADS;
-
-	param_pull_res = param_pull_all(CSP_PRIO_NORM, 1, node, include_mask, exclude_mask, timeout, paramver);
+			param_pull_res = param_pull_all(CSP_PRIO_NORM, 1, node, include_mask, exclude_mask, timeout, paramver);
 	Py_END_ALLOW_THREADS;
+
 	if (param_pull_res) {
 		PyErr_SetString(PyExc_ConnectionError, "No response.");
 		return NULL;

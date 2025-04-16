@@ -64,6 +64,10 @@ static PyObject * ParameterList_pull(ParameterListObject *self, PyObject *args, 
 		return NULL;  // TypeError is thrown
 
 	void * queuebuffer CLEANUP_FREE = malloc(PARAM_SERVER_MTU);
+	if (!queuebuffer) {
+		PyErr_NoMemory();
+		return NULL;
+	}
 	param_queue_t queue = { };
 	param_queue_init(&queue, queuebuffer, PARAM_SERVER_MTU, 0, PARAM_QUEUE_TYPE_GET, paramver);
 
@@ -90,7 +94,11 @@ static PyObject * ParameterList_pull(ParameterListObject *self, PyObject *args, 
 
 	}
 
-	if (param_pull_queue(&queue, CSP_PRIO_NORM, 0, node, timeout)) {
+	int pull_res;
+	Py_BEGIN_ALLOW_THREADS;
+		pull_res = param_pull_queue(&queue, CSP_PRIO_NORM, 0, node, timeout);
+	Py_END_ALLOW_THREADS;
+	if (pull_res) {
 		PyErr_Format(PyExc_ConnectionError, "No response (node=%d, timeout=%d)", node, timeout);
 		return 0;
 	}
@@ -114,6 +122,10 @@ static PyObject * ParameterList_push(ParameterListObject *self, PyObject *args, 
 		return NULL;  // TypeError is thrown
 
 	void * queuebuffer CLEANUP_FREE = malloc(PARAM_SERVER_MTU);
+	if (!queuebuffer) {
+		PyErr_NoMemory();
+		return NULL;
+	}
 	param_queue_t queue = { };
 	param_queue_init(&queue, queuebuffer, PARAM_SERVER_MTU, 0, PARAM_QUEUE_TYPE_SET, paramver);
 
@@ -142,7 +154,12 @@ static PyObject * ParameterList_push(ParameterListObject *self, PyObject *args, 
 		}
 	}
 
-	if (param_push_queue(&queue, 1, 0, node, timeout, hwid, false) < 0) {
+	int push_res;
+	Py_BEGIN_ALLOW_THREADS;
+		push_res = param_push_queue(&queue, 1, 0, node, timeout, hwid, false);
+	Py_END_ALLOW_THREADS;
+
+	if (push_res < 0) {
 		PyErr_Format(PyExc_ConnectionError, "No response (node=%d, timeout=%d)", node, timeout);
 		return NULL;
 	}

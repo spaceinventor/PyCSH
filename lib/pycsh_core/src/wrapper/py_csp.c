@@ -90,7 +90,16 @@ PyObject * pycsh_slash_ident(PyObject * self, PyObject * args, PyObject * kwds) 
 
     PyObject * list_string = PyUnicode_New(0, 0);
 
-    while((packet = csp_read(conn, timeout)) != NULL) {
+    while(true) {
+
+        Py_BEGIN_ALLOW_THREADS;
+            packet = csp_read(conn, timeout);
+        Py_END_ALLOW_THREADS;
+
+        if (packet == NULL) {
+            break;
+        }
+    
         memcpy(&msg, packet->data, packet->length < size ? packet->length : size);
         if (msg.code == CSP_CMP_IDENT) {
             char buf[500];
