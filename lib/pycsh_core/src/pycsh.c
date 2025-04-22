@@ -185,7 +185,10 @@ static int _handle_stream(PyObject * stream_identifier, FILE **std_stream, FILE 
 	return 0;
 }
 
+PyObject * pycsh = NULL;
 static PyObject * pycsh_init(PyObject * self, PyObject * args, PyObject *kwds) {
+
+	assert(pycsh);  // Assert that Python has called PyInit_Pycsh()
 
 	// Suppress the "comparison will always evaluate as ‘false’" warning
     #pragma GCC diagnostic push
@@ -194,11 +197,11 @@ static PyObject * pycsh_init(PyObject * self, PyObject * args, PyObject *kwds) {
 	/* It seems that we (PyCSH) cannot control the symbol visibility of libparam (static libraries),
 		at least using linking/compile options.
 		This is unfortunate as libparams symbols are also considered part of the API that PyCSH exposes.
-		It is therefore only possible ensure to the presence of library symbols by also using them in PyCSH itself,
+		It is therefore only possible to ensure the presence of library symbols by also using them in PyCSH itself,
 		to prevent them from being optimized out.
 		Many thanks to JB for helping sort this out! :) */
 	/* param_command_rm() is not in a public header. But it's probably okay to declare it here,
-		since we only care about the name, not the prototype. */
+		since we only care about the name, not the full signature. */
 	int param_command_rm(int server, int verbose, char command_name[], int timeout);
 	if (param_command_rm == NULL) {
 		fprintf(stderr, "param_command_rm was optimized out\n");
@@ -263,11 +266,12 @@ static PyObject * pycsh_init(PyObject * self, PyObject * args, PyObject *kwds) {
 
 	static pthread_t onehz_handle;
 	pthread_create(&onehz_handle, NULL, &onehz_task, NULL);
-	#endif 
+	#endif
 	
 	_csp_initialized = 1;
-	Py_RETURN_NONE;
-
+	/* Return singleton here for now, eventually we would want to do something akin to:
+	`return PyModule_Create(&moduledef);` */
+	return Py_NewRef(pycsh);
 }
 
 
@@ -400,9 +404,9 @@ PyMODINIT_FUNC PyInit_pycsh(void) {
         return NULL;
 #endif
 
-
-	PyObject * m = PyModule_Create(&moduledef);
-	if (m == NULL)
+	assert(!pycsh);  // Assert that Python only calls init once.
+	pycsh = PyModule_Create(&moduledef);
+	if (pycsh == NULL)
 		return NULL;
 
 	{  /* Exceptions */
@@ -412,106 +416,106 @@ PyMODINIT_FUNC PyInit_pycsh(void) {
 			"Must be caught before ConnectionError() baseclass.",
 			PyExc_ConnectionError, NULL);
 		Py_IncRef(PyExc_ProgramDiffError);
-		PyModule_AddObject(m, "ProgramDiffError", PyExc_ProgramDiffError);
+		PyModule_AddObject(pycsh, "ProgramDiffError", PyExc_ProgramDiffError);
 
 		PyExc_ParamCallbackError = PyErr_NewExceptionWithDoc("pycsh.ParamCallbackError", 
 			"Raised and chains unto exceptions raised in the callbacks of PythonParameters.\n"
 			"Must be caught before RuntimeError() baseclass.",
 			PyExc_RuntimeError, NULL);
 		Py_IncRef(PyExc_ParamCallbackError);
-		PyModule_AddObject(m, "ParamCallbackError", PyExc_ParamCallbackError);
+		PyModule_AddObject(pycsh, "ParamCallbackError", PyExc_ParamCallbackError);
 
 		PyExc_InvalidParameterTypeError = PyErr_NewExceptionWithDoc("pycsh.InvalidParameterTypeError", 
 			"Raised when attempting to create a new PythonParameter() with an invalid type.\n"
 			"Must be caught before ValueError() baseclass.",
 			PyExc_ValueError, NULL);
 		Py_IncRef(PyExc_InvalidParameterTypeError);
-		PyModule_AddObject(m, "ParamCallbackError", PyExc_InvalidParameterTypeError);
+		PyModule_AddObject(pycsh, "ParamCallbackError", PyExc_InvalidParameterTypeError);
 	}
 
 	Py_INCREF(&ParameterType);
-	if (PyModule_AddObject(m, "Parameter", (PyObject *) &ParameterType) < 0) {
+	if (PyModule_AddObject(pycsh, "Parameter", (PyObject *) &ParameterType) < 0) {
 		Py_DECREF(&ParameterType);
-        Py_DECREF(m);
+        Py_DECREF(pycsh);
         return NULL;
 	}
 
 	Py_INCREF(&ParameterArrayType);
-	if (PyModule_AddObject(m, "ParameterArray", (PyObject *) &ParameterArrayType) < 0) {
+	if (PyModule_AddObject(pycsh, "ParameterArray", (PyObject *) &ParameterArrayType) < 0) {
 		Py_DECREF(&ParameterArrayType);
-        Py_DECREF(m);
+        Py_DECREF(pycsh);
         return NULL;
 	}
 
 	Py_INCREF(&PythonParameterType);
-	if (PyModule_AddObject(m, "PythonParameter", (PyObject *) &PythonParameterType) < 0) {
+	if (PyModule_AddObject(pycsh, "PythonParameter", (PyObject *) &PythonParameterType) < 0) {
 		Py_DECREF(&PythonParameterType);
-        Py_DECREF(m);
+        Py_DECREF(pycsh);
         return NULL;
 	}
 
 	Py_INCREF(PythonArrayParameterType);
-    if (PyModule_AddObject(m, "PythonArrayParameter", (PyObject *) PythonArrayParameterType) < 0) {
+    if (PyModule_AddObject(pycsh, "PythonArrayParameter", (PyObject *) PythonArrayParameterType) < 0) {
 		Py_DECREF(PythonArrayParameterType);
-        Py_DECREF(m);
+        Py_DECREF(pycsh);
         return NULL;
 	}
 
 	Py_INCREF(&PythonGetSetParameterType);
-	if (PyModule_AddObject(m, "PythonGetSetParameter", (PyObject *) &PythonGetSetParameterType) < 0) {
+	if (PyModule_AddObject(pycsh, "PythonGetSetParameter", (PyObject *) &PythonGetSetParameterType) < 0) {
 		Py_DECREF(&PythonGetSetParameterType);
-        Py_DECREF(m);
+        Py_DECREF(pycsh);
         return NULL;
 	}
 
 	Py_INCREF(PythonGetSetArrayParameterType);
-    if (PyModule_AddObject(m, "PythonGetSetArrayParameter", (PyObject *) PythonGetSetArrayParameterType) < 0) {
+    if (PyModule_AddObject(pycsh, "PythonGetSetArrayParameter", (PyObject *) PythonGetSetArrayParameterType) < 0) {
 		Py_DECREF(PythonGetSetArrayParameterType);
-        Py_DECREF(m);
+        Py_DECREF(pycsh);
         return NULL;
 	}
 
 	Py_INCREF(&ParameterListType);
-	if (PyModule_AddObject(m, "ParameterList", (PyObject *)&ParameterListType) < 0) {
+	if (PyModule_AddObject(pycsh, "ParameterList", (PyObject *)&ParameterListType) < 0) {
 		Py_DECREF(&ParameterListType);
-		Py_DECREF(m);
+		Py_DECREF(pycsh);
 		return NULL;
 	}
 
 
 	Py_INCREF(&IdentType);
-	if (PyModule_AddObject(m, "Ident", (PyObject *) &IdentType) < 0) {
+	if (PyModule_AddObject(pycsh, "Ident", (PyObject *) &IdentType) < 0) {
 		Py_DECREF(&IdentType);
-        Py_DECREF(m);
+        Py_DECREF(pycsh);
         return NULL;
 	}
 
 	Py_INCREF(&IfstatType);
-	if (PyModule_AddObject(m, "Ifstat", (PyObject *) &IfstatType) < 0) {
+	if (PyModule_AddObject(pycsh, "Ifstat", (PyObject *) &IfstatType) < 0) {
 		Py_DECREF(&IfstatType);
-        Py_DECREF(m);
+        Py_DECREF(pycsh);
         return NULL;
 	}
 
 	Py_INCREF(&VmemType);
-	if (PyModule_AddObject(m, "Vmem", (PyObject *) &VmemType) < 0) {
+	if (PyModule_AddObject(pycsh, "Vmem", (PyObject *) &VmemType) < 0) {
 		Py_DECREF(&VmemType);
-        Py_DECREF(m);
+        Py_DECREF(pycsh);
         return NULL;
 	}
 
 #ifdef PYCSH_HAVE_SLASH
 	Py_INCREF(&SlashCommandType);
-	if (PyModule_AddObject(m, "SlashCommand", (PyObject *) &SlashCommandType) < 0) {
+	if (PyModule_AddObject(pycsh, "SlashCommand", (PyObject *) &SlashCommandType) < 0) {
 		Py_DECREF(&SlashCommandType);
-        Py_DECREF(m);
+        Py_DECREF(pycsh);
         return NULL;
 	}
 
 	Py_INCREF(&PythonSlashCommandType);
-	if (PyModule_AddObject(m, "PythonSlashCommand", (PyObject *) &PythonSlashCommandType) < 0) {
+	if (PyModule_AddObject(pycsh, "PythonSlashCommand", (PyObject *) &PythonSlashCommandType) < 0) {
 		Py_DECREF(&PythonSlashCommandType);
-        Py_DECREF(m);
+        Py_DECREF(pycsh);
         return NULL;
 	}
 #endif
@@ -519,63 +523,63 @@ PyMODINIT_FUNC PyInit_pycsh(void) {
 
 	{ /* Constants */
 		/* Version Control */
-		PyModule_AddObject(m, "VERSION", PyUnicode_FromString(version_string));
-		PyModule_AddObject(m, "COMPILE_DATE", PyUnicode_FromString(__DATE__));
-		PyModule_AddObject(m, "COMPILE_DATETIME", pycsh_ident_time_to_datetime(__DATE__, __TIME__));
+		PyModule_AddObject(pycsh, "VERSION", PyUnicode_FromString(version_string));
+		PyModule_AddObject(pycsh, "COMPILE_DATE", PyUnicode_FromString(__DATE__));
+		PyModule_AddObject(pycsh, "COMPILE_DATETIME", pycsh_ident_time_to_datetime(__DATE__, __TIME__));
 
 		/* Param Type Enums */
-		PyModule_AddObject(m, "PARAM_TYPE_UINT8", PyLong_FromLong(PARAM_TYPE_UINT8));
-		PyModule_AddObject(m, "PARAM_TYPE_UINT16", PyLong_FromLong(PARAM_TYPE_UINT16));
-		PyModule_AddObject(m, "PARAM_TYPE_UINT32", PyLong_FromLong(PARAM_TYPE_UINT32));
-		PyModule_AddObject(m, "PARAM_TYPE_UINT64", PyLong_FromLong(PARAM_TYPE_UINT64));
-		PyModule_AddObject(m, "PARAM_TYPE_INT8", PyLong_FromLong(PARAM_TYPE_INT8));
-		PyModule_AddObject(m, "PARAM_TYPE_INT16", PyLong_FromLong(PARAM_TYPE_INT16));
-		PyModule_AddObject(m, "PARAM_TYPE_INT32", PyLong_FromLong(PARAM_TYPE_INT32));
-		PyModule_AddObject(m, "PARAM_TYPE_INT64", PyLong_FromLong(PARAM_TYPE_INT64));
-		PyModule_AddObject(m, "PARAM_TYPE_XINT8", PyLong_FromLong(PARAM_TYPE_XINT8));
-		PyModule_AddObject(m, "PARAM_TYPE_XINT16", PyLong_FromLong(PARAM_TYPE_XINT16));
-		PyModule_AddObject(m, "PARAM_TYPE_XINT32", PyLong_FromLong(PARAM_TYPE_XINT32));
-		PyModule_AddObject(m, "PARAM_TYPE_XINT64", PyLong_FromLong(PARAM_TYPE_XINT64));
-		PyModule_AddObject(m, "PARAM_TYPE_FLOAT", PyLong_FromLong(PARAM_TYPE_FLOAT));
-		PyModule_AddObject(m, "PARAM_TYPE_DOUBLE", PyLong_FromLong(PARAM_TYPE_DOUBLE));
-		PyModule_AddObject(m, "PARAM_TYPE_STRING", PyLong_FromLong(PARAM_TYPE_STRING));
-		PyModule_AddObject(m, "PARAM_TYPE_DATA", PyLong_FromLong(PARAM_TYPE_DATA));
-		PyModule_AddObject(m, "PARAM_TYPE_INVALID", PyLong_FromLong(PARAM_TYPE_INVALID));
+		PyModule_AddObject(pycsh, "PARAM_TYPE_UINT8", PyLong_FromLong(PARAM_TYPE_UINT8));
+		PyModule_AddObject(pycsh, "PARAM_TYPE_UINT16", PyLong_FromLong(PARAM_TYPE_UINT16));
+		PyModule_AddObject(pycsh, "PARAM_TYPE_UINT32", PyLong_FromLong(PARAM_TYPE_UINT32));
+		PyModule_AddObject(pycsh, "PARAM_TYPE_UINT64", PyLong_FromLong(PARAM_TYPE_UINT64));
+		PyModule_AddObject(pycsh, "PARAM_TYPE_INT8", PyLong_FromLong(PARAM_TYPE_INT8));
+		PyModule_AddObject(pycsh, "PARAM_TYPE_INT16", PyLong_FromLong(PARAM_TYPE_INT16));
+		PyModule_AddObject(pycsh, "PARAM_TYPE_INT32", PyLong_FromLong(PARAM_TYPE_INT32));
+		PyModule_AddObject(pycsh, "PARAM_TYPE_INT64", PyLong_FromLong(PARAM_TYPE_INT64));
+		PyModule_AddObject(pycsh, "PARAM_TYPE_XINT8", PyLong_FromLong(PARAM_TYPE_XINT8));
+		PyModule_AddObject(pycsh, "PARAM_TYPE_XINT16", PyLong_FromLong(PARAM_TYPE_XINT16));
+		PyModule_AddObject(pycsh, "PARAM_TYPE_XINT32", PyLong_FromLong(PARAM_TYPE_XINT32));
+		PyModule_AddObject(pycsh, "PARAM_TYPE_XINT64", PyLong_FromLong(PARAM_TYPE_XINT64));
+		PyModule_AddObject(pycsh, "PARAM_TYPE_FLOAT", PyLong_FromLong(PARAM_TYPE_FLOAT));
+		PyModule_AddObject(pycsh, "PARAM_TYPE_DOUBLE", PyLong_FromLong(PARAM_TYPE_DOUBLE));
+		PyModule_AddObject(pycsh, "PARAM_TYPE_STRING", PyLong_FromLong(PARAM_TYPE_STRING));
+		PyModule_AddObject(pycsh, "PARAM_TYPE_DATA", PyLong_FromLong(PARAM_TYPE_DATA));
+		PyModule_AddObject(pycsh, "PARAM_TYPE_INVALID", PyLong_FromLong(PARAM_TYPE_INVALID));
 
 		/* Param Mask Enums */
-		PyModule_AddObject(m, "PM_READONLY", PyLong_FromLong(PM_READONLY));
-		PyModule_AddObject(m, "PM_REMOTE", PyLong_FromLong(PM_REMOTE));
-		PyModule_AddObject(m, "PM_CONF", PyLong_FromLong(PM_CONF));
-		PyModule_AddObject(m, "PM_TELEM", PyLong_FromLong(PM_TELEM));
-		PyModule_AddObject(m, "PM_HWREG", PyLong_FromLong(PM_HWREG));
-		PyModule_AddObject(m, "PM_ERRCNT", PyLong_FromLong(PM_ERRCNT));
-		PyModule_AddObject(m, "PM_SYSINFO", PyLong_FromLong(PM_SYSINFO));
-		PyModule_AddObject(m, "PM_SYSCONF", PyLong_FromLong(PM_SYSCONF));
-		PyModule_AddObject(m, "PM_WDT", PyLong_FromLong(PM_WDT));
-		PyModule_AddObject(m, "PM_DEBUG", PyLong_FromLong(PM_DEBUG));
-		PyModule_AddObject(m, "PM_CALIB", PyLong_FromLong(PM_CALIB));
-		PyModule_AddObject(m, "PM_ATOMIC_WRITE", PyLong_FromLong(PM_ATOMIC_WRITE));
-		PyModule_AddObject(m, "PM_PRIO1", PyLong_FromLong(PM_PRIO1));
-		PyModule_AddObject(m, "PM_PRIO2", PyLong_FromLong(PM_PRIO2));
-		PyModule_AddObject(m, "PM_PRIO3", PyLong_FromLong(PM_PRIO3));
-		PyModule_AddObject(m, "PM_PRIO_MASK", PyLong_FromLong(PM_PRIO_MASK));
+		PyModule_AddObject(pycsh, "PM_READONLY", PyLong_FromLong(PM_READONLY));
+		PyModule_AddObject(pycsh, "PM_REMOTE", PyLong_FromLong(PM_REMOTE));
+		PyModule_AddObject(pycsh, "PM_CONF", PyLong_FromLong(PM_CONF));
+		PyModule_AddObject(pycsh, "PM_TELEM", PyLong_FromLong(PM_TELEM));
+		PyModule_AddObject(pycsh, "PM_HWREG", PyLong_FromLong(PM_HWREG));
+		PyModule_AddObject(pycsh, "PM_ERRCNT", PyLong_FromLong(PM_ERRCNT));
+		PyModule_AddObject(pycsh, "PM_SYSINFO", PyLong_FromLong(PM_SYSINFO));
+		PyModule_AddObject(pycsh, "PM_SYSCONF", PyLong_FromLong(PM_SYSCONF));
+		PyModule_AddObject(pycsh, "PM_WDT", PyLong_FromLong(PM_WDT));
+		PyModule_AddObject(pycsh, "PM_DEBUG", PyLong_FromLong(PM_DEBUG));
+		PyModule_AddObject(pycsh, "PM_CALIB", PyLong_FromLong(PM_CALIB));
+		PyModule_AddObject(pycsh, "PM_ATOMIC_WRITE", PyLong_FromLong(PM_ATOMIC_WRITE));
+		PyModule_AddObject(pycsh, "PM_PRIO1", PyLong_FromLong(PM_PRIO1));
+		PyModule_AddObject(pycsh, "PM_PRIO2", PyLong_FromLong(PM_PRIO2));
+		PyModule_AddObject(pycsh, "PM_PRIO3", PyLong_FromLong(PM_PRIO3));
+		PyModule_AddObject(pycsh, "PM_PRIO_MASK", PyLong_FromLong(PM_PRIO_MASK));
 
 		/* (Param) VMEM types */
-		PyModule_AddObject(m, "VMEM_TYPE_RAM", PyLong_FromLong(VMEM_TYPE_RAM));
-		PyModule_AddObject(m, "VMEM_TYPE_FRAM", PyLong_FromLong(VMEM_TYPE_FRAM));
-		PyModule_AddObject(m, "VMEM_TYPE_FRAM_SECURE", PyLong_FromLong(VMEM_TYPE_FRAM_SECURE));
-		PyModule_AddObject(m, "VMEM_TYPE_FLASH", PyLong_FromLong(VMEM_TYPE_FLASH));
-		PyModule_AddObject(m, "VMEM_TYPE_DRIVER", PyLong_FromLong(VMEM_TYPE_DRIVER));
-		PyModule_AddObject(m, "VMEM_TYPE_FLASH_QSPI", PyLong_FromLong(VMEM_TYPE_FLASH_QSPI));
-		PyModule_AddObject(m, "VMEM_TYPE_FILE", PyLong_FromLong(VMEM_TYPE_FILE));
-		PyModule_AddObject(m, "VMEM_TYPE_FRAM_CACHE", PyLong_FromLong(VMEM_TYPE_FRAM_CACHE));
-		PyModule_AddObject(m, "VMEM_TYPE_NOR_FLASH", PyLong_FromLong(VMEM_TYPE_NOR_FLASH));
-		PyModule_AddObject(m, "VMEM_TYPE_BLOCK", PyLong_FromLong(VMEM_TYPE_BLOCK));
+		PyModule_AddObject(pycsh, "VMEM_TYPE_RAM", PyLong_FromLong(VMEM_TYPE_RAM));
+		PyModule_AddObject(pycsh, "VMEM_TYPE_FRAM", PyLong_FromLong(VMEM_TYPE_FRAM));
+		PyModule_AddObject(pycsh, "VMEM_TYPE_FRAM_SECURE", PyLong_FromLong(VMEM_TYPE_FRAM_SECURE));
+		PyModule_AddObject(pycsh, "VMEM_TYPE_FLASH", PyLong_FromLong(VMEM_TYPE_FLASH));
+		PyModule_AddObject(pycsh, "VMEM_TYPE_DRIVER", PyLong_FromLong(VMEM_TYPE_DRIVER));
+		PyModule_AddObject(pycsh, "VMEM_TYPE_FLASH_QSPI", PyLong_FromLong(VMEM_TYPE_FLASH_QSPI));
+		PyModule_AddObject(pycsh, "VMEM_TYPE_FILE", PyLong_FromLong(VMEM_TYPE_FILE));
+		PyModule_AddObject(pycsh, "VMEM_TYPE_FRAM_CACHE", PyLong_FromLong(VMEM_TYPE_FRAM_CACHE));
+		PyModule_AddObject(pycsh, "VMEM_TYPE_NOR_FLASH", PyLong_FromLong(VMEM_TYPE_NOR_FLASH));
+		PyModule_AddObject(pycsh, "VMEM_TYPE_BLOCK", PyLong_FromLong(VMEM_TYPE_BLOCK));
 		/* Users should probably be a bit careful comparing against VMEM_TYPE_UNKNOWN (-1),
 			since parameters could in theory have unknown types which are not -1. */
-		PyModule_AddObject(m, "VMEM_TYPE_UNKNOWN", PyLong_FromLong(VMEM_TYPE_UNKNOWN));
+		PyModule_AddObject(pycsh, "VMEM_TYPE_UNKNOWN", PyLong_FromLong(VMEM_TYPE_UNKNOWN));
 
-		PyModule_AddObject(m, "CSP_NO_VIA_ADDRESS", PyLong_FromLong(CSP_NO_VIA_ADDRESS));
+		PyModule_AddObject(pycsh, "CSP_NO_VIA_ADDRESS", PyLong_FromLong(CSP_NO_VIA_ADDRESS));
 
 		// TODO Kevin: We should probably add constants for SLASH_SUCCESS and such
 	}
@@ -590,5 +594,5 @@ PyMODINIT_FUNC PyInit_pycsh(void) {
 		#endif
 	}
 
-	return m;
+	return pycsh;
 }
