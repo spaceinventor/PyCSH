@@ -889,7 +889,7 @@ def csp_init(host: str = None, model: str = None, revision: str = None, version:
     :param dedup: CSP dedup 0=off 1=forward 2=incoming 3=all (default)
     """
 
-def csp_add_zmq(addr: int, server: str, promisc: int = 0, mask: int = 8, default: int = 0, sec_key: str|None = None) -> None:
+def csp_add_zmq(addr: int, server: str, promisc: int = 0, mask: int = 8, default: int = 0, pub_port: int = 6000, sub_port: int = 7000, sec_key: str|None = None) -> None:
     """
     Add a new ZMQ interface
 
@@ -898,6 +898,8 @@ def csp_add_zmq(addr: int, server: str, promisc: int = 0, mask: int = 8, default
     :param promisc: Promiscuous Mode
     :param mask: Netmask (defaults to 8)
     :param default: Set as default
+    :param pub_port: Port to publish on
+    :param sub_port: Port to subscribe on
     :param sec_key: Auth key for zmqproxy
     """
 
