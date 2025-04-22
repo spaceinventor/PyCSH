@@ -185,10 +185,9 @@ static int _handle_stream(PyObject * stream_identifier, FILE **std_stream, FILE 
 	return 0;
 }
 
-PyObject * pycsh = NULL;
 static PyObject * pycsh_init(PyObject * self, PyObject * args, PyObject *kwds) {
 
-	assert(pycsh);  // Assert that Python has called PyInit_Pycsh()
+	assert(self);  // Assert that Python has called PyInit_Pycsh()
 
 	// Suppress the "comparison will always evaluate as ‘false’" warning
     #pragma GCC diagnostic push
@@ -271,7 +270,7 @@ static PyObject * pycsh_init(PyObject * self, PyObject * args, PyObject *kwds) {
 	_csp_initialized = 1;
 	/* Return singleton here for now, eventually we would want to do something akin to:
 	`return PyModule_Create(&moduledef);` */
-	return Py_NewRef(pycsh);
+	return Py_NewRef(self);
 }
 
 
@@ -404,8 +403,7 @@ PyMODINIT_FUNC PyInit_pycsh(void) {
         return NULL;
 #endif
 
-	assert(!pycsh);  // Assert that Python only calls init once.
-	pycsh = PyModule_Create(&moduledef);
+	PyObject * pycsh = PyModule_Create(&moduledef);
 	if (pycsh == NULL)
 		return NULL;
 
