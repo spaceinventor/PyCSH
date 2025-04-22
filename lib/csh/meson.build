@@ -24,6 +24,7 @@ libcsh_src = [
     'src/vts.c',
     'src/lock.c',
     'src/serial.c',
+    'src/url_utils.c',
     'src/prometheus.c',
     'src/known_hosts.c',
     'src/param_sniffer.c',

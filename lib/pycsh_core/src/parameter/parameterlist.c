@@ -224,6 +224,7 @@ PyTypeObject ParameterListType = {
 	.tp_doc = "Parameter list class with an interface to libparam's queue API.",
 	.tp_basicsize = sizeof(ParameterListObject),
 	.tp_itemsize = 0,
+	.tp_base = &PyList_Type,
 	.tp_flags = Py_TPFLAGS_DEFAULT,
 	.tp_init = (initproc)ParameterList_init,
 	// .tp_dealloc = (destructor)ParameterList_dealloc,

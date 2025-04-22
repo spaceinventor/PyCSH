@@ -78,6 +78,7 @@
 #include "wrapper/csp_init_py.h"
 #include "wrapper/param_list_py.h"
 #include "wrapper/vmem_client_py.h"
+#include "wrapper/victoria_metrics_py.h"
 
 extern const char *version_string;
 
@@ -321,6 +322,9 @@ static PyMethodDef methods[] = {
 	{"program", (PyCFunction)pycsh_csh_program,  METH_VARARGS | METH_KEYWORDS, "Upload new firmware to a module."},
 	{"sps", 	(PyCFunction)slash_sps,   		 METH_VARARGS | METH_KEYWORDS, "Switch -> Program -> Switch"},
 	{"apm_load",(PyCFunction)pycsh_apm_load,   	 METH_VARARGS | METH_KEYWORDS, "Loads both .py and .so APMs"},
+
+	{"vm_start", (PyCFunction)pycsh_vm_start,   METH_VARARGS | METH_KEYWORDS, "Start logging to Victoria Metrics"},
+	{"vm_stop", (PyCFunction)pycsh_vm_stop,   METH_NOARGS, "Stop logging to Victoria Metrics"},
 
 	/* Wrappers for src/csp_init_cmd.c */
 	{"csp_init", 	(PyCFunction)pycsh_csh_csp_init,   METH_VARARGS | METH_KEYWORDS, "Initialize CSP"},

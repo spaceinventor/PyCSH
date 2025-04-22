@@ -878,6 +878,29 @@ def apm_load(path: str = '~/.local/lib/csh/', filename: str = None, stop_on_erro
         and the APM modules themselves as values (when loaded successfully, otherwise exception raised).
     """
 
+def vm_start(api_root: str, logfile: bool = False, username: str = None, password: str = None, auth_file: str = None, ssl: bool = False, server_port: int = None, skip_verify: bool = False, verbose: bool = False) -> None:
+    """
+    Start logging to Victoria Metrics
+    
+    :param api_root: Typically hostname of VM server
+    :param logfile: Enable logging to param_sniffer.log
+    :param username: Username for vmauth. Must be combined with password.
+    :param password: Password for vmauth.
+    :param auth_file: File containing private key for zmqproxy.
+    :param ssl: Use SSL/TLS
+    :param server_port: Overwrite default port
+    :param skip_verify: Skip verification of the server's cert and hostname
+    :param verbose: Verbose connect
+    """
+
+def vm_stop() -> None:
+    """
+    Stop logging to Victoria Metrics.
+    
+    Always succeds, no arguments.
+    Can be called multiple times without exception. 
+    """
+
 def csp_init(host: str = None, model: str = None, revision: str = None, version: int = 2, dedup: int = 3) -> None:
     """
     Initialize CSP
