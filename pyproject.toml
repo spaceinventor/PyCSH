@@ -3,7 +3,8 @@ name = 'pycsh'
 dynamic = ["version"]
 description = 'pycsh Python package'
 readme = 'README.md'
-requires-python = '>=3.8'
+# '>=3.10' at least because of Py_NewRef()
+requires-python = '>=3.10'
 authors = []
 
 [tool.setuptools-git-versioning]
