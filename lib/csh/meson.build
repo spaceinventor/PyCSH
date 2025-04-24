@@ -27,6 +27,8 @@ libcsh_src = [
     'src/url_utils.c',
     'src/prometheus.c',
     'src/known_hosts.c',
+    'src/slash_utils.c',
+    'src/environment.c',
     'src/param_sniffer.c',
     'src/param_list_slash.c',
     'src/hk_param_sniffer.c',
