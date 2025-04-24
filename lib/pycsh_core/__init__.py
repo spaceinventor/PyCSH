@@ -44,9 +44,15 @@ def _import_pycsh(package_dir: str = None) -> _ModuleType:
 
 
 # Add pycsh to sys.modules, so we can import everything from it.
+import_installed_version: bool = False
 try:  # Importing directly from the repository
+    # Try builddir first, so it's prioritized over system version.
     _sys.modules['pycsh'] = _import_pycsh('builddir/')
 except (ImportError, ModuleNotFoundError, OSError):
+    # Don't import in except cluase, because we don't want to chain exceptions.
+    import_installed_version = True
+
+if import_installed_version:
     _sys.modules['pycsh'] = _import_pycsh()
 
 # Import everything from the pycsh namespace,
