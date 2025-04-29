@@ -200,7 +200,7 @@ PyObject * pycsh_param_list_forget(PyObject * self, PyObject * args, PyObject * 
     if (verbose >= 1) {
         printf("Removed %i parameters\n", count_removed);
     }
-    return Py_BuildValue("i", count_removed);;
+    return Py_BuildValue("i", count_removed);
 }
 
 PyObject * pycsh_param_list_save(PyObject * self, PyObject * args, PyObject * kwds) {

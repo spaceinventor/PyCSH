@@ -1,6 +1,10 @@
 
 #include "vmem.h"
 
+// It is recommended to always define PY_SSIZE_T_CLEAN before including Python.h
+#define PY_SSIZE_T_CLEAN
+#include <Python.h>
+
 #include "structmember.h"
 
 #include "../pycsh.h"
@@ -205,10 +209,10 @@ PyObject * Vmem_new(PyTypeObject *type, PyObject *args, PyObject *kwds) {
 }
 
 static PyMemberDef Vmem_members[] = {
-	{"vaddr", Py_T_LONG, offsetof(VmemObject, vmem.vaddr), READONLY, "Starting address of the VMEM area. Used for upload and download I think"},
-    {"size", Py_T_LONG, offsetof(VmemObject, vmem.size), READONLY, "Size of the VMEM area in bytes"},
-    {"vmem_id", Py_T_BYTE, offsetof(VmemObject, vmem.vmem_id), READONLY, "ID of the VMEM area, used for certain commands"},
-    {"type", Py_T_BYTE, offsetof(VmemObject, vmem.type), READONLY, "int type of the VMEM area"},
+	{"vaddr", T_LONG, offsetof(VmemObject, vmem.vaddr), READONLY, "Starting address of the VMEM area. Used for upload and download I think"},
+    {"size", T_LONG, offsetof(VmemObject, vmem.size), READONLY, "Size of the VMEM area in bytes"},
+    {"vmem_id", T_BYTE, offsetof(VmemObject, vmem.vmem_id), READONLY, "ID of the VMEM area, used for certain commands"},
+    {"type", T_BYTE, offsetof(VmemObject, vmem.type), READONLY, "int type of the VMEM area"},
     {"name", T_STRING_INPLACE, offsetof(VmemObject, vmem.name), READONLY, "Name of the VMEM area"},
     {NULL}  /* Sentinel */
 };

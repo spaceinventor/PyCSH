@@ -163,7 +163,6 @@ static PyObject * Ident_new(PyTypeObject *type, PyObject *args, PyObject *kwds) 
         const Py_ssize_t reply_index = PyTuple_GET_SIZE(reply_tuple);
         /* Resize tuple to fit reply, this could probably be done more efficiently. */
         if (_PyTuple_Resize(&reply_tuple, reply_index+1) < 0) {
-            // Handle tuple resizing failure
             PyErr_SetString(PyExc_RuntimeError, "Failed to resize tuple for ident replies");
             return NULL;
         }
