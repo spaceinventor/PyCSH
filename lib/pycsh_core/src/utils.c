@@ -1046,6 +1046,8 @@ int _pycsh_util_set_single(param_t *param, PyObject *value, int offset, int host
 /* Private interface for setting the value of an array parameter. */
 int _pycsh_util_set_array(param_t *param, PyObject *value, int host, int timeout, int retries, int paramver, int verbose) {
 
+	PyObject * _value AUTO_DECREF = value;
+
 	// Transform lazy generators and iterators into sequences,
 	// such that their length may be retrieved in a uniform manner.
 	// This comes at the expense of memory (and likely performance),
@@ -1058,26 +1060,26 @@ int _pycsh_util_set_array(param_t *param, PyObject *value, int host, int timeout
 			PyErr_SetString(PyExc_TypeError, "Provided argument must be iterable.");
 			return -1;
 		}
-	} else
+	} else {
 		Py_INCREF(value);  // Iterators will be 1 higher than needed so do the same for sequences.
+	}
 
-	int seqlen = PySequence_Fast_GET_SIZE(value);
+	Py_ssize_t seqlen = PySequence_Size(value);
 
 	// We don't support assigning slices (or anything of the like) yet, so...
 	if (seqlen != param->array_size) {
 		if (param->array_size > 1) {  // Check that the lengths match.
 			char buf[120];
-			sprintf(buf, "Provided iterable's length does not match parameter's. <iterable length: %i> <param length: %i>", seqlen, param->array_size);
+			sprintf(buf, "Provided iterable's length does not match parameter's. <iterable length: %li> <param length: %i>", seqlen, param->array_size);
 			PyErr_SetString(PyExc_ValueError, buf);
-		} else  // Check that the parameter is an array.
+		} else {  // Check that the parameter is an array.
 			PyErr_SetString(PyExc_TypeError, "Cannot assign iterable to non-array type parameter.");
-		Py_DECREF(value);
+		}
 		return -2;
 	}
 
 	// Check that the iterable only contains valid types.
 	if (_pycsh_typecheck_sequence(value, _pycsh_misc_param_t_type(param))) {
-		Py_DECREF(value);
 		return -3;  // Raises TypeError.
 	}
 
@@ -1086,19 +1088,16 @@ int _pycsh_util_set_array(param_t *param, PyObject *value, int host, int timeout
 	//	with the global queue, but then we need to handle freeing the buffer.
 	// TODO Kevin: Also this queue is not used for local parameters (and therefore wasted).
 	//	Perhaps structure the function to avoid its unecessary instantiation.
-	void * queuebuffer = malloc(PARAM_SERVER_MTU);
+	void * queuebuffer CLEANUP_FREE = malloc(PARAM_SERVER_MTU);
 	param_queue_t queue = { };
 	param_queue_init(&queue, queuebuffer, PARAM_SERVER_MTU, 0, PARAM_QUEUE_TYPE_SET, paramver);
 	
 	for (int i = 0; i < seqlen; i++) {
 
-		PyObject *item = PySequence_Fast_GET_ITEM(value, i);
+		PyObject *item AUTO_DECREF = PySequence_GetItem(value, i);
 
 		if(!item) {
-			Py_DECREF(value);
-			free(queuebuffer);
 			PyErr_SetString(PyExc_RuntimeError, "Iterator went outside the bounds of the iterable.");
-			Py_DECREF(value);
 			return -4;
 		}
 
@@ -1106,23 +1105,24 @@ int _pycsh_util_set_array(param_t *param, PyObject *value, int host, int timeout
 		// Set local parameters immediately, use the global queue if autosend if off.
 		param_queue_t *usequeue = (!autosend ? &param_queue_set : ((*param->node != 0) ? &queue : NULL));
 #endif
+		assert(!PyErr_Occurred());
 		_pycsh_util_set_single(param, item, i, host, timeout, retries, paramver, 1, verbose);
+		if (PyErr_Occurred()) {
+			return -7;
+		}
 		
 		// 'item' is a borrowed reference, so we don't need to decrement it.
 	}
 
 	param_queue_print(&queue);
 	
-	if (*param->node != 0)
+	if (*param->node != 0) {
 		if (param_push_queue(&queue, 1, 0, *param->node, 100, 0, false) < 0) {  // TODO Kevin: We should probably have a parameter for hwid here.
 			PyErr_Format(PyExc_ConnectionError, "No response from node %d", *param->node);
-			free(queuebuffer);
-			Py_DECREF(value);
 			return -6;
 		}
+	}
 	
-	free(queuebuffer);
-	Py_DECREF(value);
 	return 0;
 }
 

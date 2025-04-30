@@ -199,7 +199,7 @@ static int Parameter_set_value(ParameterObject *self, PyObject *value, int remot
         return -1;
     }
 
-	if (self->param->array_size > 1 && self->param->type != PARAM_TYPE_STRING)  // Is array parameter
+	if (self->param->array_size > 1 && self->param->type != PARAM_TYPE_STRING && self->param->type != PARAM_TYPE_DATA)  // Is array parameter
 		return _pycsh_util_set_array(self->param, value, self->host, self->timeout, self->retries, self->paramver, pycsh_dfl_verbose);
 	return _pycsh_util_set_single(self->param, value, INT_MIN, self->host, self->timeout, self->retries, self->paramver, remote, pycsh_dfl_verbose);  // Normal parameter
 }
