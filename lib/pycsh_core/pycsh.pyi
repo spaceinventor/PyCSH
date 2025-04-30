@@ -643,12 +643,13 @@ def node(node: int | str = None) -> int:
     :return: The current default node.
     """
 
-def timeout(timeout: int = None) -> int:
+def timeout(timeout: int = None, verbose: int = None) -> int:
     """
     Used to get or change the default timeout.
 
     :param timeout: Integer to change the default timeout to.
-    :return: The current default timeout.
+    :param verbose: >=1 print when setting, >=2 also print when getting
+    :return: The current/new default timeout.
     """
 
 def verbose(verbose: int = None) -> int:
