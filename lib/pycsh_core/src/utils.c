@@ -675,7 +675,7 @@ PyObject * _pycsh_util_get_single(param_t *param, int offset, int autopull, int 
 
 	if (autopull && (*param->node != 0)) {
 
-		bool no_reply = true;
+		bool no_reply = false;
 		Py_BEGIN_ALLOW_THREADS;
 		for (size_t i = 0; i < (retries > 0 ? retries : 1); i++) {
 			int param_pull_res;
