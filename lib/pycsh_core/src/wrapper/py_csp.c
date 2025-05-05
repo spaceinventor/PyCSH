@@ -27,7 +27,7 @@ PyObject * pycsh_slash_ping(PyObject * self, PyObject * args, PyObject * kwds) {
 
     static char *kwlist[] = {"node", "timeout", "size", NULL};
 
-    if (!PyArg_ParseTupleAndKeywords(args, kwds, "|III", kwlist, &node, &timeout, &size)) {
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "|III:ping", kwlist, &node, &timeout, &size)) {
         return NULL;  // TypeError is thrown
     }
 
@@ -58,7 +58,7 @@ PyObject * pycsh_slash_ident(PyObject * self, PyObject * args, PyObject * kwds) 
 
     static char *kwlist[] = {"node", "timeout", "override", NULL};
 
-    if (!PyArg_ParseTupleAndKeywords(args, kwds, "|IIp", kwlist, &node, &timeout, &override)) {
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "|IIp:ident", kwlist, &node, &timeout, &override)) {
         return NULL;  // TypeError is thrown
     }
 

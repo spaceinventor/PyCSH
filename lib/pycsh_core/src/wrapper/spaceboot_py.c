@@ -98,7 +98,7 @@ PyObject * slash_csp_switch(PyObject * self, PyObject * args, PyObject * kwds) {
 
     static char *kwlist[] = {"slot", "node", "times", NULL};
 
-	if (!PyArg_ParseTupleAndKeywords(args, kwds, "I|II", kwlist, &slot, &node, &times))
+	if (!PyArg_ParseTupleAndKeywords(args, kwds, "I|II:switch", kwlist, &slot, &node, &times))
 		return NULL;  // TypeError is thrown
 
 	int type = 0;
@@ -266,7 +266,7 @@ PyObject * pycsh_csh_program(PyObject * self, PyObject * args, PyObject * kwds) 
 
     static char *kwlist[] = {"slot", "filename", "node", "window", "conn_timeout", "packet_timeout", "ack_timeout", "ack_count", NULL};
 
-	if (!PyArg_ParseTupleAndKeywords(args, kwds, "Is|IIIIII", kwlist, &slot, &filename, &node, &window, &conn_timeout, &packet_timeout, &ack_timeout, &ack_count))
+	if (!PyArg_ParseTupleAndKeywords(args, kwds, "Is|IIIIII:program", kwlist, &slot, &filename, &node, &window, &conn_timeout, &packet_timeout, &ack_timeout, &ack_count))
 		return NULL;  // TypeError is thrown
 
 	printf("Setting rdp options: %u %u %u %u %u\n", window, conn_timeout, packet_timeout, ack_timeout, ack_count);
@@ -339,7 +339,7 @@ PyObject * slash_sps(PyObject * self, PyObject * args, PyObject * kwds) {
 
     static char *kwlist[] = {"from", "to", "node", "window", "conn_timeout", "packet_timeout", "ack_timeout", "ack_count", NULL};
 
-	if (!PyArg_ParseTupleAndKeywords(args, kwds, "IIs|IIIIII", kwlist, &from, &to, &node, &window, &conn_timeout, &packet_timeout, &ack_timeout, &ack_count))
+	if (!PyArg_ParseTupleAndKeywords(args, kwds, "IIs|IIIIII:sps", kwlist, &from, &to, &node, &window, &conn_timeout, &packet_timeout, &ack_timeout, &ack_count))
 		return NULL;  // TypeError is thrown
 
 	printf("Setting rdp options: %u %u %u %u %u\n", window, conn_timeout, packet_timeout, ack_timeout, ack_count);

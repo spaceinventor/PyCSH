@@ -50,7 +50,7 @@ PyObject * pycsh_slash_timeout(PyObject * self, PyObject * args, PyObject * kwds
 
 	static char *kwlist[] = {"timeout", "verbose", NULL};
 
-	if (!PyArg_ParseTupleAndKeywords(args, kwds, "|ii", kwlist, &timeout, &verbose)) {
+	if (!PyArg_ParseTupleAndKeywords(args, kwds, "|ii:timeout", kwlist, &timeout, &verbose)) {
 		return NULL;  // TypeError is thrown
 	}
 

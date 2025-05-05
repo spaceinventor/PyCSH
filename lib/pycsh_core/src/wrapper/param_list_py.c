@@ -55,7 +55,7 @@ PyObject * pycsh_param_list_download(PyObject * self, PyObject * args, PyObject 
 
     static char *kwlist[] = {"node", "timeout", "version", "remotes", NULL};
 
-    if (!PyArg_ParseTupleAndKeywords(args, kwds, "|IIII", kwlist, &node, &timeout, &version, &include_remotes))
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "|IIII:list_download", kwlist, &node, &timeout, &version, &include_remotes))
         return NULL;  // TypeError is thrown
 
     {  /* Allow threads during list_download() */
@@ -192,7 +192,7 @@ PyObject * pycsh_param_list_forget(PyObject * self, PyObject * args, PyObject * 
 
     static char *kwlist[] = {"node", "verbose", NULL};
 
-    if (!PyArg_ParseTupleAndKeywords(args, kwds, "|ii", kwlist, &node, &verbose))
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "|ii:list_forget", kwlist, &node, &verbose))
         return NULL;  // TypeError is thrown
 
     const int count_removed = param_list_remove_py(node, verbose);

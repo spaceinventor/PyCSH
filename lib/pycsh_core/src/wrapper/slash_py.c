@@ -15,7 +15,7 @@ PyObject * pycsh_slash_execute(PyObject * self, PyObject * args, PyObject * kwds
 
     static char *kwlist[] = {"command", NULL};
 
-    if (!PyArg_ParseTupleAndKeywords(args, kwds, "s", kwlist, &command)) {
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "s:slash_execute", kwlist, &command)) {
         return NULL;  // TypeError is thrown
     }
 

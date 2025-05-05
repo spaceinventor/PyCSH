@@ -47,7 +47,7 @@ PyObject * pycsh_param_get(PyObject * self, PyObject * args, PyObject * kwds) {
 
 	static char *kwlist[] = {"param_identifier", "node", "server", "paramver", "offset", "timeout", "retries", "verbose", NULL};
 
-	if (!PyArg_ParseTupleAndKeywords(args, kwds, "O|iiiiiii", kwlist, &param_identifier, &node, &server, &paramver, &offset, &timeout, &retries, &verbose))
+	if (!PyArg_ParseTupleAndKeywords(args, kwds, "O|iiiiiii:get", kwlist, &param_identifier, &node, &server, &paramver, &offset, &timeout, &retries, &verbose))
 		return NULL;  // TypeError is thrown
 
 	param_t *param = _pycsh_util_find_param_t(param_identifier, node);
@@ -82,7 +82,7 @@ PyObject * pycsh_param_set(PyObject * self, PyObject * args, PyObject * kwds) {
 
 	static char *kwlist[] = {"param_identifier", "value", "node", "server", "paramver", "offset", "timeout", "retries", "verbose", NULL};
 	
-	if (!PyArg_ParseTupleAndKeywords(args, kwds, "OO|iiiiiii", kwlist, &param_identifier, &value, &node, &server, &paramver, &offset, &timeout, &retries, &verbose)) {
+	if (!PyArg_ParseTupleAndKeywords(args, kwds, "OO|iiiiiii:set", kwlist, &param_identifier, &value, &node, &server, &paramver, &offset, &timeout, &retries, &verbose)) {
 		return NULL;  // TypeError is thrown
 	}
 
@@ -135,7 +135,7 @@ PyObject * pycsh_param_pull(PyObject * self, PyObject * args, PyObject * kwds) {
 
 	static char *kwlist[] = {"node", "timeout", "include_mask", "exclude_mask", "paramver", NULL};
 
-	if (!PyArg_ParseTupleAndKeywords(args, kwds, "|IIOOi", kwlist, &node, &timeout, &include_mask_obj, &exclude_mask_obj, &paramver)) {
+	if (!PyArg_ParseTupleAndKeywords(args, kwds, "|IIOOi:pull", kwlist, &node, &timeout, &include_mask_obj, &exclude_mask_obj, &paramver)) {
 		return NULL;
 	}
 
@@ -175,7 +175,7 @@ PyObject * pycsh_param_cmd_new(PyObject * self, PyObject * args, PyObject * kwds
 
 	static char *kwlist[] = {"type", "name", "paramver", NULL};
 
-	if (!PyArg_ParseTupleAndKeywords(args, kwds, "ss|i", kwlist, &type, &name, &paramver, &paramver)) {
+	if (!PyArg_ParseTupleAndKeywords(args, kwds, "ss|i:cmd_new", kwlist, &type, &name, &paramver, &paramver)) {
 		return NULL;
 	}
 

@@ -37,7 +37,7 @@ PyObject * pycsh_vmem_download(PyObject * self, PyObject * args, PyObject * kwds
 
     static char *kwlist[] = {"address", "length", "node", "window", "conn_timeout", "packet_timeout", "ack_timeout", "ack_count", NULL};
 
-	if (!PyArg_ParseTupleAndKeywords(args, kwds, "II|IIIIII", kwlist, &address, &length, &node, &window, &conn_timeout, &packet_timeout, &ack_timeout, &ack_count))
+	if (!PyArg_ParseTupleAndKeywords(args, kwds, "II|IIIIII:vmem_download", kwlist, &address, &length, &node, &window, &conn_timeout, &packet_timeout, &ack_timeout, &ack_count))
 		return NULL;  // TypeError is thrown
 
 	printf("Setting rdp options: %u %u %u %u %u\n", window, conn_timeout, packet_timeout, ack_timeout, ack_count);
@@ -168,7 +168,7 @@ PyObject * pycsh_param_vmem(PyObject * self, PyObject * args, PyObject * kwds) {
 
 	static char *kwlist[] = {"node", "timeout", "version", "verbose", NULL};
 
-	if (!PyArg_ParseTupleAndKeywords(args, kwds, "|IIIi", kwlist, &node, &timeout, &version, &verbose))
+	if (!PyArg_ParseTupleAndKeywords(args, kwds, "|IIIi:vmem", kwlist, &node, &timeout, &version, &verbose))
 		return NULL;  // Raises TypeError.
 
 	if (verbose >= 2) {
