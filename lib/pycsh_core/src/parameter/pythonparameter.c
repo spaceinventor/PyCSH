@@ -416,7 +416,7 @@ static PyObject * PythonParameter_new(PyTypeObject *type, PyObject * args, PyObj
 
     static char *kwlist[] = {"id", "name", "type", "mask", "unit", "docstr", "array_size", "callback", "host", "timeout", "retries", "paramver", NULL};
 
-    if (!PyArg_ParseTupleAndKeywords(args, kwds, "HsiO|ssiOiiii", kwlist, &id, &name, &param_type, &mask_obj, &unit, &docstr, &array_size, &callback, &host, &timeout, &retries, &paramver))
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "HsiO|zziOiiii", kwlist, &id, &name, &param_type, &mask_obj, &unit, &docstr, &array_size, &callback, &host, &timeout, &retries, &paramver))
         return NULL;  // TypeError is thrown
 
     uint32_t mask;

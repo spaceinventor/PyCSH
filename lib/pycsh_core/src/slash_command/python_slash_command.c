@@ -694,7 +694,7 @@ static PyObject * PythonSlashCommand_new(PyTypeObject *type, PyObject * args, Py
 
     static char *kwlist[] = {"name", "function", "args", NULL};
 
-    if (!PyArg_ParseTupleAndKeywords(args, kwds, "sO|s", kwlist, &name, &function, &slash_args))
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "sO|z", kwlist, &name, &function, &slash_args))
         return NULL;  // TypeError is thrown
 
     PythonSlashCommandObject * python_slash_command = SlashCommand_create_new(type, name, slash_args, function);

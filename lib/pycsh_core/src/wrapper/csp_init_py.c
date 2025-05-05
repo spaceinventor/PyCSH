@@ -54,7 +54,7 @@ PyObject * pycsh_csh_csp_init(PyObject * self, PyObject * args, PyObject * kwds)
 
 	static char *kwlist[] = {"host", "model", "revision", "version", "dedup", NULL};
 
-	if (!PyArg_ParseTupleAndKeywords(args, kwds, "|sssii:csp_init", kwlist, &hostname, &model, &revision, &version, &dedup))
+	if (!PyArg_ParseTupleAndKeywords(args, kwds, "|zzzii:csp_init", kwlist, &hostname, &model, &revision, &version, &dedup))
 		return NULL;  // TypeError is thrown
 
 	static struct utsname info;
@@ -124,7 +124,7 @@ PyObject * pycsh_csh_csp_ifadd_zmq(PyObject * self, PyObject * args, PyObject * 
 
     static char *kwlist[] = {"addr", "server", "promisc", "mask", "default", "pub_port", "sub_port", "sec_key", NULL};
 
-	if (!PyArg_ParseTupleAndKeywords(args, kwds, "Is|iiiiis:csp_add_zmq", kwlist, &addr, &server, &promisc, &mask, &dfl, &pub_port, &sub_port, &sec_key))
+	if (!PyArg_ParseTupleAndKeywords(args, kwds, "Is|iiiiiz:csp_add_zmq", kwlist, &addr, &server, &promisc, &mask, &dfl, &pub_port, &sub_port, &sec_key))
 		return NULL;  // TypeError is thrown
 
     csp_iface_t * iface;
@@ -152,7 +152,7 @@ PyObject * pycsh_csh_csp_ifadd_kiss(PyObject * self, PyObject * args, PyObject *
 
     static char *kwlist[] = {"addr", "mask", "default", "baud", "uart", NULL};
 
-	if (!PyArg_ParseTupleAndKeywords(args, kwds, "I|iiis:csp_add_kiss", kwlist, &addr, &mask, &dfl, &baud, &device))
+	if (!PyArg_ParseTupleAndKeywords(args, kwds, "I|iiiz:csp_add_kiss", kwlist, &addr, &mask, &dfl, &baud, &device))
 		return NULL;  // TypeError is thrown
 
     csp_usart_conf_t conf = {
@@ -196,7 +196,7 @@ PyObject * pycsh_csh_csp_ifadd_can(PyObject * self, PyObject * args, PyObject * 
 
     static char *kwlist[] = {"addr", "promisc", "mask", "default", "baud", "can", NULL};
 
-	if (!PyArg_ParseTupleAndKeywords(args, kwds, "I|iiiis:csp_add_can", kwlist, &addr, &promisc, &mask, &dfl, &baud, &device))
+	if (!PyArg_ParseTupleAndKeywords(args, kwds, "I|iiiiz:csp_add_can", kwlist, &addr, &promisc, &mask, &dfl, &baud, &device))
 		return NULL;  // TypeError is thrown
 
    csp_iface_t * iface;
@@ -262,7 +262,7 @@ PyObject * pycsh_csh_csp_ifadd_eth(PyObject * self, PyObject * args, PyObject * 
 
     static char *kwlist[] = {"addr", "device", "promisc", "mask", "default", "mtu", NULL};
 
-	if (!PyArg_ParseTupleAndKeywords(args, kwds, "I|siiii:csp_add_eth", kwlist, &addr, &device, &promisc, &mask, &dfl, &mtu))
+	if (!PyArg_ParseTupleAndKeywords(args, kwds, "I|ziiii:csp_add_eth", kwlist, &addr, &device, &promisc, &mask, &dfl, &mtu))
 		return NULL;  // TypeError is thrown
 
     eth_select_interface(&device);

@@ -582,7 +582,7 @@ static PyObject * PythonGetSetParameter_new(PyTypeObject *type, PyObject * args,
 
     static char *kwlist[] = {"id", "name", "type", "mask", "unit", "docstr", "array_size", "callback", "host", "timeout", "retries", "paramver", "getter", "setter", NULL};
 
-    if (!PyArg_ParseTupleAndKeywords(args, kwds, "HsiO|ssiOiiiiOO", kwlist, &id, &name, &param_type, &mask_obj, &unit, &docstr, &array_size, &callback, &host, &timeout, &retries, &paramver, &getter_func, &setter_func))
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "HsiO|zziOiiiiOO", kwlist, &id, &name, &param_type, &mask_obj, &unit, &docstr, &array_size, &callback, &host, &timeout, &retries, &paramver, &getter_func, &setter_func))
         return NULL;  // TypeError is thrown
 
     if (getter_func == NULL && setter_func == NULL) {

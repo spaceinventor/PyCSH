@@ -27,7 +27,7 @@ PyObject * pycsh_param_list(PyObject * self, PyObject * args, PyObject * kwds) {
 
     static char *kwlist[] = {"node", "verbose", "mask", "globstr", NULL};
 
-    if (!PyArg_ParseTupleAndKeywords(args, kwds, "|iiOs", kwlist, &node, &verbosity, &mask_obj, &globstr)) {
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "|iiOz:list", kwlist, &node, &verbosity, &mask_obj, &globstr)) {
         return NULL;
     }
 
@@ -86,7 +86,7 @@ PyObject * pycsh_param_list_add(PyObject * self, PyObject * args, PyObject * kwd
     char * unitstr = NULL;
 
     static char *kwlist[] = {"node", "length", "id", "name", "type", "mask", "comment", "unit", NULL};
-    if (!PyArg_ParseTupleAndKeywords(args, kwds, "IIIsI|Oss", kwlist, &node, &length, &id, &name, &type, &mask_obj, &helpstr, &unitstr)) {
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "IIIsI|Ozz:list_add", kwlist, &node, &length, &id, &name, &type, &mask_obj, &helpstr, &unitstr)) {
         return NULL;
     }
 
@@ -211,7 +211,7 @@ PyObject * pycsh_param_list_save(PyObject * self, PyObject * args, PyObject * kw
 
     static char *kwlist[] = {"filename", "node", "skip_node", NULL};
 
-    if (!PyArg_ParseTupleAndKeywords(args, kwds, "|sip", kwlist, &filename, &node, &skip_node)) {
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "|zip:list_save", kwlist, &filename, &node, &skip_node)) {
         return NULL;  // TypeError is thrown
     }
 

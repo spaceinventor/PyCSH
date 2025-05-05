@@ -30,7 +30,7 @@ PyObject * pycsh_apm_load(PyObject * self, PyObject * args, PyObject * kwds) {
 
     static char *kwlist[] = {"path", "filename", "stop_on_error", "verbose", NULL};
 
-	if (!PyArg_ParseTupleAndKeywords(args, kwds, "|ssp:apm_load", kwlist, &path, &filename, &stop_on_error, &verbose))
+	if (!PyArg_ParseTupleAndKeywords(args, kwds, "|zzpi:apm_load", kwlist, &path, &filename, &stop_on_error, &verbose))
 		return NULL;  // TypeError is thrown
 
 	// TODO Kevin: This wrapper should probably ALSO load C APMs. But we can clean up the C APM API a bit before that.

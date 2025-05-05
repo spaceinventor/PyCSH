@@ -26,7 +26,7 @@ PyObject * pycsh_vm_start(PyObject * self, PyObject * py_args, PyObject * kwds) 
 
     static char *kwlist[] = {"api_root", "logfile", "username", "password", "auth_file", "ssl", "server_port", "skip_verify", "verbose", NULL};
 
-    if (!PyArg_ParseTupleAndKeywords(py_args, kwds, "s|pssspIpp", kwlist, &api_root, &logfile, &args->username, &args->password, &key_file, &args->use_ssl, &args->port, &args->skip_verify, &args->verbose)) {
+    if (!PyArg_ParseTupleAndKeywords(py_args, kwds, "s|pzzzpIpp:vm_start", kwlist, &api_root, &logfile, &args->username, &args->password, &key_file, &args->use_ssl, &args->port, &args->skip_verify, &args->verbose)) {
         return NULL;  // TypeError is thrown
     }
     
