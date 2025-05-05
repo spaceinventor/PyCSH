@@ -102,10 +102,11 @@ static PyObject * Ident_new(PyTypeObject *type, PyObject *args, PyObject *kwds) 
         return NULL;  // TypeError is thrown
     }
 
-    struct csp_cmp_message msg;
-    msg.type = CSP_CMP_REQUEST;
-    msg.code = CSP_CMP_IDENT;
-    const int size = sizeof(msg.type) + sizeof(msg.code) + sizeof(msg.ident);
+    struct csp_cmp_message msg = {
+		.type = CSP_CMP_REQUEST,
+		.code = CSP_CMP_IDENT,
+	};
+	int size = sizeof(msg.type) + sizeof(msg.code) + sizeof(msg.ident);
 
     csp_conn_t * conn __attribute__((cleanup(csp_conn_cleanup))) = NULL;
     csp_packet_t * packet;
