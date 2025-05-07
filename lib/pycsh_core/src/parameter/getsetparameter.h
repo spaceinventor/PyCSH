@@ -20,22 +20,22 @@
 //extern PyObject * PyExc_ParamSetterError;
 
 typedef struct {
-    PythonParameterObject parameter_object;
+    DynamicParameterObject parameter_object;
     PyObject *getter_func;
     PyObject *setter_func;
 
     /* Every GetSetParameter instance allocates its own vmem.
         This vmem is passed to its read/write,
-        which allows us to work our way back to the PythonGetSetParameterObject,
+        which allows us to work our way back to the GetSetParameterObject,
         based on knowing the offset of the vmem field.
-        The PythonGetSetParameterObject is needed to call the Python getter/setter funcs. */
+        The GetSetParameterObject is needed to call the Python getter/setter funcs. */
     /* NOTE: PythonParameter (our baseclass) uses param_list_create_remote() to create its ->param,
         which both allocates and assign a vmem to ->param->vmem.
         This vmem will be overridden by the one you see below,
         but it will still be freed by param_list_remove_specific().
         It would be nice to reuse it,
-        but it probably can't help us find our PythonGetSetParameterObject */
+        but it probably can't help us find our GetSetParameterObject */
     vmem_t vmem_heap;  
-} PythonGetSetParameterObject;
+} GetSetParameterObject;
 
-extern PyTypeObject PythonGetSetParameterType;
+extern PyTypeObject GetSetParameterType;
