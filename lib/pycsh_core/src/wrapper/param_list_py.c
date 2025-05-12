@@ -14,7 +14,7 @@
 #include "../pycsh.h"
 #include "../utils.h"
 #include "../parameter/parameter.h"
-#include "../parameter/pythonparameter.h"
+#include "../parameter/dynamicparameter.h"
 
 #include "param_list_py.h"
 

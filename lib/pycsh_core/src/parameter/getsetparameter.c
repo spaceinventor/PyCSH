@@ -5,7 +5,7 @@
  *
  */
 
-#include "pythongetsetparameter.h"
+#include "getsetparameter.h"
 
 // It is recommended to always define PY_SSIZE_T_CLEAN before including Python.h
 #define PY_SSIZE_T_CLEAN
@@ -21,7 +21,7 @@
 #include "pycshconfig.h"
 
 
-PythonGetSetParameterObject *python_wraps_vmem(const vmem_t * vmem);
+GetSetParameterObject *python_wraps_vmem(const vmem_t * vmem);
 
 static PyObject *_pycsh_val_to_pyobject(param_type_e type, const void * value) {
     switch (type) {
@@ -186,7 +186,7 @@ void Parameter_getter(vmem_t * vmem, uint64_t addr, void * dataout, uint32_t len
     PyGILState_STATE CLEANUP_GIL gstate = PyGILState_Ensure();
     assert(!PyErr_Occurred());  // Callback may raise an exception. But we don't want to override an existing one.
 
-    PythonGetSetParameterObject *python_param = python_wraps_vmem(vmem);
+    GetSetParameterObject *python_param = python_wraps_vmem(vmem);
 
     /* This param_t uses the Python Parameter callback, but doesn't actually point to a Parameter.
         Perhaps it was deleted? Or perhaps it was never set correctly. */
@@ -237,7 +237,7 @@ void Parameter_setter(vmem_t * vmem, uint64_t addr, const void * datain, uint32_
     PyGILState_STATE CLEANUP_GIL gstate = PyGILState_Ensure();
     assert(!PyErr_Occurred());  // Callback may raise an exception. But we don't want to override an existing one.
 
-    PythonGetSetParameterObject *python_param = python_wraps_vmem(vmem);
+    GetSetParameterObject *python_param = python_wraps_vmem(vmem);
 
     /* This param_t uses the Python Parameter callback, but doesn't actually point to a Parameter.
         Perhaps it was deleted? Or perhaps it was never set correctly. */
@@ -279,16 +279,16 @@ void Parameter_setter(vmem_t * vmem, uint64_t addr, const void * datain, uint32_
 }
 
 /**
- * @brief Check if this vmem is wrapped by a PythonGetSetParameterObject.
+ * @brief Check if this vmem is wrapped by a GetSetParameterObject.
  *
  * @return borrowed reference to the wrapping PythonSlashCommandObject if wrapped, otherwise NULL.
  */
-PythonGetSetParameterObject *python_wraps_vmem(const vmem_t * vmem) {
+GetSetParameterObject *python_wraps_vmem(const vmem_t * vmem) {
     if (vmem == NULL || (vmem->read != Parameter_getter && vmem->write != Parameter_setter))
         return NULL;  // This slash command is not wrapped by PythonSlashCommandObject
     // TODO Kevin: What are the consequences of allowing only getter and or setter?
     // assert(vmem->write == Parameter_setter);  // It should not be possible to have the correct internal .read(), but the incorrect internal .write()
-    return (PythonGetSetParameterObject *)((char *)vmem - offsetof(PythonGetSetParameterObject, vmem_heap));
+    return (GetSetParameterObject *)((char *)vmem - offsetof(GetSetParameterObject, vmem_heap));
 }
 
 // Source: https://chat.openai.com
@@ -448,7 +448,7 @@ static bool is_valid_setter(const PyObject *setter, bool raise_exc) {
     return true;
 }
 
-static void PythonGetSetParameter_dealloc(PythonGetSetParameterObject *self) {
+static void PythonGetSetParameter_dealloc(GetSetParameterObject *self) {
 
     if (self->getter_func != NULL && self->getter_func != Py_None) {
         Py_XDECREF(self->getter_func);
@@ -460,15 +460,15 @@ static void PythonGetSetParameter_dealloc(PythonGetSetParameterObject *self) {
         self->setter_func = NULL;
     }
 
-    PyTypeObject *baseclass = pycsh_get_base_dealloc_class(&PythonGetSetParameterType);
+    PyTypeObject *baseclass = pycsh_get_base_dealloc_class(&GetSetParameterType);
     baseclass->tp_dealloc((PyObject*)self);
 }
 
-static PyObject * Parameter_get_getter(PythonGetSetParameterObject *self, void *closure) {
+static PyObject * Parameter_get_getter(GetSetParameterObject *self, void *closure) {
     return Py_NewRef(self->getter_func);
 }
 
-int Parameter_set_getter(PythonGetSetParameterObject *self, PyObject *value, void *closure) {
+int Parameter_set_getter(GetSetParameterObject *self, PyObject *value, void *closure) {
 
     if (value == NULL) {
         PyErr_SetString(PyExc_TypeError, "Cannot delete the getter attribute");
@@ -512,11 +512,11 @@ int Parameter_set_getter(PythonGetSetParameterObject *self, PyObject *value, voi
     return 0;
 }
 
-static PyObject * Parameter_get_setter(PythonGetSetParameterObject *self, void *closure) {
+static PyObject * Parameter_get_setter(GetSetParameterObject *self, void *closure) {
     return Py_NewRef(self->setter_func);
 }
 
-int Parameter_set_setter(PythonGetSetParameterObject *self, PyObject *value, void *closure) {
+int Parameter_set_setter(GetSetParameterObject *self, PyObject *value, void *closure) {
 
     if (value == NULL) {
         PyErr_SetString(PyExc_TypeError, "Cannot delete the setter attribute");
@@ -608,7 +608,7 @@ static PyObject * PythonGetSetParameter_new(PyTypeObject *type, PyObject * args,
         array_size = 1;
 
     // TODO Kevin: Call super with correct *args and **kwargs, instead of reimplementing PythonParameter.__new__()
-    PythonGetSetParameterObject * self = (PythonGetSetParameterObject*)Parameter_create_new(type, id, param_type, mask, name, unit, docstr, array_size, callback, host, timeout, retries, paramver);
+    GetSetParameterObject * self = (GetSetParameterObject*)Parameter_create_new(type, id, 0, param_type, mask, name, unit, docstr, array_size, callback, host, timeout, retries, paramver);
     if (self == NULL) {
         // Assume exception message to be set by Parameter_create_new()
         /* physaddr should be freed in dealloc() */
@@ -652,11 +652,11 @@ static PyGetSetDef PythonParameter_getsetters[] = {
     {NULL, NULL, NULL, NULL}  /* Sentinel */
 };
 
-PyTypeObject PythonGetSetParameterType = {
+PyTypeObject GetSetParameterType = {
     PyVarObject_HEAD_INIT(NULL, 0)
     .tp_name = "pycsh.PythonGetSetParameter",
     .tp_doc = "Parameter, with getter and or setter, created in Python.",
-    .tp_basicsize = sizeof(PythonGetSetParameterObject),
+    .tp_basicsize = sizeof(GetSetParameterObject),
     .tp_itemsize = 0,
     .tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
     .tp_new = PythonGetSetParameter_new,
@@ -664,5 +664,5 @@ PyTypeObject PythonGetSetParameterType = {
     .tp_getset = PythonParameter_getsetters,
     // .tp_str = (reprfunc)Parameter_str,
     // .tp_richcompare = (richcmpfunc)Parameter_richcompare,
-    .tp_base = &PythonParameterType,
+    .tp_base = &DynamicParameterType,
 };

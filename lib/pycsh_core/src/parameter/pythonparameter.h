@@ -14,23 +14,14 @@
 #include <param/param.h>
 
 #include "parameter.h"
-
-extern PyObject * PyExc_ParamCallbackError;
-extern PyObject * PyExc_InvalidParameterTypeError;
-
-extern PyDictObject * param_callback_dict;
+#include "dynamicparameter.h"
 
 typedef struct {
-    ParameterObject parameter_object;
-    PyObject *callback;
+    DynamicParameterObject dyn_param;
 	int keep_alive: 1;  // For the sake of reference counting, keep_alive should only be changed by Parameter_setkeep_alive()
 } PythonParameterObject;
 
 extern PyTypeObject PythonParameterType;
-
-void Parameter_callback(param_t * param, int offset);
-
-PythonParameterObject * Parameter_create_new(PyTypeObject *type, uint16_t id, param_type_e param_type, uint32_t mask, char * name, char * unit, char * docstr, int array_size, const PyObject * callback, int host, int timeout, int retries, int paramver);
 
 // Source: https://chat.openai.com
 /**
