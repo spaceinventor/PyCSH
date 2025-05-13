@@ -11,7 +11,7 @@
 #include "dflopt_py.h"
 
 #include "../pycsh.h"
-#include <csh/known_hosts.h>
+#include <apm/csh_api.h>
 
 
 // TODO Kevin: These differ from the newest version of slash/csh

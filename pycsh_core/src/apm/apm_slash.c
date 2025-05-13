@@ -115,7 +115,7 @@ extern struct slash_command slash_cmd_apm_load;
 //#define original_apm_load slash_cmd_apm_load
 struct slash_command * original_apm_load = &slash_cmd_apm_load;
 
-static int py_apm_load_cmd(struct slash *slash) {
+int py_apm_load_cmd(struct slash *slash) {
 
     char * path = NULL;
     char * search_str = NULL;
@@ -168,43 +168,26 @@ static int py_apm_load_cmd(struct slash *slash) {
 			if (search_str && !strstr(entry->d_name, search_str)) {
 				continue;
 			}
+			if(strstr(entry->d_name, ".py")) {
+				int fullpath_len = strnlen(path, WALKDIR_MAX_PATH_SIZE) + strnlen(entry->d_name, WALKDIR_MAX_PATH_SIZE);
+				char fullpath[fullpath_len+1];
+				strncpy(fullpath, path, fullpath_len);
+				strncat(fullpath, entry->d_name, fullpath_len-strnlen(path, WALKDIR_MAX_PATH_SIZE));
+				PyObject * pymod AUTO_DECREF = pycsh_load_pymod(fullpath, DEFAULT_INIT_FUNCTION, 1);
+				if (pymod == NULL) {
+					PyErr_Print();
+					continue;
+				}
+				lib_count++;
 
-			int fullpath_len = strnlen(path, WALKDIR_MAX_PATH_SIZE) + strnlen(entry->d_name, WALKDIR_MAX_PATH_SIZE);
-			char fullpath[fullpath_len+1];
-			strncpy(fullpath, path, fullpath_len);
-			strncat(fullpath, entry->d_name, fullpath_len-strnlen(path, WALKDIR_MAX_PATH_SIZE));
-			PyObject * pymod AUTO_DECREF = pycsh_load_pymod(fullpath, DEFAULT_INIT_FUNCTION, 1);
-			if (pymod == NULL) {
-				PyErr_Print();
-				continue;
+				// TODO Kevin: Verbose argument?
+				printf("\033[32mLoaded: %s\033[0m\n", fullpath);
 			}
-			lib_count++;
-
-			// TODO Kevin: Verbose argument?
-			printf("\033[32mLoaded: %s\033[0m\n", fullpath);
 		}
 	}
 
 	optparse_del(parser);
-	return original_apm_load->func(slash);
+	return SLASH_SUCCESS;
 }
-__slash_command(slash_cmd_apm_load_py, "apm load", py_apm_load_cmd, NULL, "", "Load an APM (Python or C)");
+// __slash_command(slash_cmd_apm_load_py, "apm load", py_apm_load_cmd, NULL, "", "Load an APM (Python or C)");
 
-__attribute__((destructor(152))) static void restore_original_apm_load(void) {
-
-	char * args = NULL;
-
-	extern struct slash_command * slash_command_find(struct slash *slash, char *line, size_t linelen, char **args);
-	struct slash_command *current_apm_load = slash_command_find(NULL, "apm load", strlen("apm load"), &args);
-	assert(current_apm_load != NULL);
-
-	/* Someone has replaced us, let's not restore anyway. */
-	if (current_apm_load != &slash_cmd_apm_load_py) {
-		return;
-	}
-
-	// We explicitly remove our command from the list, to avoid the print from slash_list_add()
-	slash_list_remove(&slash_cmd_apm_load_py);
-
-	slash_list_add(original_apm_load);
-}

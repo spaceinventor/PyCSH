@@ -47,8 +47,7 @@
 
 #include <sys/types.h>
 
-#include <csh/prometheus.h>
-#include <csh/param_sniffer.h>
+// #include <csh/param_sniffer.h>
 
 #include "utils.h"
 
@@ -82,7 +81,7 @@
 
 extern const char *version_string;
 
-VMEM_DEFINE_FILE(col, "col", "colcnf.vmem", 120);
+// VMEM_DEFINE_FILE(col, "col", "colcnf.vmem", 120);
 #ifdef PARAM_HAVE_COMMANDS
 VMEM_DEFINE_FILE(commands, "cmd", "commands.vmem", 2048);
 #endif
@@ -117,16 +116,16 @@ uint8_t csp_initialized() {
 #include <slash/dflopt.h>
 #else
 // TODO Kevin: Building as APM without slash, will provide its own default node/timeout, which is very much not ideal.
-unsigned int slash_dfl_node = 0;
-unsigned int slash_dfl_timeout = 1000;
+// unsigned int slash_dfl_node = 0;
+// unsigned int slash_dfl_timeout = 1000;
 #endif
 unsigned int pycsh_dfl_verbose = -1;
 
-uint64_t clock_get_nsec(void) {
-	struct timespec ts;
-	clock_gettime(CLOCK_MONOTONIC, &ts);
-	return ts.tv_sec * 1E9 + ts.tv_nsec;
-}
+// uint64_t clock_get_nsec(void) {
+// 	struct timespec ts;
+// 	clock_gettime(CLOCK_MONOTONIC, &ts);
+// 	return ts.tv_sec * 1E9 + ts.tv_nsec;
+// }
 
 void * onehz_task(void * param) {
 	while(1) {
@@ -323,8 +322,8 @@ static PyMethodDef methods[] = {
 	{"sps", 	(PyCFunction)slash_sps,   		 METH_VARARGS | METH_KEYWORDS, "Switch -> Program -> Switch"},
 	{"apm_load",(PyCFunction)pycsh_apm_load,   	 METH_VARARGS | METH_KEYWORDS, "Loads both .py and .so APMs"},
 
-	{"vm_start", (PyCFunction)pycsh_vm_start,   METH_VARARGS | METH_KEYWORDS, "Start logging to Victoria Metrics"},
-	{"vm_stop", (PyCFunction)pycsh_vm_stop,   METH_NOARGS, "Stop logging to Victoria Metrics"},
+	// {"vm_start", (PyCFunction)pycsh_vm_start,   METH_VARARGS | METH_KEYWORDS, "Start logging to Victoria Metrics"},
+	// {"vm_stop", (PyCFunction)pycsh_vm_stop,   METH_NOARGS, "Stop logging to Victoria Metrics"},
 
 	/* Wrappers for src/csp_init_cmd.c */
 	{"csp_init", 	(PyCFunction)pycsh_csh_csp_init,   METH_VARARGS | METH_KEYWORDS, "Initialize CSP"},

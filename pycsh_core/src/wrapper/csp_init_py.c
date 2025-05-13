@@ -30,19 +30,19 @@
 #include <csp/csp_rtable.h>
 #include <ifaddrs.h>
 
-void * router_task(void * param) {
-    Py_Initialize();  // We need to initialize the Python interpreter before CSP may call any PythonParameter callbacks.
-	while(1) {
-		csp_route_work();
-	}
-    Py_Finalize();
-}
+// void * router_task(void * param) {
+//     Py_Initialize();  // We need to initialize the Python interpreter before CSP may call any PythonParameter callbacks.
+// 	while(1) {
+// 		csp_route_work();
+// 	}
+//     Py_Finalize();
+// }
 
-void * vmem_server_task(void * param) {
-    // TODO Kevin: If vmem_server ever needs to access Python objects, we should call Py_Initialize() here.
-	vmem_server_loop(param);
-	return NULL;
-}
+// void * vmem_server_task(void * param) {
+//     // TODO Kevin: If vmem_server ever needs to access Python objects, we should call Py_Initialize() here.
+// 	vmem_server_loop(param);
+// 	return NULL;
+// }
 
 PyObject * pycsh_csh_csp_init(PyObject * self, PyObject * args, PyObject * kwds) {
 
@@ -85,11 +85,11 @@ PyObject * pycsh_csh_csp_init(PyObject * self, PyObject * args, PyObject * kwds)
     csp_bind_callback(csp_service_handler, CSP_ANY);
 	csp_bind_callback(param_serve, PARAM_PORT_SERVER);
 
-	static pthread_t router_handle;
-	pthread_create(&router_handle, NULL, &router_task, NULL);
+	// static pthread_t router_handle;
+	// pthread_create(&router_handle, NULL, &router_task, NULL);
 
-	static pthread_t vmem_server_handle;
-	pthread_create(&vmem_server_handle, NULL, &vmem_server_task, NULL);
+	// static pthread_t vmem_server_handle;
+	// pthread_create(&vmem_server_handle, NULL, &vmem_server_task, NULL);
 
     csp_iflist_check_dfl();
 

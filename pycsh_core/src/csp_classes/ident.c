@@ -16,7 +16,8 @@
 
 #include "../pycsh.h"
 #include "../utils.h"
-#include <csh/known_hosts.h>
+#include <apm/csh_api.h>
+
 
 
 /* 1 for success. Compares the fields of two 'ident' replies, otherwise 0. Assumes self to be a IdentObject. */

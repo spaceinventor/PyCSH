@@ -28,8 +28,9 @@ extern param_queue_t param_queue;
 //static char queue_buf[PARAM_SERVER_MTU];
 //static param_queue_t param_queue = { .buffer = queue_buf, .buffer_size = PARAM_SERVER_MTU, .type = PARAM_QUEUE_TYPE_EMPTY, .version = 2 };
 #else
-static char queue_buf[PARAM_SERVER_MTU];
-param_queue_t param_queue = { .buffer = queue_buf, .buffer_size = PARAM_SERVER_MTU, .type = PARAM_QUEUE_TYPE_EMPTY, .version = 2 };
+// static char queue_buf[PARAM_SERVER_MTU];
+// param_queue_t param_queue = { .buffer = queue_buf, .buffer_size = PARAM_SERVER_MTU, .type = PARAM_QUEUE_TYPE_EMPTY, .version = 2 };
+extern param_queue_t param_queue;
 #endif
 
 PyObject * pycsh_param_get(PyObject * self, PyObject * args, PyObject * kwds) {

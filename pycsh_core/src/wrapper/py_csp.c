@@ -12,7 +12,7 @@
 
 #include "../pycsh.h"
 #include "../csp_classes/ifstat.h"
-#include <csh/known_hosts.h>
+#include <apm/csh_api.h>
 
 #include "py_csp.h"
 

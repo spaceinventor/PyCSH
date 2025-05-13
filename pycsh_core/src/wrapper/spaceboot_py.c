@@ -195,8 +195,8 @@ struct bin_info_t {
 	uint32_t addr_max;
 	unsigned count;
 	char entries[BIN_PATH_MAX_ENTRIES][BIN_PATH_MAX_SIZE];
-} bin_info;
-
+};
+extern struct bin_info_t bin_info;
 #if 0  // TODO Kevin: When a .bin filename is specified, is_valid_binary() should be used.
 // Binary file byte offset of entry point address.
 // C21: 4, E70: 2C4

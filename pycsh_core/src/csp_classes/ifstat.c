@@ -8,7 +8,7 @@
 
 #include "../pycsh.h"
 #include "../utils.h"
-#include <csh/known_hosts.h>
+#include <apm/csh_api.h>
 
 
 static PyObject * Ifstat_str(IfstatObject *self) {
