@@ -12,7 +12,7 @@ Compilation happens automatically when importing,
 but may be done manually for specific Python versions by editing python3_versions in meson_options.txt. 
 The versions specified there must be installed when compiling manually.
 
-### Build
+### Dependencies
 
 Requirements: build-essential, libsocketcan-dev, can-utils, libzmq3-dev, libyaml-dev, meson, pkg-config
 
@@ -21,86 +21,59 @@ sudo apt-get install build-essential libsocketcan-dev can-utils libzmq3-dev liby
 sudo pip3 install meson ninja
 ```
 
-Sometimes needed:
+### Normal installation
+
+Github pip install
 ```
-link /usr/sbin/ninja /usr/local/lib/python3.5/dist-packages/ninja
+pip install git+https://github.com/spaceinventor/PyCSH.git
 ```
+
+PyCSH can be used in a pip `requirement.txt` file (using a git reference) or as a [poetry](https://python-poetry.org/) dependency.
+
+Example in a `requirements.txt` file:
+
+```
+-e git+https://github.com/spaceinventor/PyCSH.git
+```
+
+### Setup for developers
 
 Setup
 ```
-git clone https://github.com/spaceinventor/PyCSH.git
+git clone --recurse-submodules https://github.com/spaceinventor/PyCSH.git 
 cd PyCSH
-git submodule update --init --recursive
 
-meson . builddir
-ninja -C builddir
+./configure
 ```
 
-Build (No install)
-```
-ninja -C builddir
-```
-
-Build & Install (Optional)
+Build & Install
 ```
 # Recompiling the repository will not affect system-wide imports.
 # Does not include .pyi file API documentation for IDEs
 
-sudo ninja -C builddir/ install
-# Uninstall with: sudo rm /usr/local/lib/python3/dist-packages/pycsh.cp*.so
+./install
 ```
 
-Install repo as package (Optional)
+Install repo as package
 ```
 # Recompiling the repository will affect system-wide imports.
 # Includes .pyi file API documentation for IDEs
 
-sudo ln -s <FULL/PATH/TO/PyCSH/REPO>/PyCSH /usr/lib/python3/dist-packages/PyCSH
-# Uninstall by deleting: /usr/lib/python3/dist-packages/PyCSH
+pip3 -e install.
 ```
 
-## Build a pip installable binary wheel package
-
-The `install` method above is not very friendly to using PyCSH in a virtual environment (why should we not do that ?), the following method allows PyCSH to be more Python-ecosystem friendly.
-
+Build (No install)
 ```
-jbl@jbl-ThinkPad-T15-Gen-1:~/workspace/PyCSH$ python3 -m pip wheel .
-Processing /home/jbl/workspace/PyCSH
-  Installing build dependencies ... done
-  Getting requirements to build wheel ... done
-  Installing backend dependencies ... done
-  Preparing metadata (pyproject.toml) ... done
-Building wheels for collected packages: PyCSH
-  Building wheel for PyCSH (pyproject.toml) ... done
-  Created wheel for PyCSH: filename=pycsh-0.0.1-cp310-cp310-linux_x86_64.whl size=147628 sha256=c669edfe492a46027ab316c648b706d149dae92a9486d6ed704085a05df9e7d2
-  Stored in directory: /tmp/pip-ephem-wheel-cache-9yval4e6/wheels/80/73/10/7d67ed7195a8b108e2e143578f305e3ae9c55e39b807c4cc8f
-Successfully built PyCSH
-jbl@jbl-ThinkPad-T15-Gen-1:~/workspace/PyCSH$ 
+./build
 ```
-
-This will produce a `pycsh-0.0.1-cp310-cp310-linux_x86_64.whl` that can be installed using pip:
-
-```
-jbl@jbl-ThinkPad-T15-Gen-1:~/workspace/PyCSH$ pip install pycsh-0.0.1-cp310-cp310-linux_x86_64.whl
-Defaulting to user installation because normal site-packages is not writeable
-Processing ./pycsh-0.0.1-cp310-cp310-linux_x86_64.whl
-Installing collected packages: pycsh
-Successfully installed pycsh-0.0.1
-jbl@jbl-ThinkPad-T15-Gen-1:~/workspace/PyCSH$
-```
-
-This also means that PyCSH can be used in a pip `requirement.txt` file (using a git reference) or as a [poetry](https://python-poetry.org/) dependency.
-
-Example in a `requirements.txt` file:
-
--e git+https://github.com/spaceinventor/PyCSH.git
 
 ### Run
 ```
-import PyCSH
+import pycsh
 
 def main():
-    PyCSH.init()  # Accepts many options, including .yaml file with config.
+    pycsh.init()
+    pycsh.csp_init()
     # <CODE GOES HERE>
 
 if __name__ == '__main__':
