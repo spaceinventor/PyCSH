@@ -30,19 +30,23 @@
 #include <csp/csp_rtable.h>
 #include <ifaddrs.h>
 
-// void * router_task(void * param) {
-//     Py_Initialize();  // We need to initialize the Python interpreter before CSP may call any PythonParameter callbacks.
-// 	while(1) {
-// 		csp_route_work();
-// 	}
-//     Py_Finalize();
-// }
+/* These symbols are not present when using PyCSH "standalone" (from a Python script executed by the interactive interpreter for example) */
+__attribute__((weak)) void *(*router_task)(void *) = NULL;
+__attribute__((weak)) void *(*vmem_server_task)(void *) = NULL;
 
-// void * vmem_server_task(void * param) {
-//     // TODO Kevin: If vmem_server ever needs to access Python objects, we should call Py_Initialize() here.
-// 	vmem_server_loop(param);
-// 	return NULL;
-// }
+void * py_router_task(void * param) {
+    Py_Initialize();  // We need to initialize the Python interpreter before CSP may call any PythonParameter callbacks.
+	while(1) {
+		csp_route_work();
+	}
+    Py_Finalize();
+}
+
+void * py_vmem_server_task(void * param) {
+    // TODO Kevin: If vmem_server ever needs to access Python objects, we should call Py_Initialize() here.
+	vmem_server_loop(param);
+	return NULL;
+}
 
 PyObject * pycsh_csh_csp_init(PyObject * self, PyObject * args, PyObject * kwds) {
 
@@ -53,56 +57,57 @@ PyObject * pycsh_csh_csp_init(PyObject * self, PyObject * args, PyObject * kwds)
 	int dedup = 3;
 
 	static char *kwlist[] = {"host", "model", "revision", "version", "dedup", NULL};
+    if(NULL == router_task) {
+        if (!PyArg_ParseTupleAndKeywords(args, kwds, "|zzzii:csp_init", kwlist, &hostname, &model, &revision, &version, &dedup))
+            return NULL;  // TypeError is thrown
 
-	if (!PyArg_ParseTupleAndKeywords(args, kwds, "|zzzii:csp_init", kwlist, &hostname, &model, &revision, &version, &dedup))
-		return NULL;  // TypeError is thrown
+        static struct utsname info;
+        uname(&info);
 
-	static struct utsname info;
-	uname(&info);
+        if (hostname == NULL)
+            hostname = info.nodename;
 
-    if (hostname == NULL)
-        hostname = info.nodename;
+        if (model == NULL)
+            model = info.version;
 
-    if (model == NULL)
-        model = info.version;
+        if (revision == NULL)
+            revision = info.release;
 
-    if (revision == NULL)
-        revision = info.release;
+        printf("  Version %d\n", version);
+        printf("  Hostname: %s\n", hostname);
+        printf("  Model: %s\n", model);
+        printf("  Revision: %s\n", revision);
+        printf("  Deduplication: %d\n", dedup);
 
-    printf("  Version %d\n", version);
-    printf("  Hostname: %s\n", hostname);
-    printf("  Model: %s\n", model);
-    printf("  Revision: %s\n", revision);
-    printf("  Deduplication: %d\n", dedup);
+        csp_conf.hostname = hostname;
+        csp_conf.model = model;
+        csp_conf.revision = revision;
+        csp_conf.version = version;
+        csp_conf.dedup = dedup;
+        csp_init();
 
-	csp_conf.hostname = hostname;
-	csp_conf.model = model;
-	csp_conf.revision = revision;
-	csp_conf.version = version;
-	csp_conf.dedup = dedup;
-	csp_init();
+        csp_bind_callback(csp_service_handler, CSP_ANY);
+        csp_bind_callback(param_serve, PARAM_PORT_SERVER);
 
-    csp_bind_callback(csp_service_handler, CSP_ANY);
-	csp_bind_callback(param_serve, PARAM_PORT_SERVER);
 
-	// static pthread_t router_handle;
-	// pthread_create(&router_handle, NULL, &router_task, NULL);
+        static pthread_t router_handle;
+        pthread_create(&router_handle, NULL, &py_router_task, NULL);
+        static pthread_t vmem_server_handle;
+        pthread_create(&vmem_server_handle, NULL, &py_vmem_server_task, NULL);
+        router_task = py_router_task;
 
-	// static pthread_t vmem_server_handle;
-	// pthread_create(&vmem_server_handle, NULL, &vmem_server_task, NULL);
+        csp_iflist_check_dfl();
 
-    csp_iflist_check_dfl();
+        csp_rdp_set_opt(3, 10000, 5000, 1, 2000, 2);
+        //csp_rdp_set_opt(5, 10000, 5000, 1, 2000, 4);
+        //csp_rdp_set_opt(10, 10000, 5000, 1, 2000, 8);
+        //csp_rdp_set_opt(25, 10000, 5000, 1, 2000, 20);
+        //csp_rdp_set_opt(40, 3000, 1000, 1, 250, 35);
 
-	csp_rdp_set_opt(3, 10000, 5000, 1, 2000, 2);
-	//csp_rdp_set_opt(5, 10000, 5000, 1, 2000, 4);
-	//csp_rdp_set_opt(10, 10000, 5000, 1, 2000, 8);
-	//csp_rdp_set_opt(25, 10000, 5000, 1, 2000, 20);
-	//csp_rdp_set_opt(40, 3000, 1000, 1, 250, 35);
-
-    /* Allow CSP dependant functions henceforth (... could be done better) */
-    extern uint8_t _csp_initialized;
-    _csp_initialized = 1;
-
+        /* Allow CSP dependant functions henceforth (... could be done better) */
+        extern uint8_t _csp_initialized;
+        _csp_initialized = 1;
+    }
     Py_RETURN_NONE;
 }
 

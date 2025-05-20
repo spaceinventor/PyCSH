@@ -1,15 +1,4 @@
 #!/bin/sh
-
-# TODO Kevin: libcsh_pycsh*.so doesn't exist when we call this script with a fresh builddir,
-#   so $target is invalid.
-
-# APM version should be installed to ~/.local/lib/csh as configured by ./configure
-# Find the built target, Thanks ChatGPT
-target=$(find builddir-apm -name "libcsh_pycsh*.so" -print -quit)
-# Extract just the target name without the directory path
-target_name=$(basename "$target")
-ninja -C builddir-apm $target_name
-
-#ninja -C builddir clean
+ninja -C builddir
 python3 -mpip wheel -w builddir-pip .
 
