@@ -24,7 +24,7 @@
 		return NULL;\
 	}
 
-uint8_t csp_initialized();
+extern uint8_t csp_initialized();
 extern PyMODINIT_FUNC PyInit_pycsh(void);
 
 

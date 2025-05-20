@@ -9,7 +9,7 @@
 #include <Python.h>
 
 #include <param/param_string.h>
-// #include <csh/param_list_slash.h>
+#include <csh/param_list_slash.h>
 
 #include "../pycsh.h"
 #include "../utils.h"

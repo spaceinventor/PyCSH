@@ -20,17 +20,7 @@
 #include <sys/utsname.h>
 
 #include <param/param.h>
-#ifdef PARAM_HAVE_COMMANDS
-#include <param/param_commands.h>
-#endif
-#ifdef PARAM_HAVE_SCHEDULER
-#include <param/param_scheduler.h>
-#endif
-#ifdef PYCSH_HAVE_SLASH
 #include <slash/slash.h>
-#endif
-
-#include <vmem/vmem_file.h>
 
 #include <csp/csp.h>
 #include <csp/csp_yaml.h>
@@ -47,8 +37,6 @@
 
 #include <sys/types.h>
 
-// #include <csh/param_sniffer.h>
-
 #include "utils.h"
 
 #include "parameter/parameter.h"
@@ -63,13 +51,10 @@
 #include "csp_classes/ifstat.h"
 #include "csp_classes/vmem.h"
 
-#ifdef PYCSH_HAVE_SLASH
 #include "slash_command/slash_command.h"
 #include "slash_command/python_slash_command.h"
-#endif
 
 #include "wrapper/py_csp.h"
-#include "wrapper/apm_py.h"
 #include "wrapper/param_py.h"
 #include "wrapper/slash_py.h"
 #include "wrapper/dflopt_py.h"
@@ -80,18 +65,6 @@
 #include "wrapper/victoria_metrics_py.h"
 
 extern const char *version_string;
-
-// VMEM_DEFINE_FILE(col, "col", "colcnf.vmem", 120);
-#ifdef PARAM_HAVE_COMMANDS
-VMEM_DEFINE_FILE(commands, "cmd", "commands.vmem", 2048);
-#endif
-#ifdef PARAM_HAVE_SCHEDULER
-VMEM_DEFINE_FILE(schedule, "sch", "schedule.vmem", 2048);
-#endif
-VMEM_DEFINE_FILE(dummy, "dummy", "dummy.txt", 1000000);
-
-// #define PARAMID_CSP_RTABLE					 12
-// PARAM_DEFINE_STATIC_VMEM(PARAMID_CSP_RTABLE,      csp_rtable,        PARAM_TYPE_STRING, 64, 0, PM_SYSCONF, NULL, "", csp, 0, NULL);
 
 /* Assertions used when parsing Python arguments, i.e int -> uint32_t */
 static_assert(sizeof(unsigned int) == sizeof(uint32_t));
@@ -112,20 +85,7 @@ uint8_t csp_initialized() {
 	return _csp_initialized;
 }
 
-#ifdef PYCSH_HAVE_APM
-#include <slash/dflopt.h>
-#else
-// TODO Kevin: Building as APM without slash, will provide its own default node/timeout, which is very much not ideal.
-// unsigned int slash_dfl_node = 0;
-// unsigned int slash_dfl_timeout = 1000;
-#endif
 unsigned int pycsh_dfl_verbose = -1;
-
-// uint64_t clock_get_nsec(void) {
-// 	struct timespec ts;
-// 	clock_gettime(CLOCK_MONOTONIC, &ts);
-// 	return ts.tv_sec * 1E9 + ts.tv_nsec;
-// }
 
 void * onehz_task(void * param) {
 	while(1) {
@@ -261,8 +221,6 @@ static PyObject * pycsh_init(PyObject * self, PyObject * args, PyObject *kwds) {
 	param_schedule_server_init();
 #endif
 
-	vmem_file_init(&vmem_dummy);
-
 	static pthread_t onehz_handle;
 	pthread_create(&onehz_handle, NULL, &onehz_task, NULL);
 	#endif
@@ -305,9 +263,7 @@ static PyMethodDef methods[] = {
 
 	/* Utility functions */
 	{"get_type", 	pycsh_util_get_type, 		  	METH_VARARGS, 				  "Gets the type of the specified parameter."},
-#ifdef PYCSH_HAVE_SLASH
 	{"slash_execute", (PyCFunction)pycsh_slash_execute, 			METH_VARARGS | METH_KEYWORDS, "Execute string as a slash command. Used to run .csh scripts"},
-#endif
 
 	/* Converted vmem commands from libparam/src/vmem/vmem_client_slash.c */
 	{"vmem", 	(PyCFunction)pycsh_param_vmem,   METH_VARARGS | METH_KEYWORDS, "Builds a string of the vmem at the specified node."},
@@ -320,10 +276,6 @@ static PyMethodDef methods[] = {
 	{"switch", 	(PyCFunction)slash_csp_switch,   METH_VARARGS | METH_KEYWORDS, "Reboot into the specified firmware slot."},
 	{"program", (PyCFunction)pycsh_csh_program,  METH_VARARGS | METH_KEYWORDS, "Upload new firmware to a module."},
 	{"sps", 	(PyCFunction)slash_sps,   		 METH_VARARGS | METH_KEYWORDS, "Switch -> Program -> Switch"},
-	{"apm_load",(PyCFunction)pycsh_apm_load,   	 METH_VARARGS | METH_KEYWORDS, "Loads both .py and .so APMs"},
-
-	// {"vm_start", (PyCFunction)pycsh_vm_start,   METH_VARARGS | METH_KEYWORDS, "Start logging to Victoria Metrics"},
-	// {"vm_stop", (PyCFunction)pycsh_vm_stop,   METH_NOARGS, "Stop logging to Victoria Metrics"},
 
 	/* Wrappers for src/csp_init_cmd.c */
 	{"csp_init", 	(PyCFunction)pycsh_csh_csp_init,   METH_VARARGS | METH_KEYWORDS, "Initialize CSP"},
@@ -448,7 +400,6 @@ PyMODINIT_FUNC PyInit_pycsh(void) {
         return NULL;
 	}
 
-#ifdef PYCSH_HAVE_SLASH
 	if (PyModule_AddType(pycsh, &SlashCommandType) < 0) {
         return NULL;
 	}
@@ -456,8 +407,6 @@ PyMODINIT_FUNC PyInit_pycsh(void) {
 	if (PyModule_AddType(pycsh, &PythonSlashCommandType) < 0) {
         return NULL;
 	}
-#endif
-
 
 	{ /* Constants */
 
