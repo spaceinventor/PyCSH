@@ -13,11 +13,6 @@ project('PyCSH', 'c', subproject_dir: 'lib', default_options: [
 	'csp:port_max_bind=16',
 	'csp:use_rtable=true',  # TODO Kevin: rtable should not be necessary
 	'slash:builtins=true',
-	'param:slash=true',  # TODO Kevin: How should param:slash work if slash is optional
-	'param:commands=false',
-	'param:scheduler=false',
-	'param:commands_client=true',
-	'param:scheduler_client=true',
 	'param:have_fopen=true',
 	'param:collector=false',
 	'param:list_dynamic=true',

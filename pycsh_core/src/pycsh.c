@@ -258,6 +258,7 @@ static PyMethodDef methods[] = {
 	/* Converted CSH commands from csh/src/slash_csp.c */
 	{"ping", 		(PyCFunction)pycsh_slash_ping, 	METH_VARARGS | METH_KEYWORDS, "Ping the specified node."},
 	{"ident", 		(PyCFunction)pycsh_slash_ident,	METH_VARARGS | METH_KEYWORDS, "Print the identity of the specified node."},
+	{"uptime", 		(PyCFunction)pycsh_csp_cmp_uptime,	METH_VARARGS | METH_KEYWORDS, "Return uptime information of the specified node."},
 	{"ifstat", 		(PyCFunction)pycsh_csp_cmp_ifstat,	METH_VARARGS | METH_KEYWORDS, "Return information about the specified interface."},
 	{"reboot", 		pycsh_slash_reboot, 			 	METH_VARARGS, 				  "Reboot the specified node."},
 

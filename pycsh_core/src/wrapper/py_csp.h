@@ -17,3 +17,5 @@ PyObject * pycsh_slash_ident(PyObject * self, PyObject * args, PyObject * kwds);
 PyObject * pycsh_csp_cmp_ifstat(PyObject * self, PyObject * args, PyObject * kwds);
 
 PyObject * pycsh_slash_reboot(PyObject * self, PyObject * args);
+
+PyObject * pycsh_csp_cmp_uptime(PyObject * self, PyObject * args, PyObject * kwds);

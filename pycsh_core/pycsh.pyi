@@ -759,6 +759,8 @@ def ifstat(if_name: str, node: int = None, timeout: int = None) -> Ifstat:
 def reboot(node: int = None) -> None:
     """ Reboot the specified node. """
 
+def uptime(node: int = None) -> int:
+    """ Return the uptime for the given node """
 
 def get_type(param_identifier: _param_ident_hint, node: int = None) -> _param_type_hint:
     """
