@@ -18,10 +18,8 @@
 
 #include "pycsh.h"
 #include "parameter/parameter.h"
-#include "parameter/parameterarray.h"
-#include "parameter/pythonparameter.h"
+#include "parameter/dynamicparameter.h"
 #include "parameter/parameterlist.h"
-#include "parameter/pythonarrayparameter.h"
 
 #undef NDEBUG
 #include <assert.h>
@@ -384,51 +382,6 @@ ParameterObject * Parameter_wraps_param(param_t *param) {
 	return python_param;
 }
 
-static PyTypeObject * get_arrayparameter_subclass(PyTypeObject *type) {
-
-	// Get the __subclasses__ method
-    PyObject *subclasses_method AUTO_DECREF = PyObject_GetAttrString((PyObject *)type, "__subclasses__");
-    if (subclasses_method == NULL) {
-        return NULL;
-    }
-
-	// NOTE: .__subclasses__() is not recursive, but this is currently not an issue with ParameterArray and PythonArrayParameter
-
-    // Call the __subclasses__ method
-    PyObject *subclasses_list AUTO_DECREF = PyObject_CallObject(subclasses_method, NULL);
-    if (subclasses_list == NULL) {
-        return NULL;
-    }
-
-    // Ensure the result is a list
-    if (!PyList_Check(subclasses_list)) {
-        PyErr_SetString(PyExc_TypeError, "__subclasses__ did not return a list");
-        return NULL;
-    }
-
-    // Iterate over the list of subclasses
-    Py_ssize_t num_subclasses = PyList_Size(subclasses_list);
-    for (Py_ssize_t i = 0; i < num_subclasses; i++) {
-        PyObject *subclass = PyList_GetItem(subclasses_list, i);  // Borrowed reference
-        if (subclass == NULL) {
-            return NULL;
-        }
-
-		int is_subclass = PyObject_IsSubclass(subclass, (PyObject*)&ParameterArrayType);
-        if (is_subclass < 0) {
-			return NULL;
-		}
-		
-		PyErr_Clear();
-		if (is_subclass) {
-			return (PyTypeObject*)subclass;
-		}
-    }
-
-	PyErr_Format(PyExc_TypeError, "Failed to find ArrayParameter variant of class %s", type->tp_name);
-	return NULL;
-}
-
 /* Create a Python Parameter object from a param_t pointer directly. */
 PyObject * _pycsh_Parameter_from_param(PyTypeObject *type, param_t * param, const PyObject * callback, int host, int timeout, int retries, int paramver) {
 	if (param == NULL) {
@@ -439,19 +392,6 @@ PyObject * _pycsh_Parameter_from_param(PyTypeObject *type, param_t * param, cons
 	if ((existing_parameter = Parameter_wraps_param(param)) != NULL) {
 		/* TODO Kevin: How should we handle when: host, timeout, retries and paramver are different for the existing parameter? */
 		return (PyObject*)Py_NewRef(existing_parameter);
-	}
-
-	if (param->array_size <= 1 && type == &ParameterArrayType) {
-		PyErr_SetString(PyExc_TypeError, 
-			"Attempted to create a ParameterArray instance, for a non array parameter.");
-		return NULL;
-	} else if (param->array_size > 1) {  		   // If the parameter is an array.
-		type = get_arrayparameter_subclass(type);  // We create a ParameterArray instance instead.
-		if (type == NULL) {
-			return NULL;
-		}
-		// If you listen really carefully here, you can hear OOP idealists, screaming in agony.
-		// On a more serious note, I'm amazed that this even works at all.
 	}
 
 	ParameterObject *self = (ParameterObject *)type->tp_alloc(type, 0);
@@ -559,11 +499,7 @@ static void pycsh_param_transaction_callback_pull(csp_packet_t *response, int ve
 	queue.client_timestamp = time_now.tv_sec;
 	queue.last_timestamp = queue.client_timestamp;
 
-	/* Even though we have been provided a `param_t * param`,
-		we still call `param_queue_apply()` to support replies which unexpectedly contain multiple parameters.
-		Although we are SOL if those unexpected parameters are not in the list.
-		TODO Kevin: Make sure ParameterList accounts for this scenario. */
-	param_queue_apply(&queue, 0, from);
+	bool list_apply = false;
 
 	int atomic_write = 0;
 	for (size_t i = 0; i < param_list->cnt; i++) {  /* Apply value to provided param_t* if they aren't in the list. */
@@ -582,6 +518,7 @@ static void pycsh_param_transaction_callback_pull(csp_packet_t *response, int ve
 			/* List parameters have already been applied by param_queue_apply(). */
 			param_t * list_param = param_list_find_id(node, id);
 			if (list_param != NULL) {
+				list_apply = true;
 				/* Print the local RAM copy of the remote parameter (which is not in the list) */
 				if (verbose) {
 					param_print(param, -1, NULL, 0, verbose, 0);
@@ -593,6 +530,7 @@ static void pycsh_param_transaction_callback_pull(csp_packet_t *response, int ve
 
 			/* This is not our parameter, let's hope it has been applied by `param_queue_apply(...)` */
 			if (param->id != id) {
+				list_apply = true;
 				/* We need to discard the data field, to get to next paramid */
 				mpack_discard(&reader);
 				continue;
@@ -612,6 +550,17 @@ static void pycsh_param_transaction_callback_pull(csp_packet_t *response, int ve
 			}
 
 		}
+	}
+
+	if (list_apply) {
+		/* Even though we have been provided a `param_t * param`,
+		we still call `param_queue_apply()` to support replies which unexpectedly contain multiple parameters.
+		Although we are SOL if those unexpected parameters are not in the list.
+		TODO Kevin: Make sure ParameterList accounts for this scenario. */
+		/* We cannot yet handle atomic write for expected list-less parameters that have been added to the list,
+			as param_queue_apply() will also enter critical.  */
+		assert(!atomic_write);
+		param_queue_apply(&queue, 0, from);
 	}
 
 	if (atomic_write) {
@@ -648,6 +597,58 @@ static int pycsh_param_pull_single(param_t *param, int offset, int prio, int ver
 	packet->id.pri = prio;
 	return param_transaction(packet, host, timeout, pycsh_param_transaction_callback_pull, verbose, version, &param_list);
 }
+
+static int pycsh_param_push_single(param_t *param, int offset, int prio, void *value, int verbose, int host, int timeout, int version, bool ack_with_pull) {
+
+	csp_packet_t * packet = csp_buffer_get(PARAM_SERVER_MTU);
+	if (packet == NULL)
+		return -1;
+
+	packet->data[1] = 0;
+	param_transaction_callback_f cb = NULL;
+
+	if (ack_with_pull) {
+		packet->data[1] = 1;
+		cb = pycsh_param_transaction_callback_pull;
+	}
+
+	param_list_t param_list = {
+		.param_arr = &param,
+		.cnt = 1
+	};
+
+	if(version == 2) {
+		packet->data[0] = PARAM_PUSH_REQUEST_V2;
+	} else {
+		packet->data[0] = PARAM_PUSH_REQUEST;
+	}
+
+	param_queue_t queue;
+	param_queue_init(&queue, &packet->data[2], PARAM_SERVER_MTU - 2, 0, PARAM_QUEUE_TYPE_SET, version);
+	param_queue_add(&queue, param, offset, value);
+
+	packet->length = queue.used + 2;
+	packet->id.pri = prio;
+	int result = param_transaction(packet, host, timeout, cb, verbose, version, &param_list);
+
+	if (result < 0) {
+		return -1;
+	}
+
+	/* If it was a remote parameter, set the value after the ack but not if ack with push which sets param timestamp */
+	if (*param->node != 0 && value != NULL && *param->timestamp == 0)
+	{
+		if (offset < 0) {
+			for (int i = 0; i < param->array_size; i++)
+				param_set(param, i, value);
+		} else {
+			param_set(param, offset, value);
+		}
+	}
+
+	return 0;
+}
+
 
 /* Checks that the specified index is within bounds of the sequence index, raises IndexError if not.
    Supports Python backwards subscriptions, mutates the index to a positive value in such cases. */
@@ -1011,7 +1012,7 @@ int _pycsh_util_set_single(param_t *param, PyObject *value, int offset, int host
 		for (size_t i = 0; i < (retries > 0 ? retries : 1); i++) {
 			int param_push_res;
 			Py_BEGIN_ALLOW_THREADS;  // Only allow threads for remote parameters, as local ones could have Python callbacks.
-			param_push_res = param_push_single(param, offset, 0, valuebuf, 1, dest, timeout, paramver, true);
+			param_push_res = pycsh_param_push_single(param, offset, 0, valuebuf, 1, dest, timeout, paramver, true);
 			Py_END_ALLOW_THREADS;
 			if (param_push_res < 0)
 				if (i >= retries-1) {

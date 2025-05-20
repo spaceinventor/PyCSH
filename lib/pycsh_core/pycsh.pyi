@@ -278,11 +278,11 @@ class ParameterArray(Parameter):
         """
 
 
-class PythonParameter(Parameter):
+class DynamicParameter(Parameter):
     """ Parameter created in Python. """
 
     def __new__(cls, id: int, name: str, type: int, mask: int | str, unit: str = None, docstr: str = None, array_size: int = 0,
-                   callback: _Callable[[Parameter, int], None] = None, host: int = None, timeout: int = None,
+                   callback: _Callable[[Parameter, int], None] = None, host: int = None, node: int = None, timeout: int = None,
                    retries: int = 0, paramver: int = 2) -> PythonParameter:
         """
         Create a new parameter from the provided options, and add it to the global list.
@@ -295,11 +295,35 @@ class PythonParameter(Parameter):
         :param docstr: Docstring of the new parameter.
         :param array_size: Array size of the new parameter. Creates a ParameterArray when > 1.
         :param callback: Python function called when the parameter is set, signature: def callback(param: Parameter, offset: int) -> None
-        :param host:
+        :param node: 0 for local parameter, otherwise declares a remote parameter.
         :param timeout: Timeout to use when setting remote parameters.
         :param retries: Amount of retries when setting remote parameters.
         :param paramver: Parameter version to use for this parameter.
         :return: The created Parameter instance.
+        """
+
+    def list_add(self, override: bool = False) -> DynamicParameter:
+        """
+        Adds `self` to the global parameter list,
+        making it available to others on the network.
+
+        Will never error if `self` is already in the list.
+
+        :param override: How to handle an existing overlapping parameter in the list: 
+            False = Raise exception
+            True = Override/Replace
+
+        :returns: self or an existing parameter with overlapping node and ID
+        """
+
+    def list_forget(self) -> bool:
+        """
+        Removes `self` from the global parameter list.
+        
+        Will not remove overlapping parameters,
+        those should first be found using Parameter()
+
+        :returns: True if `self` was removed from the list, False if `self` was not found in the list.
         """
 
     @property
@@ -329,19 +353,16 @@ class PythonParameter(Parameter):
         Change the callback of the parameter
         """
 
-class PythonArrayParameter(PythonParameter, ParameterArray):
-    """ ParameterArray created in Python. """
+class PythonParameter(DynamicParameter):
+    """ Parameter created in Python. """
 
-class PythonGetSetParameter(PythonParameter):
+class GetSetParameter(PythonParameter):
     """ ParameterArray created in Python. """
 
     def __new__(cls, id: int, name: str, type: int, mask: int | str, unit: str = None, docstr: str = None, array_size: int = 0,
                    callback: _Callable[[Parameter, int], None] = None, host: int = None, timeout: int = None,
                    retries: int = 0, paramver: int = 2, getter: _Callable[[Parameter, int], _Any] = None, setter: _Callable[[Parameter, int, _Any], None] = None) -> PythonGetSetParameter:
         """  """
-
-class PythonGetSetArrayParameter(PythonGetSetParameter, PythonArrayParameter):
-    """ ParameterArray created in Python. """
 
 # PyCharm may refuse to acknowledge that a list subclass is iterable, so we explicitly state that it is.
 class ParameterList(_pylist[Parameter | ParameterArray], _Iterable):

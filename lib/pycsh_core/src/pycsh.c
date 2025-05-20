@@ -53,11 +53,9 @@
 #include "utils.h"
 
 #include "parameter/parameter.h"
-#include "parameter/parameterarray.h"
 #include "parameter/pythonparameter.h"
-#include "parameter/pythonarrayparameter.h"
-#include "parameter/pythongetsetparameter.h"
-#include "parameter/pythongetsetarrayparameter.h"
+#include "parameter/dynamicparameter.h"
+#include "parameter/getsetparameter.h"
 #include "parameter/parameterlist.h"
 
 #include "csp_classes/ident.h"
@@ -401,7 +399,7 @@ PyMODINIT_FUNC PyInit_pycsh(void) {
         return NULL;
 	}
 
-	if (PyModule_AddType(pycsh, &ParameterArrayType) < 0) {
+	if (PyModule_AddType(pycsh, &DynamicParameterType) < 0) {
         return NULL;
 	}
 
@@ -409,25 +407,7 @@ PyMODINIT_FUNC PyInit_pycsh(void) {
         return NULL;
 	}
 
-	/* PythonArrayParameterType must be created dynamically after
-		ParameterArrayType and PythonParameterType to support multiple inheritance. */
-	if (create_pythonarrayparameter_type() == NULL) {
-		return NULL;
-	}
-    if (PyModule_AddType(pycsh, PythonArrayParameterType) < 0) {
-        return NULL;
-	}
-
-	if (PyModule_AddType(pycsh, &PythonGetSetParameterType) < 0) {
-        return NULL;
-	}
-
-	/* PythonArrayParameterType must be created dynamically after
-		ParameterArrayType and PythonParameterType to support multiple inheritance. */
-	if (create_pythongetsetarrayparameter_type() == NULL) {
-		return NULL;
-	}
-    if (PyModule_AddType(pycsh, PythonGetSetArrayParameterType) < 0) {
+	if (PyModule_AddType(pycsh, &GetSetParameterType) < 0) {
         return NULL;
 	}
 
