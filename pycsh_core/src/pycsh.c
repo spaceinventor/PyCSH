@@ -77,13 +77,7 @@ static char _test_str[80];
 PARAM_DEFINE_STATIC_RAM(1002, test_str,          PARAM_TYPE_STRING,  80, 1,  PM_DEBUG, NULL, "", _test_str, "Parameter to use when testing strings");
 
 
-// Keep track of whether init has been run,
-// to prevent unexpected behavior from running relevant functions first.
-uint8_t _csp_initialized = 0;
 
-uint8_t csp_initialized() {
-	return _csp_initialized;
-}
 
 unsigned int pycsh_dfl_verbose = -1;
 
@@ -225,7 +219,6 @@ static PyObject * pycsh_init(PyObject * self, PyObject * args, PyObject *kwds) {
 	pthread_create(&onehz_handle, NULL, &onehz_task, NULL);
 	#endif
 	
-	_csp_initialized = 1;
 	/* Return singleton here for now, eventually we would want to do something akin to:
 	`return PyModule_Create(&moduledef);` */
 	return Py_NewRef(self);

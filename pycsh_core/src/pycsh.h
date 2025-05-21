@@ -15,6 +15,8 @@
 
 #include "pycshconfig.h"
 
+#include "wrapper/csp_init_py.h"
+
 #include <param/param_queue.h>
 
 #define CSP_INIT_CHECK() \
@@ -24,7 +26,6 @@
 		return NULL;\
 	}
 
-extern uint8_t csp_initialized();
 extern PyMODINIT_FUNC PyInit_pycsh(void);
 
 
