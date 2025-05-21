@@ -125,15 +125,13 @@ PyObject * pycsh_csp_cmp_ifstat(PyObject * self, PyObject * args, PyObject * kwd
 PyObject * pycsh_csp_cmp_uptime(PyObject * self, PyObject * args, PyObject * kwds) {
     unsigned int node = pycsh_dfl_node;
     unsigned int timeout = pycsh_dfl_timeout;
-    uint32_t uptime = 0;
     static char *kwlist[] = {"node", "timeout", NULL};
 
     if (!PyArg_ParseTupleAndKeywords(args, kwds, "|II", kwlist, &node, &timeout)) {
         return NULL;  // TypeError is thrown
     }
-    if (!PyArg_ParseTuple(args, "|II", &node, &timeout))
-        return NULL;  // Raises TypeError.
 
+    int uptime = 0;
     Py_BEGIN_ALLOW_THREADS;
     csp_get_uptime(node, timeout, &uptime);
     Py_END_ALLOW_THREADS;
