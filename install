@@ -1,5 +1,8 @@
 #!/bin/sh
 
-# Build in builddir-pip, so we can assume that we will only find 1 .whl
+# Build in builddir-pip, to mimic a builddir from CSH.
+# Installing the .whl seems to also install the .pyi file, so that's nice.
+# --force-reinstall is useful during development,
+#   where the tag/SHA remains the same while working on a commit.
 python3 -mpip wheel -w builddir-pip . && \
 (pip3 install --force-reinstall $(ls -t builddir-pip/pycsh*.whl | head -n 1) --break-system-packages || pip3 install --force-reinstall $(ls -t builddir-pip/pycsh*.whl | head -n 1))
