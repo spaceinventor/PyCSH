@@ -8,10 +8,6 @@ These provide an object-oriented interface to libparam, but are largely meant fo
 
 See pycsh.pyi for full interface documentation.
 
-Compilation happens automatically when importing, 
-but may be done manually for specific Python versions by editing python3_versions in meson_options.txt. 
-The versions specified there must be installed when compiling manually.
-
 ### Dependencies
 
 Requirements: build-essential, libsocketcan-dev, can-utils, libzmq3-dev, libyaml-dev, meson, pkg-config
