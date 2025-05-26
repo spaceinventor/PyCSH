@@ -32,7 +32,7 @@ int param_transaction(csp_packet_t *packet, int host, int timeout, param_transac
 void param_deserialize_from_mpack_to_param(void * context, void * queue, param_t * param, int offset, mpack_reader_t * reader);
 
 
-void cleanup_free(void *const* obj) {
+__attribute__((weak))  void cleanup_free(void *const* obj) {
     if (*obj == NULL) {
         return;
 	}
@@ -42,28 +42,28 @@ void cleanup_free(void *const* obj) {
     //*obj = NULL;  // 
 }
 /* __attribute__(()) doesn't like to treat char** and void** interchangeably. */
-void cleanup_str(char *const* obj) {
+__attribute__((weak)) void cleanup_str(char *const* obj) {
     cleanup_free((void *const*)obj);
 }
-void _close_dir(DIR *const* dir) {
+__attribute__((weak)) void _close_dir(DIR *const* dir) {
 	if (dir == NULL || *dir == NULL) {
 		return;
 	}
 	closedir(*dir);
 	//*dir = NULL;
 }
-void cleanup_GIL(PyGILState_STATE * gstate) {
+__attribute__((weak)) void cleanup_GIL(PyGILState_STATE * gstate) {
 	//printf("AAA %d\n", PyGILState_Check());
     //if (*gstate == PyGILState_UNLOCKED)
     //    return
     PyGILState_Release(*gstate);
     //*gstate = NULL;
 }
-void cleanup_pyobject(PyObject **obj) {
+__attribute__((weak)) void cleanup_pyobject(PyObject **obj) {
     Py_XDECREF(*obj);
 }
 
-void state_release_GIL(PyThreadState ** state) {
+__attribute__((weak)) void state_release_GIL(PyThreadState ** state) {
 	if (*state == NULL) {
 		return;  // We didn't have the GIL, so there's nothing to release.
 	}
@@ -71,6 +71,7 @@ void state_release_GIL(PyThreadState ** state) {
 }
 
 __attribute__((malloc(free, 1)))
+__attribute__((weak)) 
 char *safe_strdup(const char *s) {
     if (s == NULL) {
         return NULL;

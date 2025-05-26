@@ -12,6 +12,7 @@
 
 /* The main_thread_state is mostly needed by apm.c. But we define it here,
     so it's also visible when not compiling as APM. */
+__attribute__((weak)) 
 PyThreadState *main_thread_state = NULL;
 
 int SlashCommand_func(struct slash *slash);
