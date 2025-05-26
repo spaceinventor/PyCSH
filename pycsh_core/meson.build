@@ -38,8 +38,6 @@ pycsh_sources = [
 
 	# Utilities
 	'src/utils.c',
-	'src/apm/apm_utils.c',
-
 ]
 
 if slash_dep.found()
