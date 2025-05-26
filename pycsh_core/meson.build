@@ -82,13 +82,28 @@ py.install_sources(pyi)
 # 		'-ldl',
 # 		'-lm']
 dependencies += [
-	dependency('apm_csh', fallback: ['apm_csh', 'apm_csh_dep'], required: true),
+	dependency('apm', fallback: ['apm', 'apm_csh_dep'], required: true).partial_dependency(
+		links: false, 
+		includes: true
+	),
 	dependency('param', fallback: ['param', 'param_dep'], required: true),
 	dependency('csp', fallback: ['csp', 'csp_dep'], required: true),
 	slash_dep,
 ]
 
+
 python_host_dep = dependency('python_host', fallback: ['csh', 'csh_dep'], required: true)
+
+
+pycsh_lib = library(
+	'pycsh',
+	sources: pycsh_sources,
+	dependencies: dependencies + [python_host_dep.partial_dependency(includes: true)]
+)
+pycsh_dep = declare_dependency(
+	link_with: pycsh_lib,
+	dependencies: dependencies + [python_host_dep.partial_dependency(includes: true)]
+)
 
 python_ldflags = run_command('python'+py.language_version()+'-config', '--ldflags', '--embed', check: true).stdout().strip().split()
 pycsh_ext = py.extension_module(
