@@ -38,6 +38,7 @@ pycsh_sources = [
 
 	# Utilities
 	'src/utils.c',
+	vcs_tag(input: files('src/version.c.in'), output: 'version.c', command: ['git', 'describe', '--long', '--always', '--dirty=+'])
 ]
 
 if slash_dep.found()
@@ -110,7 +111,6 @@ pycsh_ext = py.extension_module(
 	'pycsh',
 	[
 		'python_host.c',
-		vcs_tag(input: files('src/version.c.in'), output: 'version.c', command: ['git', 'describe', '--long', '--always', '--dirty=+'])
 	] + pycsh_sources,
 	dependencies : dependencies + [python_host_dep],
 	link_args : python_ldflags + ['-Wl,-Map=' + meson.project_name() + '.map'],

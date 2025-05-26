@@ -64,7 +64,7 @@
 #include "wrapper/vmem_client_py.h"
 #include "wrapper/victoria_metrics_py.h"
 
-extern const char *version_string;
+extern const char *pycsh_version_string;
 
 /* Assertions used when parsing Python arguments, i.e int -> uint32_t */
 static_assert(sizeof(unsigned int) == sizeof(uint32_t));
@@ -405,7 +405,7 @@ PyMODINIT_FUNC PyInit_pycsh(void) {
 	{ /* Constants */
 
 		/* Version Control */
-		PyModule_AddObject_ErrCheck(pycsh, "VERSION", PyUnicode_FromString(version_string));
+		PyModule_AddObject_ErrCheck(pycsh, "VERSION", PyUnicode_FromString(pycsh_version_string));
 		PyModule_AddObject_ErrCheck(pycsh, "COMPILE_DATE", PyUnicode_FromString(__DATE__));
 		PyModule_AddObject_ErrCheck(pycsh, "COMPILE_DATETIME", pycsh_ident_time_to_datetime(__DATE__, __TIME__));
 
