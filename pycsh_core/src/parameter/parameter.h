@@ -37,6 +37,6 @@ extern PyTypeObject ParameterType;
  */
 ParameterObject * ParameterObject_from_param(param_t * param, int host, int timeout, int retries);
 
-#if PY_MAJOR_VERSION == 3 &&  PY_MINOR_VERSION >= 15
+#if PY_MAJOR_VERSION == 3 &&  PY_MINOR_VERSION >= 13
 #define  _PyLong_AsInt PyLong_AsInt
 #endif
