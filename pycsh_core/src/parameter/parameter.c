@@ -271,6 +271,10 @@ static PyObject * Parameter_get_retries(ParameterObject *self, void *closure) {
 	return Py_BuildValue("i", self->retries);
 }
 
+#if PY_MAJOR_VERSION == 3 && PY_MINOR_VERSION >= 13
+#define  _PyLong_AsInt PyLong_AsInt
+#endif
+
 static int Parameter_set_retries(ParameterObject *self, PyObject *value, void *closure) {
 
 	if (value == NULL) {

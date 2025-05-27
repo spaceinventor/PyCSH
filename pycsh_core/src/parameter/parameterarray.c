@@ -32,6 +32,10 @@ static PyObject * ParameterArray_GetItem(ParameterObject *self, PyObject *item) 
 	return _pycsh_util_get_single(self->param, index, 1, self->host, self->timeout, self->retries, self->paramver, -1);
 }
 
+#if PY_MAJOR_VERSION == 3 && PY_MINOR_VERSION >= 13
+#define  _PyLong_AsInt PyLong_AsInt
+#endif
+
 static int ParameterArray_SetItem(ParameterObject *self, PyObject* item, PyObject* value) {
 
 	if (value == NULL) {

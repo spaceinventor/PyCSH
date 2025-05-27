@@ -659,6 +659,10 @@ __attribute__((destructor(151))) static void remove_python_slash_commands(void) 
     }
 }
 #endif
+#if PY_MAJOR_VERSION == 3 && PY_MINOR_VERSION >= 13
+#define  _Py_IsFinalizing Py_IsFinalizing
+#endif
+
 static void PythonSlashCommand_dealloc(PythonSlashCommandObject *self) {
 
     /* Calling Py_XDECREF() while Python is finalizing, seems to cause a segfault (due to the GIL not being held)
