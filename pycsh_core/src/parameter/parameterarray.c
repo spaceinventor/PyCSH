@@ -10,7 +10,7 @@
 #include "parameterarray.h"
 
 #include "../pycsh.h"
-#include "../utils.h"
+#include <pycsh/utils.h>
 
 
 static PyObject * ParameterArray_GetItem(ParameterObject *self, PyObject *item) {

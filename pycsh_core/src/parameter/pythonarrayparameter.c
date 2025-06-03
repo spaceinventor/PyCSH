@@ -4,8 +4,8 @@
 #define PY_SSIZE_T_CLEAN
 #include <Python.h>
 
-#include "../utils.h"
-#include "pythonparameter.h"
+#include <pycsh/utils.h>
+#include <pycsh/pythonparameter.h>
 #include "parameterarray.h"
 
 PyTypeObject * PythonArrayParameterType;

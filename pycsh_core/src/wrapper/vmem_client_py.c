@@ -13,7 +13,7 @@
 
 #include "vmem_client_py.h"
 
-#include "../utils.h"
+#include <pycsh/utils.h>
 #include "../csp_classes/vmem.h"
 
 #include "../pycsh.h"

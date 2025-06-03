@@ -14,8 +14,8 @@
 #include <param/param_client.h>
 
 #include "../pycsh.h"
-#include "../utils.h"
-#include "parameter.h"
+#include <pycsh/utils.h>
+#include <pycsh/parameter.h>
 
 
 /**

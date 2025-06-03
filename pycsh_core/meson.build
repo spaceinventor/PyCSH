@@ -99,10 +99,12 @@ python_host_dep = dependency('python_host', fallback: ['csh', 'csh_dep'], requir
 pycsh_lib = library(
 	'pycsh',
 	sources: pycsh_sources,
+	include_directories: [include_dir],
 	dependencies: dependencies + [python_host_dep.partial_dependency(includes: true)]
 )
 pycsh_dep = declare_dependency(
 	link_with: pycsh_lib,
+	include_directories: [include_dir],
 	dependencies: dependencies + [python_host_dep.partial_dependency(includes: true)]
 )
 
@@ -113,6 +115,7 @@ pycsh_ext = py.extension_module(
 		'python_host.c',
 	] + pycsh_sources,
 	dependencies : dependencies + [python_host_dep],
+	include_directories: [include_dir],
 	link_args : python_ldflags + ['-Wl,-Map=' + meson.project_name() + '.map'],
 	install : true,
 	subdir: 'pycsh',

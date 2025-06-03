@@ -37,11 +37,11 @@
 
 #include <sys/types.h>
 
-#include "utils.h"
+#include <pycsh/utils.h>
 
-#include "parameter/parameter.h"
+#include <pycsh/parameter.h>
+#include <pycsh/pythonparameter.h>
 #include "parameter/parameterarray.h"
-#include "parameter/pythonparameter.h"
 #include "parameter/pythonarrayparameter.h"
 #include "parameter/pythongetsetparameter.h"
 #include "parameter/pythongetsetarrayparameter.h"

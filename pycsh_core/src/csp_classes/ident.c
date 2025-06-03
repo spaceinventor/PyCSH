@@ -15,7 +15,7 @@
 #include <csp/csp_types.h>
 
 #include "../pycsh.h"
-#include "../utils.h"
+#include <pycsh/utils.h>
 #include <apm/csh_api.h>
 
 

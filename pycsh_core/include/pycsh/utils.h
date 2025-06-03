@@ -15,7 +15,7 @@
 #include <dirent.h>
 #include <param/param.h>
 #include <param/param_queue.h>
-#include "parameter/pythonparameter.h"
+#include <pycsh/pythonparameter.h>
 
 void cleanup_free(void *const* obj);
 void cleanup_str(char *const* obj);

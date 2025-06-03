@@ -2,7 +2,7 @@
 #define PY_SSIZE_T_CLEAN
 #include <Python.h>
 
-#include "pythonparameter.h"
+#include <pycsh/pythonparameter.h>
 
 typedef struct {
     PythonParameterObject python_parameter;

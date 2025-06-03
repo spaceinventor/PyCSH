@@ -13,7 +13,7 @@
 #include <stdbool.h>
 #include <param/param.h>
 
-#include "parameter.h"
+#include <pycsh/parameter.h>
 
 extern PyObject * PyExc_ParamCallbackError;
 extern PyObject * PyExc_InvalidParameterTypeError;

@@ -12,7 +12,7 @@
 
 #include <param/param.h>
 
-#include "pythonparameter.h"
+#include <pycsh/pythonparameter.h>
 
 /* TODO Kevin: If we wish to remain in line with PyExc_ParamCallbackError,
     Getter/Setter exceptions should be created. */

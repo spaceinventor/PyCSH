@@ -15,7 +15,7 @@
 
 #include "python_slash_command.h"
 #include "../pycsh.h"
-#include "../utils.h"
+#include <pycsh/utils.h>
 
 
 /* 1 for success. Compares the wrapped slash_command (struct) between two SlashCommands, otherwise 0. Assumes self to be a SlashCommandObject. */

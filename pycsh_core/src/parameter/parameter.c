@@ -7,14 +7,14 @@
  *      Author: Kevin Wallentin Carlsen
  */
 
-#include "parameter.h"
+#include <pycsh/parameter.h>
 
 #include "structmember.h"
 
 #include <param/param.h>
 
 #include "../pycsh.h"
-#include "../utils.h"
+#include <pycsh/utils.h>
 
 /* Maps param_t to its corresponding PythonParameter for use by C callbacks. */
 PyDictObject * param_callback_dict = NULL;

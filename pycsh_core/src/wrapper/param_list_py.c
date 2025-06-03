@@ -12,9 +12,9 @@
 #include <csh/param_list_slash.h>
 
 #include "../pycsh.h"
-#include "../utils.h"
-#include "../parameter/parameter.h"
-#include "../parameter/pythonparameter.h"
+#include <pycsh/utils.h>
+#include <pycsh/parameter.h>
+#include <pycsh/pythonparameter.h>
 
 #include "param_list_py.h"
 

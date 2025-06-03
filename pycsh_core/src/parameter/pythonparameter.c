@@ -5,7 +5,7 @@
  *
  */
 
-#include "pythonparameter.h"
+#include <pycsh/pythonparameter.h>
 
 // It is recommended to always define PY_SSIZE_T_CLEAN before including Python.h
 #define PY_SSIZE_T_CLEAN
@@ -16,7 +16,7 @@
 #include <param/param.h>
 
 #include "../pycsh.h"
-#include "../utils.h"
+#include <pycsh/utils.h>
 
 // Instantiated in our PyMODINIT_FUNC
 PyObject * PyExc_ParamCallbackError;

@@ -8,7 +8,7 @@
 #include "structmember.h"
 
 #include "../pycsh.h"
-#include "../utils.h"
+#include <pycsh/utils.h>
 
 
 

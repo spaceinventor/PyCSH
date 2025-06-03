@@ -7,7 +7,7 @@
  *      Author: Kevin Wallentin Carlsen
  */
 
-#include "utils.h"
+#include <pycsh/utils.h>
 
 #include <dirent.h>
 #include <csp/csp_hooks.h>
@@ -17,9 +17,9 @@
 #include <param/param_string.h>
 
 #include "pycsh.h"
-#include "parameter/parameter.h"
+#include <pycsh/parameter.h>
+#include <pycsh/pythonparameter.h>
 #include "parameter/parameterarray.h"
-#include "parameter/pythonparameter.h"
 #include "parameter/parameterlist.h"
 #include "parameter/pythonarrayparameter.h"
 
@@ -42,28 +42,28 @@ __attribute__((weak))  void cleanup_free(void *const* obj) {
     //*obj = NULL;  // 
 }
 /* __attribute__(()) doesn't like to treat char** and void** interchangeably. */
-__attribute__((weak)) void cleanup_str(char *const* obj) {
+void cleanup_str(char *const* obj) {
     cleanup_free((void *const*)obj);
 }
-__attribute__((weak)) void _close_dir(DIR *const* dir) {
+void _close_dir(DIR *const* dir) {
 	if (dir == NULL || *dir == NULL) {
 		return;
 	}
 	closedir(*dir);
 	//*dir = NULL;
 }
-__attribute__((weak)) void cleanup_GIL(PyGILState_STATE * gstate) {
+void cleanup_GIL(PyGILState_STATE * gstate) {
 	//printf("AAA %d\n", PyGILState_Check());
     //if (*gstate == PyGILState_UNLOCKED)
     //    return
     PyGILState_Release(*gstate);
     //*gstate = NULL;
 }
-__attribute__((weak)) void cleanup_pyobject(PyObject **obj) {
+void cleanup_pyobject(PyObject **obj) {
     Py_XDECREF(*obj);
 }
 
-__attribute__((weak)) void state_release_GIL(PyThreadState ** state) {
+void state_release_GIL(PyThreadState ** state) {
 	if (*state == NULL) {
 		return;  // We didn't have the GIL, so there's nothing to release.
 	}

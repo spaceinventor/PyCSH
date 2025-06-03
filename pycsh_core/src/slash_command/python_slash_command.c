@@ -7,7 +7,7 @@
 #include <slash/completer.h>
 
 #include "../pycsh.h"
-#include "../utils.h"
+#include <pycsh/utils.h>
 
 
 /* The main_thread_state is mostly needed by apm.c. But we define it here,
