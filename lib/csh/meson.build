@@ -30,7 +30,6 @@ libcsh_src = [
     'src/slash_utils.c',
     'src/environment.c',
     'src/param_sniffer.c',
-    'src/param_list_slash.c',
     'src/hk_param_sniffer.c',
     'src/victoria_metrics.c',
 ]
