@@ -197,8 +197,6 @@ static PyObject * Ident_new(PyTypeObject *type, PyObject *args, PyObject *kwds) 
         }
 
         PyTuple_SET_ITEM(reply_tuple, reply_index, (PyObject*)self);
-
-        known_hosts_add(packet->id.src, msg.ident.hostname, override);
     }
 
     return Py_NewRef(reply_tuple);

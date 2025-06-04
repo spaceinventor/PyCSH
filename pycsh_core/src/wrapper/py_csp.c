@@ -106,7 +106,6 @@ PyObject * pycsh_slash_ident(PyObject * self, PyObject * args, PyObject * kwds) 
             char buf[500];
             snprintf(buf, sizeof(buf), "\nIDENT %hu\n  %s\n  %s\n  %s\n  %s %s\n", packet->id.src, msg.ident.hostname, msg.ident.model, msg.ident.revision, msg.ident.date, msg.ident.time);
             printf("%s", buf);
-            known_hosts_add(packet->id.src, msg.ident.hostname, override);
             PyUnicode_AppendAndDel(&list_string, PyUnicode_FromString(buf));
         }
         csp_buffer_free(packet);

@@ -201,23 +201,6 @@ static PyObject * pycsh_init(PyObject * self, PyObject * args, PyObject *kwds) {
 	) {
 		return NULL;
 	}
-	#ifndef PYCSH_HAVE_APM
-	srand(time(NULL));
-
-	void serial_init(void);
-	serial_init();
-
-#ifdef PARAM_HAVE_COMMANDS
-	vmem_file_init(&vmem_commands);
-	param_command_server_init();
-#endif
-#ifdef PARAM_HAVE_SCHEDULER
-	param_schedule_server_init();
-#endif
-
-	static pthread_t onehz_handle;
-	pthread_create(&onehz_handle, NULL, &onehz_task, NULL);
-	#endif
 	
 	/* Return singleton here for now, eventually we would want to do something akin to:
 	`return PyModule_Create(&moduledef);` */

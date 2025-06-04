@@ -20,7 +20,7 @@ PyObject * pycsh_slash_node(PyObject * self, PyObject * args) {
 
 	PyObject * node = NULL;
 
-	if (!PyArg_ParseTuple(args, "|O", &node)) {
+	if (!PyArg_ParseTuple(args, "|i", &node)) {
 		return NULL;  // TypeError is thrown
 	}
 
@@ -30,13 +30,8 @@ PyObject * pycsh_slash_node(PyObject * self, PyObject * args) {
 
 		pycsh_dfl_node = PyLong_AsUnsignedLong(node);
 		printf("Set default node to %d\n", pycsh_dfl_node);
-	} else if (PyUnicode_Check(node)) {
-
-		slash_dfl_node = known_hosts_get_node(PyUnicode_AsUTF8(node));
-		if (slash_dfl_node == 0)
-			slash_dfl_node = atoi(PyUnicode_AsUTF8(node));  // Numeric nodes will hopefully be passed as intergers, but we allow strings for compatiblity with CSH.
 	} else {
-		PyErr_SetString(PyExc_TypeError, "'node' argument must be either str or int");
+		PyErr_SetString(PyExc_TypeError, "'node' argument must be an int");
 		return NULL;
 	}
 

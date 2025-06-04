@@ -44,7 +44,6 @@ pycsh_sources = [
 if slash_dep.found()
 	pycsh_sources += [
 		'src/wrapper/slash_py.c',
-
 		'src/slash_command/slash_command.c',
 		'src/slash_command/python_slash_command.c',
 	]
@@ -61,27 +60,8 @@ __init__py = configure_file(input: '__init__.py', output: '__init__.py', copy: t
 
 py = import('python').find_installation('python'+get_option('python3_version'), pure: false)
 
-# # Include CSH headers, to be fulfilled when loading as APM
-# dependencies += [
-# 	dependency('csh', fallback: ['csh', 'csh_dep'], required: true).partial_dependency(links: false, includes: true),
-# 	dependency('csp', fallback: ['csp', 'csp_dep'], required: true).partial_dependency(links: false, includes: true),
-# 	dependency('param', fallback: ['param', 'param_dep'], required: true).partial_dependency(links: false, includes: true),#.as_link_whole(),  # NOTE: .as_link_whole() gives linking errors here, but is otherwise needed to preserve symbols
-# 	slash_dep.partial_dependency(links: false, includes: true),
-# ]
-
-# TODO Kevin: .so file doesn't exist at this point, and install_data() isn't lazy. So this doesn't work.
-#install_data(libcsh_lib_path, install_dir : get_option('datadir'))
 py.install_sources(pyi)
 
-# Automatically generate linker arguments for embedding a Python interpreter.
-# Raw output should look something like: "-L/usr/lib/python3.10/config-3.10-x86_64-linux-gnu -L/usr/lib/x86_64-linux-gnu -lpython3.10 -lcrypt -ldl  -lm -lm"
-# It should be a list when passed to Meson, so we use .split() to get:
-# ['-L/usr/lib/python'+python_version+'/config-'+python_version+'-x86_64-linux-gnu',
-# 		'-L/usr/lib/x86_64-linux-gnu',
-# 		'-lpython'+python_version,
-# 		'-lcrypt',
-# 		'-ldl',
-# 		'-lm']
 dependencies += [
 	dependency('apm', fallback: ['apm', 'apm_csh_dep'], required: true).partial_dependency(
 		links: false, 
@@ -92,20 +72,16 @@ dependencies += [
 	slash_dep,
 ]
 
-
-python_host_dep = dependency('python_host', fallback: ['csh', 'csh_dep'], required: true)
-
-
 pycsh_lib = library(
 	'pycsh',
 	sources: pycsh_sources,
 	include_directories: [include_dir],
-	dependencies: dependencies + [python_host_dep.partial_dependency(includes: true)]
+	dependencies: dependencies
 )
 pycsh_dep = declare_dependency(
 	link_with: pycsh_lib,
 	include_directories: [include_dir],
-	dependencies: dependencies + [python_host_dep.partial_dependency(includes: true)]
+	dependencies: dependencies
 )
 
 python_ldflags = run_command('python'+py.language_version()+'-config', '--ldflags', '--embed', check: true).stdout().strip().split()
@@ -114,7 +90,7 @@ pycsh_ext = py.extension_module(
 	[
 		'python_host.c',
 	] + pycsh_sources,
-	dependencies : dependencies + [python_host_dep],
+	dependencies : dependencies,
 	include_directories: [include_dir],
 	link_args : python_ldflags + ['-Wl,-Map=' + meson.project_name() + '.map'],
 	install : true,
