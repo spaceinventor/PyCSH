@@ -1,24 +1,8 @@
 #!/bin/sh
 
-# TODO Kevin: libcsh_pycsh*.so doesn't exist when we call this script with a fresh builddir,
-#   so $target is invalid.
-
-# APM version should be installed to ~/.local/lib/csh as configured by ./configure
-# Find the built target, Thanks ChatGPT
-target=$(find builddir-apm -name "libcsh_pycsh*.so" -print -quit)
-# Extract just the target name without the directory path
-target_name=$(basename "$target")
-ninja -C builddir-apm clean
-ninja -C builddir-apm $target_name install
-
-# We install the PyCSH Python package using pip3, but this is somehow more painful than Meson...
-# pip3 very much prefers to skip installing packages,
-# if it finds that they are already installed with the 'same' version.
-# This would be all well and good, if it didn't determine the version from pyproject.toml,
-# which we don't really care to maintain when we otherwise use git SHA/tags.
-# So either uninstall pycsh first or use --force-reinstall
-#pip3 uninstall -y pycsh
-# Build in builddir-pip, so we can assume that we will only find 1 .whl
+# Build in builddir-pip, to mimic a builddir from CSH.
+# Installing the .whl seems to also install the .pyi file, so that's nice.
+# --force-reinstall is useful during development,
+#   where the tag/SHA remains the same while working on a commit.
 python3 -mpip wheel -w builddir-pip . && \
-# installing the .whl seems to also install the .pyi file, so that's nice
-(pip3 install --force-reinstall $(ls builddir-pip/pycsh*.whl) --break-system-packages || pip3 install --force-reinstall $(ls builddir-pip/pycsh*.whl))
+(pip3 install --force-reinstall $(ls -t builddir-pip/pycsh*.whl | head -n 1) --break-system-packages || pip3 install --force-reinstall $(ls -t builddir-pip/pycsh*.whl | head -n 1))

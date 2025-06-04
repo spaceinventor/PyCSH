@@ -1,2 +1,1 @@
 option('python3_version', type: 'string', value: '3', yield: true, description: 'Which version of Python to compile bindings for')
-option('build_apm', type: 'boolean', value: false, yield: true, description: 'Whether to build PyCSH as an APM for CSH')
