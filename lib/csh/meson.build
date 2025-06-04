@@ -21,17 +21,11 @@ dependencies += slash_dep
 dependencies += dependency('apm', fallback: ['apm_csh', 'apm_csh_dep'], required: true).partial_dependency(includes: true, links: false)
 
 libcsh_src = [
-    'src/vts.c',
     'src/lock.c',
     'src/serial.c',
-    'src/url_utils.c',
-    'src/prometheus.c',
     'src/known_hosts.c',
     'src/slash_utils.c',
     'src/environment.c',
-    'src/param_sniffer.c',
-    'src/hk_param_sniffer.c',
-    'src/victoria_metrics.c',
 ]
 
 if slash_dep.found()
@@ -47,7 +41,6 @@ csh_lib = library('csh',
                          libcsh_src,
                          include_directories: csh_inc,
                          dependencies : dependencies,
-                         link_args : ['-Wl,-Map=cshmodtest.map', '-lm'],
                          install : false)
 
 csh_dep = declare_dependency(link_with : csh_lib, dependencies : dependencies, include_directories: csh_inc)
