@@ -20,7 +20,7 @@ PyObject * pycsh_slash_node(PyObject * self, PyObject * args) {
 
 	PyObject * node = NULL;
 
-	if (!PyArg_ParseTuple(args, "|i", &node)) {
+	if (!PyArg_ParseTuple(args, "|O", &node)) {
 		return NULL;  // TypeError is thrown
 	}
 
