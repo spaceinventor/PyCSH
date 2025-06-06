@@ -20,17 +20,29 @@ project('PyCSH', 'c',
 		'param:collector=false',
 		'param:list_dynamic=true',
 	],
-	version: run_command('./pycsh_core/get_pip_ersion.py', check: true).stdout().strip(),)
+	version: run_command('./get_pip_ersion.py', check: true).stdout().strip()
+)
 
-add_project_arguments('-I../include', language: 'c')
+py = import('python').find_installation('python'+get_option('python3_version'), pure: false)
 
-dependencies = []
-
-# TODO Kevin: Perhaps let us inspire by the meson.build of numpy,
-#	they check for the presence of the python.h header.
-#	- https://github.com/numpy/numpy/blob/main/meson.build#L44
-
-pycsh_sources = [
+dependencies = [
+	dependency('pycsh_core', fallback: ['pycsh_core', 'pycsh_core_dep'])
 ]
+python_ldflags = run_command('python'+py.language_version()+'-config', '--ldflags', '--embed', check: true).stdout().strip().split()
+pycsh_ext = py.extension_module(
+	'pycsh',
+	[
+		'src/python_host.c',
+	],
+	dependencies : dependencies,
+	link_args : python_ldflags + ['-Wl,-Map=' + meson.project_name() + '.map'],
+	install : true,
+	subdir: 'pycsh',
+	gnu_symbol_visibility: 'default',
+)
 
-subdir('pycsh_core')
+# Add .pyi file for type-hints
+pyi = configure_file(input: 'pycsh.pyi', output: 'pycsh.pyi', copy: true)
+# Also __init__.py that ensures we can expose CSH symbols/dependencies.
+__init__py = configure_file(input: '__init__.py', output: '__init__.py', copy: true)
+py.install_sources([pyi, __init__py], subdir: 'pycsh')
