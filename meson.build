@@ -26,7 +26,7 @@ project('PyCSH', 'c',
 py = import('python').find_installation('python'+get_option('python3_version'), pure: false)
 
 dependencies = [
-	dependency('pycsh_core', fallback: ['pycsh_core', 'pycsh_core_dep'])
+	dependency('pycsh_core', fallback: ['pycsh_core', 'pycsh_core_dep']).as_link_whole()
 ]
 python_ldflags = run_command('python'+py.language_version()+'-config', '--ldflags', '--embed', check: true).stdout().strip().split()
 pycsh_ext = py.extension_module(
