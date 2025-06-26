@@ -5,6 +5,8 @@
 #include <apm/csh_api.h>
 #include <csp/csp_debug.h>
 
+#include "pycshconfig.h"
+
 
 #define PARAMID_SERIAL0                     31
 #define PARAMID_CSP_DBG_BUFFER_OUT          51
@@ -40,9 +42,17 @@ param_queue_t param_queue = { .buffer = queue_buf, .buffer_size = PARAM_SERVER_M
 #define BIN_PATH_MAX_SIZE 256
 
 struct bin_info_t {
-	uint32_t addr_min;
-	uint32_t addr_max;
-	unsigned count;
-	char entries[BIN_PATH_MAX_ENTRIES][BIN_PATH_MAX_SIZE];
+    uint32_t addr_min;
+    uint32_t addr_max;
+    unsigned count;
+    char entries[BIN_PATH_MAX_ENTRIES][BIN_PATH_MAX_SIZE];
 };
 struct bin_info_t bin_info;
+
+#include "pycshconfig.h"
+#ifdef PYCSH_HAVE_SLASH
+#include <slash/slash.h>
+__attribute__((constructor)) void _pycsh_init_slash(void) {
+    slash_list_init();
+}
+#endif
