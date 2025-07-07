@@ -17,7 +17,7 @@ from typing import \
     Literal as _Literal, \
     Callable as _Callable
 from datetime import datetime as _datetime
-from io import IOBase as _IOBase
+from io import IOBase as _IOBase, TextIOBase as _TextIOBase
 
 _param_value_hint = int | float | str
 _param_type_hint = _param_value_hint | bytearray
@@ -416,14 +416,22 @@ class SlashCommand:
 class PythonSlashCommand(SlashCommand):
     """ Allows for creating new slash commands in Python, that may then later be called from CSH """
 
-    def __new__(cls: type[_Self], name: str, function: _Callable[..., _Any], args: str = None) -> _Self:
+    def __new__(cls: type[_Self], name: str, function: _Callable[..., _Any], args: str = None, short_opts: bool = True) -> _Self:
         """
         Finds an existing slash command from the provided 'name'
 
         :param name: Full name of the slash command (including spaces for sub commands).
         :param function: Function that the slash command will invoke.
-            Should preferably accept *args of user input and parse it accordingly
+            The function parameters will be converted to optparse options, using type-hints to cast the user-provided values.
         :param args: Optional argument documentation string.
+        :param short_opts: Whether to generate short opts for the parameters of the provided function.
+            Taking the following signature as an example:
+            `def function(option: str) -> None`
+            short_opts allows `option` to also be filled by `-o`, otherwise only --option is allowed.
+            short_opts also enables exceptions for multiple parameters starting with the same (case-sensitive) letter:
+            `def function(option: str, option2: str) -> None` <-- exception
+            `def function(option: str, Option2: str) -> None` <-- permitted, as `option2` becomes `-O` */
+
 
         :raises TypeError: When arguments are of invalid types.
 
@@ -915,7 +923,7 @@ def csp_init(host: str = None, model: str = None, revision: str = None, version:
     :param dedup: CSP dedup 0=off 1=forward 2=incoming 3=all (default)
     """
 
-def csp_add_zmq(addr: int, server: str, promisc: int = 0, mask: int = 8, default: int = 0, pub_port: int = 6000, sub_port: int = 7000, sec_key: str|None = None) -> None:
+def csp_add_zmq(addr: int, server: str, promisc: int = 0, mask: int = 8, default: int = 0, sub_port: int = 6000, pub_port: int = 7000, sec_key: str|_TextIOBase|None = None) -> None:
     """
     Add a new ZMQ interface
 
