@@ -10,11 +10,9 @@ See pycsh.pyi for full interface documentation.
 
 ### Dependencies
 
-Requirements: build-essential, libsocketcan-dev, can-utils, libzmq3-dev, libyaml-dev, meson, pkg-config
-
 ```
-sudo apt-get install build-essential libsocketcan-dev can-utils libzmq3-dev libyaml-dev pkg-config
-sudo pip3 install meson ninja
+sudo apt install build-essential libsocketcan-dev can-utils libzmq3-dev libyaml-dev pkg-config pipx python3-dev
+pipx install meson ninja
 ```
 
 ### Normal installation
