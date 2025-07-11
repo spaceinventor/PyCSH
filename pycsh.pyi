@@ -795,7 +795,7 @@ def vmem(node: int = None, timeout: int = None, version: int = None) -> str:
     :return: The string of the vmem at the specfied node.
     """
 
-def vmem_download(address: int = None, length: int = None, node: int = None, window: int = None, timeout: int = None, version: int = None) -> bytes:
+def vmem_download(address: int = None, length: int = None, node: int = None, window: int = None, conn_timeout: int = None, packet_timeout: int = None, ack_timeout: int = None, timeout: int = None, version: int = 1, use_rdp: bool = True) -> bytes:
     """
     Downloads a VMEM memory area specified by the argument, and puts it in data_out
 
@@ -923,7 +923,7 @@ def csp_init(host: str = None, model: str = None, revision: str = None, version:
     :param dedup: CSP dedup 0=off 1=forward 2=incoming 3=all (default)
     """
 
-def csp_add_zmq(addr: int, server: str, promisc: int = 0, mask: int = 8, default: int = 0, sub_port: int = 6000, pub_port: int = 7000, sec_key: str|_TextIOBase|None = None) -> None:
+def csp_add_zmq(addr: int, server: str, promisc: int = 0, mask: int = 8, default: int = 0, pub_port: int = 6000, sub_port: int = 7000, sec_key: str|_TextIOBase|None = None) -> None:
     """
     Add a new ZMQ interface
 
