@@ -12,6 +12,7 @@ project('PyCSH', 'c',
 		'csp:conn_max=20',
 		'csp:conn_rxqueue_len=1000',
 		'csp:qfifo_len=1000',
+		'csp:rtable_size=100',
 		'csp:rdp_max_window=1000',
 		'csp:port_max_bind=16',
 		'csp:use_rtable=true',  # TODO Kevin: rtable should not be necessary
