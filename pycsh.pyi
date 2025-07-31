@@ -837,18 +837,23 @@ def switch(slot: int, node: int = None, times: int = None) -> None:
     :raises ConnectionError: When the system cannot be pinged after reboot.
     """
 
-def program(slot: int, filename: str, node: int = None, window: int = None, conn_timeout: int = None, packet_timeout: int = None, ack_timeout: int = None, ack_count: int = None) -> None:
+def program(slot: int, filename: str, node: int = None, do_crc32: bool = False, *, window: int = None, conn_timeout: int = None, packet_timeout: int = None, delayed_acks: int = None, ack_timeout: int = None, ack_count: int = None) -> None:
     """
     Upload new firmware to a module.
 
     :param slot: Flash slot to upload to, cannot be the currently booted one.
     :param filename: firmware .bin file to upload.
     :param node: Node of the module to upload to.
-    :param window: rdp window (default = 3 packets)
-    :param conn_timeout: rdp connection timeout (default = 10 seconds)
-    :param packet_timeout: rdp packet timeout (default = 5 seconds)
-    :param ack_timeout: rdp max acknowledgement interval (default = 2 seconds)
-    :param ack_count: rdp ack for each (default = 2 packets)
+
+    :param do_crc32: Compare CRC32 of uploaded firmware, rather than downloading the whole image to compare.
+        Unsupported in legacy firmware, which will time-out instead.
+
+    :param window: rdp window (default = 3 packets) (keyword-only)
+    :param conn_timeout: rdp connection timeout (default = 10 seconds) (keyword-only)
+    :param packet_timeout: rdp packet timeout (default = 5 seconds) (keyword-only)
+    :param delayed_acks: ¯\_(ツ)_/¯ (keyword-only)
+    :param ack_timeout: rdp max acknowledgement interval (default = 2 seconds) (keyword-only)
+    :param ack_count: rdp ack for each (default = 2 packets) (keyword-only)
 
     :raises IOError: When in invalid filename is specified.
     :raises ProgramDiffError: See class docstring.

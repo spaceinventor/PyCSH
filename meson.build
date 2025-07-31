@@ -32,6 +32,7 @@ python_ldflags = run_command('python'+py.language_version()+'-config', '--ldflag
 pycsh_ext = py.extension_module(
 	'pycsh',
 	[
+		'src/csh_defaults.c',
 		'src/python_host.c',
 	],
 	dependencies : dependencies,

@@ -32,9 +32,6 @@ PARAM_DEFINE_STATIC_RAM(PARAMID_CSP_DBG_CAN_ERRNO,    csp_can_errno,       PARAM
 PARAM_DEFINE_STATIC_RAM(PARAMID_CSP_DBG_RDP_PRINT,    csp_print_rdp,       PARAM_TYPE_UINT8,  0, 0, PM_DEBUG, NULL, "", &csp_dbg_rdp_print, "Turn on csp_print of rdp information");
 PARAM_DEFINE_STATIC_RAM(PARAMID_CSP_DBG_PACKET_PRINT, csp_print_packet,    PARAM_TYPE_UINT8,  0, 0, PM_DEBUG, NULL, "", &csp_dbg_packet_print, "Turn on csp_print of packet information");
 
-unsigned int slash_dfl_node = 0;
-unsigned int slash_dfl_timeout = 1000;
-
 static char queue_buf[PARAM_SERVER_MTU];
 param_queue_t param_queue = { .buffer = queue_buf, .buffer_size = PARAM_SERVER_MTU, .type = PARAM_QUEUE_TYPE_EMPTY, .version = 2 };
 
