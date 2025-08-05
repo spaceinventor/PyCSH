@@ -81,6 +81,16 @@ VMEM_TYPE_UNKNOWN: int
 
 CSP_NO_VIA_ADDRESS: int = 0xFFFF
 
+SLASH_EXIT: int
+SLASH_SUCCESS: int
+SLASH_EUSAGE: int
+SLASH_EINVAL: int
+SLASH_ENOSPC: int
+SLASH_EIO: int
+SLASH_ENOMEM: int
+SLASH_ENOENT: int
+SLASH_EBREAK: int
+
 
 # Custom Exceptions
 class ProgramDiffError(ConnectionError):
