@@ -549,6 +549,52 @@ class Ifstat:
         """
 
 
+class Interface:
+    """ Represents a local CSP interface.
+        Similar to Ifstat, but also shows configuration. """
+    
+    def __new__(cls, identifier: str|int|Interface) -> Interface:
+        """
+        Find a `csp_iface_t` in the local iflist
+
+        :param identifier: String name or int index of the local interface.
+
+        :raises ValueError: When a local CSP interface couldn't be
+            found from an otherwise correct type of identifier.
+
+        :return: Interface object with fields indicating status and configuration.
+        """
+    
+    addr: int
+    "Interface address"
+    netmask: int
+    "Subnet mask"
+    name: str
+    "Interface name"
+    is_default: bool
+    "Default interface flag"
+    tx: int
+    "Transmitted packets"
+    rx: int
+    "Received packets"
+    tx_error: int
+    "Transmit errors"
+    rx_error: int
+    "Receive errors"
+    drop: int
+    "Dropped packets"
+    autherr: int
+    "Authentication errors"
+    frame: int
+    "Frame format errors"
+    txbytes: int
+    "Transmitted bytes"
+    rxbytes: int
+    "Received bytes"
+    irq: int
+    "Interrupts"
+
+
 class Vmem:
     """ Convenient wrapper class for 'vmem' replies. Requests all VMEM areas on the specified node. """
 
@@ -733,6 +779,11 @@ def list_add(node: int, length: int, id: int, name: str, type: int, mask: int | 
     :param unit: Unit of measurement for the parameter.
     :returns: Returns the created parameter.
     """
+
+
+def info() -> tuple[Interface, ...]:
+    """ (UNSTABLE API) Return local CSP interfaces (and likely Routes in a future update) """
+
 
 # Commands from CSP
 def ping(node: int = None, timeout: int = None, size: int = None) -> int:
@@ -938,7 +989,7 @@ def csp_init(host: str = None, model: str = None, revision: str = None, version:
     :param dedup: CSP dedup 0=off 1=forward 2=incoming 3=all (default)
     """
 
-def csp_add_zmq(addr: int, server: str, promisc: int = 0, mask: int = 8, default: int = 0, pub_port: int = 6000, sub_port: int = 7000, sec_key: str|_TextIOBase|None = None) -> None:
+def csp_add_zmq(addr: int, server: str, promisc: int = 0, mask: int = 8, default: int = 0, pub_port: int = 6000, sub_port: int = 7000, sec_key: str|_TextIOBase|None = None) -> Interface:
     """
     Add a new ZMQ interface
 
@@ -952,7 +1003,7 @@ def csp_add_zmq(addr: int, server: str, promisc: int = 0, mask: int = 8, default
     :param sec_key: Auth key for zmqproxy
     """
 
-def csp_add_kiss(addr: int, mask: int = 8, default: int = 0, baud: int = 1000000, uart: str = "ttyUSB0") -> None:
+def csp_add_kiss(addr: int, mask: int = 8, default: int = 0, baud: int = 1000000, uart: str = "ttyUSB0") -> Interface:
     """
     Add a new KISS/UART interface
 
@@ -966,7 +1017,7 @@ def csp_add_kiss(addr: int, mask: int = 8, default: int = 0, baud: int = 1000000
     :raises SystemError: When failing to add interface
     """
 
-def csp_add_can(addr: int, promisc: int = 0, mask: int = 8, default: int = 0, baud: int = 1000000, can: str = "can0") -> None:
+def csp_add_can(addr: int, promisc: int = 0, mask: int = 8, default: int = 0, baud: int = 1000000, can: str = "can0") -> Interface:
     """
     Add a new CAN interface
 
@@ -980,7 +1031,7 @@ def csp_add_can(addr: int, promisc: int = 0, mask: int = 8, default: int = 0, ba
     :raises SystemError: When failing to add interface
     """
 
-def csp_add_eth(addr: int, device: str = "e", promisc: int = 0, mask: int = 8, default: int = 0, mtu: int = 1200) -> None:
+def csp_add_eth(addr: int, device: str = "e", promisc: int = 0, mask: int = 8, default: int = 0, mtu: int = 1200) -> Interface:
     """
     Add a new ethernet interface
 
@@ -992,7 +1043,7 @@ def csp_add_eth(addr: int, device: str = "e", promisc: int = 0, mask: int = 8, d
     :param mtu: Maximum Transmission Unit
     """
 
-def csp_add_udp(addr: int, server: str, promisc: int = 0, mask: int = 8, default: int = 0, listen_port: int = 9220, remote_port: int = 9220) -> None:
+def csp_add_udp(addr: int, server: str, promisc: int = 0, mask: int = 8, default: int = 0, listen_port: int = 9220, remote_port: int = 9220) -> Interface:
     """
     Add a new UDP interface
 
@@ -1005,7 +1056,7 @@ def csp_add_udp(addr: int, server: str, promisc: int = 0, mask: int = 8, default
     :param remote_port: Port to send to
     """
 
-def csp_add_tun(addr: int, tun_src: int, tun_dst: int, promisc: int = 0, mask: int = 8, default: int = 0) -> None:
+def csp_add_tun(addr: int, tun_src: int, tun_dst: int, promisc: int = 0, mask: int = 8, default: int = 0) -> Interface:
     """
     Add a new TUN interface
 
@@ -1015,7 +1066,7 @@ def csp_add_tun(addr: int, tun_src: int, tun_dst: int, promisc: int = 0, mask: i
     :param default: Set as default
     """
 
-def csp_add_route(addr: int, mask: int, interface: str, via: int = CSP_NO_VIA_ADDRESS) -> None:
+def csp_add_route(addr: int, mask: int, interface: str|int|Interface, via: int = CSP_NO_VIA_ADDRESS) -> None:
     """
     Add a new route
     
