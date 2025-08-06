@@ -81,6 +81,7 @@ VMEM_TYPE_UNKNOWN: int
 
 CSP_NO_VIA_ADDRESS: int = 0xFFFF
 
+# Return these from PythonSlashCommand commands to invoke the corresponding behavior.
 SLASH_EXIT: int
 SLASH_SUCCESS: int
 SLASH_EUSAGE: int
