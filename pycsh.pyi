@@ -596,6 +596,27 @@ class Interface:
     "Interrupts"
 
 
+class Route:
+    addr: int
+    "Route address"
+    mask: int
+    "Route netmask"
+    via: int
+    "Route via"
+    iface: Interface
+    "Route interface"
+
+
+class Info:
+    interfaces: tuple[Interface, ...]
+    "Tuple of local CSP interfaces"
+    routes: tuple[Route, ...]
+    "Tuple of local CSP routes"
+
+    def __new__(cls) -> Info:
+        """ Return local CSP interfaces and Routes """
+
+
 class Vmem:
     """ Convenient wrapper class for 'vmem' replies. Requests all VMEM areas on the specified node. """
 
@@ -782,8 +803,8 @@ def list_add(node: int, length: int, id: int, name: str, type: int, mask: int | 
     """
 
 
-def info() -> tuple[Interface, ...]:
-    """ (UNSTABLE API) Return local CSP interfaces (and likely Routes in a future update) """
+def info() -> Info:
+    """ Return local CSP interfaces and Routes, really just an alias for continuity with CSH. """
 
 
 # Commands from CSP
