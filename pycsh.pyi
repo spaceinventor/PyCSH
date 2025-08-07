@@ -91,6 +91,7 @@ SLASH_EIO: int
 SLASH_ENOMEM: int
 SLASH_ENOENT: int
 SLASH_EBREAK: int
+_slash_command_return_types = _Literal[SLASH_EXIT, SLASH_SUCCESS, SLASH_EUSAGE, SLASH_EINVAL, SLASH_ENOSPC, SLASH_EIO, SLASH_ENOMEM, SLASH_ENOENT, SLASH_EBREAK]
 
 
 # Custom Exceptions
@@ -427,7 +428,7 @@ class SlashCommand:
 class PythonSlashCommand(SlashCommand):
     """ Allows for creating new slash commands in Python, that may then later be called from CSH """
 
-    def __new__(cls: type[_Self], name: str, function: _Callable[..., _Any], args: str = None, short_opts: bool = True) -> _Self:
+    def __new__(cls: type[_Self], name: str, function: _Callable[..., _slash_command_return_types], args: str = None, short_opts: bool = True) -> _Self:
         """
         Finds an existing slash command from the provided 'name'
 
