@@ -27,7 +27,8 @@ project('PyCSH', 'c',
 py = import('python').find_installation('python'+get_option('python3_version'), pure: false)
 
 dependencies = [
-	dependency('pycsh_core', fallback: ['pycsh_core', 'pycsh_core_dep']).as_link_whole()
+	dependency('pycsh_core', fallback: ['pycsh_core', 'pycsh_core_dep']).as_link_whole(),
+	dependency('libcurl', not_found_message: 'libcurl not found! Please install libcurl4-openssl-dev or the appropriate package for your system.'),
 ]
 python_ldflags = run_command('python'+py.language_version()+'-config', '--ldflags', '--embed', check: true).stdout().strip().split()
 pycsh_ext = py.extension_module(
@@ -36,6 +37,15 @@ pycsh_ext = py.extension_module(
 		'src/python_host.c',
 		'src/csh_defaults.c',
 		'src/param_commands_client.c',
+		'src/known_hosts.c',
+
+		# HK symbol dependencies
+		# We did remove these from PyCSH at one point,
+		#	but now they're needed again.
+		'src/hk_param_sniffer.c',
+		'src/param_sniffer.c',
+		'src/victoria_metrics.c',
+		'src/vts.c',
 	],
 	dependencies : dependencies,
 	link_args : python_ldflags + ['-Wl,-Map=' + meson.project_name() + '.map'],
