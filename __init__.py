@@ -1,9 +1,57 @@
 """ Thin wrapper package for the CSH python bindings.
     Imports with RTLD_GLOBAL, so the module can load APMs. """
 
+import ast as _ast
 import sys as _sys
+from os.path import dirname
+from pathlib import Path as _Path
 from types import ModuleType as _ModuleType
 from posixpath import expanduser as _expanduser
+
+
+# def _parse_pyi_signatures():
+#     # Locate the .pyi file next to this __init__.py
+#     pyi_path = _Path(__file__).with_suffix(".pyi")
+#     sig_map = {}
+#     if not pyi_path.exists():
+#         return sig_map
+#     tree = _ast.parse(pyi_path.read_text())
+#     for node in tree.body:
+#         if isinstance(node, _ast.FunctionDef):
+#             arg_count = len(node.args.args)
+#             sig_map[node.name] = arg_count
+#     return sig_map
+def _parse_pyi_for_fuzz(pyi_path: _Path) -> dict[str, list[str]]:
+    """Return map: function_name -> list of parameter type hints (strings).
+    Type hints are normalized to 'int', 'str', 'bytes', 'float', 'bool', or 'any'.
+    """
+    sig_map = {}
+    assert pyi_path.exists(), f"{pyi_path}"
+
+    try:
+        tree = _ast.parse(pyi_path.read_text())
+    except Exception:
+        return sig_map
+
+    for node in tree.body:
+        if isinstance(node, _ast.FunctionDef):
+            types = []
+            for arg in node.args.args:
+                hint = "any"
+                if arg.annotation:
+                    # annotation could be Name, Subscript, Attribute, etc.
+                    if isinstance(arg.annotation, _ast.Name):
+                        hint = arg.annotation.id
+                    elif isinstance(arg.annotation, _ast.Subscript) and isinstance(arg.annotation.value, _ast.Name):
+                        # e.g. Optional[str], List[int] -> take the base name
+                        hint = arg.annotation.value.id
+                    elif isinstance(arg.annotation, _ast.Attribute):
+                        hint = arg.annotation.attr
+                    else:
+                        hint = "any"
+                types.append(hint.lower())
+            sig_map[node.name] = types
+    return sig_map
 
 
 def _import_pycsh(package_dir: str = None) -> _ModuleType:
@@ -64,3 +112,9 @@ try:
     from .pycsh import *
 except ImportError:
     pass
+
+
+# locate pycsh.pyi (assumed to live next to this __init__.py)
+_pyi_path = _Path(dirname(__file__)).joinpath('pycsh.pyi')
+__fuzz_signatures__ = _parse_pyi_for_fuzz(_pyi_path)
+_sys.modules['pycsh'].__fuzz_signatures__ = __fuzz_signatures__

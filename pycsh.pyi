@@ -935,7 +935,7 @@ def program(slot: int, filename: str, node: int = None, do_crc32: bool = False, 
     :param window: rdp window (default = 3 packets) (keyword-only)
     :param conn_timeout: rdp connection timeout (default = 10 seconds) (keyword-only)
     :param packet_timeout: rdp packet timeout (default = 5 seconds) (keyword-only)
-    :param delayed_acks: ¯\_(ツ)_/¯ (keyword-only)
+    :param delayed_acks: ¯|_(ツ)_/¯ (keyword-only)
     :param ack_timeout: rdp max acknowledgement interval (default = 2 seconds) (keyword-only)
     :param ack_count: rdp ack for each (default = 2 packets) (keyword-only)
 
@@ -944,7 +944,7 @@ def program(slot: int, filename: str, node: int = None, do_crc32: bool = False, 
     :raises ConnectionError: When no connection to the specified node can be established.
     """
 
-def sps(from: int, to: int, filename: str, node: int = None, window: int = None, conn_timeout: int = None, packet_timeout: int = None, ack_timeout: int = None, ack_count: int = None) -> None:
+def sps(from_: int, to: int, filename: str, node: int = None, window: int = None, conn_timeout: int = None, packet_timeout: int = None, ack_timeout: int = None, ack_count: int = None) -> None:
     """
     Switch -> Program -> Switch
 
