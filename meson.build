@@ -33,8 +33,9 @@ python_ldflags = run_command('python'+py.language_version()+'-config', '--ldflag
 pycsh_ext = py.extension_module(
 	'pycsh',
 	[
-		'src/csh_defaults.c',
 		'src/python_host.c',
+		'src/csh_defaults.c',
+		'src/param_commands_client.c',
 	],
 	dependencies : dependencies,
 	link_args : python_ldflags + ['-Wl,-Map=' + meson.project_name() + '.map'],
