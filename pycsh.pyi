@@ -596,6 +596,15 @@ class Interface:
     irq: int
     "Interrupts"
 
+    def set_promisc(new_promisc: bool) -> None:
+        """
+        Update whether CSP interface should be promiscuous (parse all packets)
+        
+        :param new_promisc: New promiscuous. Parse all packets when True, otherwise only unicast and broadcast addresses.
+        
+        :raises NotImplementedError: When called on anything other than a ZMQ interface
+        """
+
 
 class Route:
     addr: int
