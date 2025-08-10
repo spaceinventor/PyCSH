@@ -260,7 +260,7 @@ class ParameterArray(Parameter):
         """
 
     @property
-    def cached_value(self) -> str | tuple[int | float]:
+    def cached_value(self) -> str | tuple[int | float, ...]:
         """
         Returns the local cached value of the parameter from its specified node in the Python representation of its type.
         Array parameters return a tuple of values, whereas normal parameters return only a single value.
@@ -275,7 +275,7 @@ class ParameterArray(Parameter):
         """
 
     @property
-    def remote_value(self) -> str | tuple[int | float]:
+    def remote_value(self) -> str | tuple[int | float, ...]:
         """
         Returns the remote value of the parameter from its specified node in the Python representation of its type.
         Array parameters return a tuple of values, whereas normal parameters return only a single value.
@@ -492,7 +492,7 @@ class Ident:
     datetime: _datetime
     "Datetime object constructed from: Ident.date + Ident.time"
 
-    def __new__(cls, node: int = None, timeout: int = None, override: bool = False) -> tuple[Ident]:
+    def __new__(cls, node: int = None, timeout: int = None, override: bool = False) -> tuple[Ident, ...]:
         """
         Provide a node to 'ident' and receive an iterable of all replies.
 
@@ -641,7 +641,7 @@ class Vmem:
     name: str
     "Name of the VMEM area"
 
-    def __new__(cls, node: int = None, timeout: int = None, version: int = 2, verbose: int = None) -> tuple[Vmem]:
+    def __new__(cls, node: int = None, timeout: int = None, version: int = 2, verbose: int = None) -> tuple[Vmem, ...]:
         """
         Potentially makes a blocking request to a remote node.
 
