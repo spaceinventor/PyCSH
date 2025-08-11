@@ -21,7 +21,6 @@
 #include <param/param_string.h>
 #include "param_sniffer.h"
 
-static pthread_t vm_push_thread;
 int vm_running = 0;
 
 #define SERVER_PORT      8428

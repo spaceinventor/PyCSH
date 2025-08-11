@@ -13,7 +13,6 @@
 #include "param_sniffer.h"
 
 static int adcs_node = 0;
-static char *default_ip = "127.0.0.1";
 
 #define Q_HAT_ID 305
 #define ORBIT_POS 357
