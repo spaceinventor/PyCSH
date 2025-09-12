@@ -15,7 +15,8 @@ from typing import \
     Any as _Any, \
     Iterable as _Iterable, \
     Literal as _Literal, \
-    Callable as _Callable
+    Callable as _Callable, \
+    Iterator as _Iterator
 from datetime import datetime as _datetime
 from io import IOBase as _IOBase, TextIOBase as _TextIOBase
 
@@ -113,6 +114,25 @@ class InvalidParameterTypeError(ValueError):
     Must be caught before ValueError() baseclass.
     """
 
+# NOTE: It is tempting to use generics for ValueProxy return types,
+#   but we're not planning on creating subclasses for the different parameter types.
+class ValueProxy:
+    """ Used by array Parameters to allow the user to use normal slicing syntax to query specific parameters.
+        i.e: `Parameter(<name>).get_value_array()[:3]` """
+    
+    def __getitem__(self, index: int | slice) -> tuple[int | float, ...]:
+        """ Immediately query unqueried parameters and return the specified indexes. """
+
+    def __iter__(self) -> _Iterator[int | float]:
+        """ Immediately query unqueried parameters and yield the specified indexes. """
+        
+    def __str__(self) -> str:
+        """ Immediately query unqueried parameters and return `str([:])`.
+            Use `.__getitem__()` to only query certain indeces. """
+
+    def __repr__(self) -> str:
+        """ Same as `.__str__()` """
+
 
 class Parameter:
     """
@@ -166,7 +186,7 @@ class Parameter:
         """ Returns the best Python representation type object of the param_t c struct type. i.e int for uint32. """
 
 
-    def get_value(self, index: int = 0, remote: bool = True, verbose: int = None) -> int | float | str:
+    def get_value(self, index: int = None, remote: bool = True, verbose: int = None) -> int | float | str:
         """
         Returns the value of a single index, so the result will not be iterable (with the exception of string parameters,
             which always returns the whole string, ignoring the `index` argument).
@@ -187,7 +207,7 @@ class Parameter:
         """
 
 
-    def get_value_array(self, indexes: _Iterable[int] = slice(0, -1), remote: bool = True) -> str | tuple[int | float, ...]:
+    def get_value_array(self, indexes: _Iterable[int] = slice(0, -1), remote: bool = True) -> str | ValueProxy:
         """
         Always return an iterable from the specified sequence. By default return the whole parameter.
         Examples for the following parameter `set index_array [0 1 2 3 4 5 6 7]`:
