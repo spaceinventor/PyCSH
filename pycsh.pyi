@@ -120,10 +120,10 @@ class ValueProxy:
     """ Used by array Parameters to allow the user to use normal slicing syntax to query specific parameters.
         i.e: `Parameter(<name>).get_value_array()[:3]` """
     
-    def __getitem__(self, index: int | slice) -> tuple[int | float, ...]:
+    def __getitem__(self, index: int | slice) -> tuple[int | float, ...] | str:
         """ Immediately query unqueried parameters and return the specified indexes. """
 
-    def __iter__(self) -> _Iterator[int | float]:
+    def __iter__(self) -> _Iterator[int | float | str]:
         """ Immediately query unqueried parameters and yield the specified indexes. """
         
     def __str__(self) -> str:
@@ -149,7 +149,7 @@ class Parameter:
     timestamp: int  # timestamp of the parameter
     node: int  # node of the parameter
 
-    def __new__(cls, param_identifier: _param_ident_hint, node: int = None, host: int = None, timeout: int = None, retries: int = None) -> Parameter | ParameterArray:
+    def __new__(cls, param_identifier: _param_ident_hint, node: int = None, host: int = None, timeout: int = None, retries: int = None) -> Parameter:
         """
         As stated; this class simply wraps existing parameters,
         and cannot create new ones. It therefore requires an 'identifier'
@@ -162,7 +162,7 @@ class Parameter:
 
         :raises ValueError: When no parameter can be found from an otherwise valid identifier.
 
-        :returns: An instance of a Parameter or ParameterArray, matching the identifier.
+        :returns: An instance of a Parameter, matching the identifier.
         """
 
     def __len__(self) -> int:
@@ -193,7 +193,7 @@ class Parameter:
         Returns the value of the parameter from its specified node in the Python representation of its type (i.e `int` for `PARAM_TYPE_UINT8`).
         """
 
-    def set_value(self, value: int | float, index: int = None, remote: bool = True) -> None:
+    def set_value(self, value: int | float, index: int = None, remote: bool = True, verbose: int = None) -> None:
         """
         Sets the value of the parameter.
 
@@ -207,12 +207,12 @@ class Parameter:
         """
 
 
-    def get_value_array(self, indexes: _Iterable[int] = slice(0, -1), remote: bool = True) -> str | ValueProxy:
+    def get_value_array(self, remote: bool = True, verbose: int = None) -> ValueProxy:
         """
         Always return an iterable from the specified sequence. By default return the whole parameter.
         Examples for the following parameter `set index_array [0 1 2 3 4 5 6 7]`:
         ```
-        index_array.get_value_array(indexes=slice(0, -1)) == (0, 1, 2, 3, 4, 5, 6, 7)
+        index_array.get_value_array(indexes=slice(0, None)) == (0, 1, 2, 3, 4, 5, 6, 7)
         index_array.get_value_array() == (0, 1, 2, 3, 4, 5, 6, 7)
 
         index_array.get_value_array(slice(1)) == (0)
@@ -224,7 +224,7 @@ class Parameter:
         Returns the local cached value of the parameter from its specified node in the Python representation of its type (i.e `int` for `PARAM_TYPE_UINT8`).
         """
 
-    def set_value_array(self, values: str | _Iterable[int | float], indexes: _Iterable[int] = slice(0, -1), remote: bool = True) -> None:
+    def set_value_array(self, values: str | _Iterable[int | float], indexes: _Iterable[int] | slice = slice(0, None), remote: bool = True, verbose: int = None) -> None:
         """
         Set the value of multiple indexes in an array parameter.
 
@@ -304,7 +304,7 @@ class PythonParameter(Parameter):
         :param mask: Parameter flags, i.e PM_CONF. Multiple flags may be ORed together.
         :param unit: Unit of the new parameter.
         :param docstr: Docstring of the new parameter.
-        :param array_size: Array size of the new parameter. Creates a ParameterArray when > 1.
+        :param array_size: Array size of the new parameter.
         :param callback: Python function called when the parameter is set, signature: def callback(param: Parameter, offset: int) -> None
         :param host:
         :param timeout: Timeout to use when setting remote parameters.
@@ -340,22 +340,32 @@ class PythonParameter(Parameter):
         Change the callback of the parameter
         """
 
-class PythonArrayParameter(PythonParameter, ParameterArray):
-    """ ParameterArray created in Python. """
-
 class PythonGetSetParameter(PythonParameter):
     """ ParameterArray created in Python. """
 
     def __new__(cls, id: int, name: str, type: int, mask: int | str, unit: str = None, docstr: str = None, array_size: int = 0,
                    callback: _Callable[[Parameter, int], None] = None, host: int = None, timeout: int = None,
                    retries: int = 0, paramver: int = 2, getter: _Callable[[Parameter, int], _Any] = None, setter: _Callable[[Parameter, int, _Any], None] = None) -> PythonGetSetParameter:
-        """  """
+        """
+        Allows you to specify a `getter` and `setter` function for the parameter.
+        Signature for the getter:
+        ```
+        def getter(param: Parameter, idx: int) -> _param_value_hint:
+            " receives the parameter and index for which to retrieve a value.
+                The type of the returned value must match the type of the parameter, i.e `int` for `PARAM_TYPE_UINT8` "
+        ```
 
-class PythonGetSetArrayParameter(PythonGetSetParameter, PythonArrayParameter):
-    """ ParameterArray created in Python. """
+        Signature for the setter:
+        ```
+        def setter(param: Parameter, idx: int, value: _param_value_hint) -> None:
+            " receives the parameter and index for which to set the value. Also receives the actual value to set.
+                The setter should not return anything. "
+        ```
+        """
+
 
 # PyCharm may refuse to acknowledge that a list subclass is iterable, so we explicitly state that it is.
-class ParameterList(_pylist[Parameter | ParameterArray], _Iterable):
+class ParameterList(_pylist[Parameter], _Iterable):
     """
     Convenience class providing an interface for pulling and pushing the value of multiple parameters
     in a single request using param_queue_t's

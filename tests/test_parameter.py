@@ -33,12 +33,12 @@ class TestArrayParameter(unittest.TestCase):
         self.assertEqual(self.param.get_value_array(None), tuple(range(len(self.param))))
 
     def test_slicing(self):
-        self.assertEqual(self.param.get_value_array(slice(5, -1)), (5, 6))
-        self.assertEqual(self.param.get_value_array(slice(5, None)), (5, 6, 7))
+        self.assertEqual(self.param.get_value_array()[5:-1], (5, 6))
+        self.assertEqual(self.param.get_value_array()[5:], (5, 6, 7))
 
     def test_reverse_slicing(self):
         expected = tuple(reversed(range(len(self.param))))
-        self.assertEqual(self.param.get_value_array(slice(None, None, -1)), expected)
+        self.assertEqual(self.param.get_value_array()[::-1], expected)
 
     def test_set_value_broadcast(self):
         # This mutates state: sets all elements to 10

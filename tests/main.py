@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 import os
 import sys
 import unittest
@@ -14,7 +16,7 @@ VALGRIND_EXITCODE: int = 99
 VALGRIND = [
     "valgrind",
     "--quiet",
-    "--exit-on-first-error=yes",
+    "--exit-on-first-error=yes",  # Each test gets a separate process, so we can check which exact ones give memory errors.
     f"--error-exitcode={VALGRIND_EXITCODE}",
 ]
 
