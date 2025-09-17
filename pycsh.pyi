@@ -188,8 +188,10 @@ class Parameter:
 
     def get_value(self, index: int = None, remote: bool = True, verbose: int = None) -> int | float | str:
         """
-        Returns the value of a single index, so the result will not be iterable (with the exception of string parameters,
-            which always returns the whole string, ignoring the `index` argument).
+        Returns the value of a single index, so the result will not be iterable*.
+
+        If the index argument is `None`, it will pull the entire remote parameter, even though it still only returns index 0.
+        *(with the exception of string parameters, where `index=None` returns the whole string).
         Returns the value of the parameter from its specified node in the Python representation of its type (i.e `int` for `PARAM_TYPE_UINT8`).
         """
 
