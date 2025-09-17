@@ -15,7 +15,8 @@ from typing import \
     Any as _Any, \
     Iterable as _Iterable, \
     Literal as _Literal, \
-    Callable as _Callable
+    Callable as _Callable, \
+    Iterator as _Iterator
 from datetime import datetime as _datetime
 from io import IOBase as _IOBase, TextIOBase as _TextIOBase
 
@@ -113,6 +114,25 @@ class InvalidParameterTypeError(ValueError):
     Must be caught before ValueError() baseclass.
     """
 
+# NOTE: It is tempting to use generics for ValueProxy return types,
+#   but we're not planning on creating subclasses for the different parameter types.
+class ValueProxy:
+    """ Used by array Parameters to allow the user to use normal slicing syntax to query specific parameters.
+        i.e: `Parameter(<name>).get_value_array()[:3]` """
+    
+    def __getitem__(self, index: int | slice) -> tuple[int | float, ...] | str:
+        """ Immediately query unqueried parameters and return the specified indexes. """
+
+    def __iter__(self) -> _Iterator[int | float | str]:
+        """ Immediately query unqueried parameters and yield the specified indexes. """
+        
+    def __str__(self) -> str:
+        """ Immediately query unqueried parameters and return `str([:])`.
+            Use `.__getitem__()` to only query certain indeces. """
+
+    def __repr__(self) -> str:
+        """ Same as `.__str__()` """
+
 
 class Parameter:
     """
@@ -124,12 +144,12 @@ class Parameter:
     unit: str  # The unit of the wrapped param_t c struct as a string or None
     docstr: str  # The help-text of the wrapped param_t c struct as a string or None
     id: int  # ID of the parameter
-    type: type  # type of the parameter
+    type: _param_type_hint  # best Python representation type object of the param_t c struct type. i.e int for uint32
     mask: int  # mask of the parameter
     timestamp: int  # timestamp of the parameter
     node: int  # node of the parameter
 
-    def __new__(cls, param_identifier: _param_ident_hint, node: int = None, host: int = None, timeout: int = None, retries: int = None) -> Parameter | ParameterArray:
+    def __new__(cls, param_identifier: _param_ident_hint, node: int = None, host: int = None, timeout: int = None, retries: int = None) -> Parameter:
         """
         As stated; this class simply wraps existing parameters,
         and cannot create new ones. It therefore requires an 'identifier'
@@ -142,7 +162,15 @@ class Parameter:
 
         :raises ValueError: When no parameter can be found from an otherwise valid identifier.
 
-        :returns: An instance of a Parameter or ParameterArray, matching the identifier.
+        :returns: An instance of a Parameter, matching the identifier.
+        """
+
+    def __len__(self) -> int:
+        """
+        Gets the length of array parameters.
+
+        :raises AttributeError: For non-array type parameters.
+        :return: The value of the wrapped param_t->array_size.
         """
 
     @property
@@ -157,35 +185,54 @@ class Parameter:
     def type(self) -> _param_type_hint:
         """ Returns the best Python representation type object of the param_t c struct type. i.e int for uint32. """
 
-    @property
-    def cached_value(self) -> int | float:
+
+    def get_value(self, index: int = None, remote: bool = True, verbose: int = None) -> int | float | str:
         """
-        Returns the local cached value of the parameter from its specified node in the Python representation of its type.
-        Array parameters return a tuple of values, whereas normal parameters return only a single value.
+        Returns the value of a single index, so the result will not be iterable*.
+
+        If the index argument is `None`, it will pull the entire remote parameter, even though it still only returns index 0.
+        *(with the exception of string parameters, where `index=None` returns the whole string).
+        Returns the value of the parameter from its specified node in the Python representation of its type (i.e `int` for `PARAM_TYPE_UINT8`).
         """
 
-    @cached_value.setter
-    def cached_value(self, value: int | float) -> None:
+    def set_value(self, value: int | float, index: int = None, remote: bool = True, verbose: int = None) -> None:
         """
-        Sets the local cached value of the parameter.
+        Sets the value of the parameter.
 
         :param value: New desired value. Assignments to other parameters, use their value instead, Otherwise uses .__str__().
+        :param index: Leave as None to set whole array, similar to CSH
         """
-
-    @property
-    def remote_value(self) -> int | float:
-        """
-        Returns the remote value of the parameter from its specified node in the Python representation of its type.
-        Array parameters return a tuple of values, whereas normal parameters return only a single value.
-        """
-
-    @remote_value.setter
-    def remote_value(self, value: int | float) -> None:
         """
         Sets the remote value of the parameter.
 
         :param value: New desired value. Assignments to other parameters, use their value instead, Otherwise uses .__str__().
         """
+
+
+    def get_value_array(self, remote: bool = True, verbose: int = None) -> ValueProxy:
+        """
+        Always return an iterable from the specified sequence. By default return the whole parameter.
+        Examples for the following parameter `set index_array [0 1 2 3 4 5 6 7]`:
+        ```
+        index_array.get_value_array(indexes=slice(0, None)) == (0, 1, 2, 3, 4, 5, 6, 7)
+        index_array.get_value_array() == (0, 1, 2, 3, 4, 5, 6, 7)
+
+        index_array.get_value_array(slice(1)) == (0)
+        index_array.get_value_array(slice(2)) == (0, 1)
+
+        index_array.get_value_array(slice(1, 3)) == (1, 2)
+        ```
+
+        Returns the local cached value of the parameter from its specified node in the Python representation of its type (i.e `int` for `PARAM_TYPE_UINT8`).
+        """
+
+    def set_value_array(self, values: str | _Iterable[int | float], indexes: _Iterable[int] | slice = slice(0, None), remote: bool = True, verbose: int = None) -> None:
+        """
+        Set the value of multiple indexes in an array parameter.
+
+        :param value: New desired value. Assignments to other parameters, use their value instead, Otherwise uses .__str__().
+        """
+
 
     @property
     def is_vmem(self) -> bool:
@@ -220,74 +267,28 @@ class Parameter:
         Sets the retries the parameter has for transactions.
         Use None to reset default value.
         """
+    
 
-class ParameterArray(Parameter):
-    """
-    Subclass of Parameter specifically designed to provide an interface
-    to array parameters. In practical terms; the class implements:
-        __len__(), __getitem__() and __setitem__().
-    The Parameter class will automatically create instances of this class when needed,
-    which means that manual instantiation of ParameterArrays is unnecessary.
-    """
+    # def __getitem__(self, index: int) -> _param_type_hint:
+    #     """
+    #     Get the value of an index in an array parameter.
 
-    def __len__(self) -> int:
-        """
-        Gets the length of array parameters.
+    #     :param index: Index on which to get the value. Supports backwards subscription (i.e: -1).
+    #     :raises IndexError: When trying to get a value outside the bounds of the parameter array.
+    #     :raises ConnectionError: When autosend is on, and no response is received.
 
-        :raises AttributeError: For non-array type parameters.
-        :return: The value of the wrapped param_t->array_size.
-        """
+    #     :return: The value of the specified index, as its Python type.
+    #     """
 
-    def __getitem__(self, index: int) -> _param_type_hint:
-        """
-        Get the value of an index in an array parameter.
+    # def __setitem__(self, index: int, value: int | float) -> None:
+    #     """
+    #     Set the value of an index in an array parameter.
 
-        :param index: Index on which to get the value. Supports backwards subscription (i.e: -1).
-        :raises IndexError: When trying to get a value outside the bounds of the parameter array.
-        :raises ConnectionError: When autosend is on, and no response is received.
-
-        :return: The value of the specified index, as its Python type.
-        """
-
-    def __setitem__(self, index: int, value: int | float) -> None:
-        """
-        Set the value of an index in an array parameter.
-
-        :param index: Index on which to set the value. Supports backwards subscription (i.e: -1).
-        :param value: New value to set, should match the type of the parameter.
-        :raises IndexError: When trying to set value ouside the bounds the parameter array.
-        :raises ConnectionError: When autosend is on, and no response is received.
-        """
-
-    @property
-    def cached_value(self) -> str | tuple[int | float, ...]:
-        """
-        Returns the local cached value of the parameter from its specified node in the Python representation of its type.
-        Array parameters return a tuple of values, whereas normal parameters return only a single value.
-        """
-
-    @cached_value.setter
-    def cached_value(self, value: str | _Iterable[int | float]) -> None:
-        """
-        Sets the local cached value of the parameter.
-
-        :param value: New desired value. Assignments to other parameters, use their value instead, Otherwise uses .__str__().
-        """
-
-    @property
-    def remote_value(self) -> str | tuple[int | float, ...]:
-        """
-        Returns the remote value of the parameter from its specified node in the Python representation of its type.
-        Array parameters return a tuple of values, whereas normal parameters return only a single value.
-        """
-
-    @remote_value.setter
-    def remote_value(self, value: str | _Iterable[int | float]) -> None:
-        """
-        Sets the remote value of the parameter.
-
-        :param value: New desired value. Assignments to other parameters, use their value instead, Otherwise uses .__str__().
-        """
+    #     :param index: Index on which to set the value. Supports backwards subscription (i.e: -1).
+    #     :param value: New value to set, should match the type of the parameter.
+    #     :raises IndexError: When trying to set value ouside the bounds the parameter array.
+    #     :raises ConnectionError: When autosend is on, and no response is received.
+    #     """ 
 
 
 class PythonParameter(Parameter):
@@ -305,7 +306,7 @@ class PythonParameter(Parameter):
         :param mask: Parameter flags, i.e PM_CONF. Multiple flags may be ORed together.
         :param unit: Unit of the new parameter.
         :param docstr: Docstring of the new parameter.
-        :param array_size: Array size of the new parameter. Creates a ParameterArray when > 1.
+        :param array_size: Array size of the new parameter.
         :param callback: Python function called when the parameter is set, signature: def callback(param: Parameter, offset: int) -> None
         :param host:
         :param timeout: Timeout to use when setting remote parameters.
@@ -341,22 +342,32 @@ class PythonParameter(Parameter):
         Change the callback of the parameter
         """
 
-class PythonArrayParameter(PythonParameter, ParameterArray):
-    """ ParameterArray created in Python. """
-
 class PythonGetSetParameter(PythonParameter):
     """ ParameterArray created in Python. """
 
     def __new__(cls, id: int, name: str, type: int, mask: int | str, unit: str = None, docstr: str = None, array_size: int = 0,
                    callback: _Callable[[Parameter, int], None] = None, host: int = None, timeout: int = None,
                    retries: int = 0, paramver: int = 2, getter: _Callable[[Parameter, int], _Any] = None, setter: _Callable[[Parameter, int, _Any], None] = None) -> PythonGetSetParameter:
-        """  """
+        """
+        Allows you to specify a `getter` and `setter` function for the parameter.
+        Signature for the getter:
+        ```
+        def getter(param: Parameter, idx: int) -> _param_value_hint:
+            " receives the parameter and index for which to retrieve a value.
+                The type of the returned value must match the type of the parameter, i.e `int` for `PARAM_TYPE_UINT8` "
+        ```
 
-class PythonGetSetArrayParameter(PythonGetSetParameter, PythonArrayParameter):
-    """ ParameterArray created in Python. """
+        Signature for the setter:
+        ```
+        def setter(param: Parameter, idx: int, value: _param_value_hint) -> None:
+            " receives the parameter and index for which to set the value. Also receives the actual value to set.
+                The setter should not return anything. "
+        ```
+        """
+
 
 # PyCharm may refuse to acknowledge that a list subclass is iterable, so we explicitly state that it is.
-class ParameterList(_pylist[Parameter | ParameterArray], _Iterable):
+class ParameterList(_pylist[Parameter], _Iterable):
     """
     Convenience class providing an interface for pulling and pushing the value of multiple parameters
     in a single request using param_queue_t's
