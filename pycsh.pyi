@@ -17,6 +17,7 @@ from typing import \
     Literal as _Literal, \
     Callable as _Callable
 from datetime import datetime as _datetime
+from typing_extensions import deprecated as _deprecated
 from io import IOBase as _IOBase, TextIOBase as _TextIOBase
 
 _param_value_hint = int | float | str
@@ -154,8 +155,17 @@ class Parameter:
         """ Naively sets the node used when querying parameters. Uses node when None. """
 
     @property
+    @_deprecated('Use `.py_type` instead')
     def type(self) -> _param_type_hint:
         """ Returns the best Python representation type object of the param_t c struct type. i.e int for uint32. """
+
+    @property
+    def py_type(self) -> _param_type_hint:
+        """ Returns the best Python representation type object of the param_t c struct type. i.e int for uint32. """
+
+    @property
+    def c_type(self) -> int:
+        """ Return the `param_type_e` enum integer, i.e pycsh.PARAM_TYPE_UINT8. """
 
     @property
     def cached_value(self) -> int | float:
