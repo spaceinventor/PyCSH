@@ -47,7 +47,7 @@ class TestArrayParameter(unittest.TestCase):
             self.assertIs(param, Parameter(param.id))
 
         # NOTE: This should also be tested.
-        param_arguments.array_param.set_value_array((0, 1, 2, 3, 4, 5, 6, 7))
+        param_arguments.array_param.value = (0, 1, 2, 3, 4, 5, 6, 7)
 
         return param_arguments
 
@@ -73,71 +73,72 @@ class TestArrayParameter(unittest.TestCase):
     def test_str_param(self, param_args: ParamArguments):
 
         # Assert defaults value before we mutate it.
-        self.assertEqual(param_args.str_param.get_value_array(), '')
-        self.assertEqual(param_args.str_param.get_value(), '')
+        self.assertEqual(param_args.str_param.value, '')
+        self.assertEqual(param_args.str_param.value[:], '')
 
 
         assert len(param_args.str_param) > 10
-        self.assertEqual(param_args.str_param.get_value(index=len(param_args.str_param)-5), '')
+        self.assertEqual(param_args.str_param.value[len(param_args.str_param)-5], '')
 
         new_val: str = 'hello'
-        param_args.str_param.set_value(new_val)
+        param_args.str_param.value = new_val
 
-        self.assertEqual(param_args.str_param.get_value_array(), new_val)
-        self.assertEqual(param_args.str_param.get_value(), new_val)
+        self.assertEqual(param_args.str_param.value, new_val)
+        self.assertEqual(param_args.str_param.value[:], new_val)
 
         # Check that getting outside (behind) of the string value gives an empty string.
         assert len(new_val) < len(param_args.str_param)-5
-        self.assertEqual(param_args.str_param.get_value(index=len(param_args.str_param)-5), '')
+        self.assertEqual(param_args.str_param.value[len(param_args.str_param)-5], '')
 
         # Testing custom step-sizes
-        self.assertEqual(param_args.str_param.get_value_array()[::-1], new_val[::-1])
-        self.assertEqual(param_args.str_param.get_value_array()[::2], new_val[::2])
+        self.assertEqual(param_args.str_param.value[::-1], new_val[::-1])
+        self.assertEqual(param_args.str_param.value[::2], new_val[::2])
 
     @_pass_param_arguments(test_create_param)
     def test_param_indexerror(self, param_args: ParamArguments):
 
         with self.assertRaises(IndexError):
-            param_args.array_param.get_value(index=len(param_args.array_param)+10)
+            param_args.array_param.value[len(param_args.array_param)+10]
         with self.assertRaises(IndexError):
-            param_args.str_param.get_value(index=len(param_args.str_param)+10)
+            param_args.str_param.value[len(param_args.str_param)+10]
 
         with self.assertDoesNotRaise(IndexError):
-            param_args.str_param.get_value_array()[:len(param_args.str_param)+10]
+            param_args.str_param.value[:len(param_args.str_param)+10]
 
 
     @_pass_param_arguments(test_create_param)
     def test_default_values(self, param_args: ParamArguments):
         for i in range(len(param_args.array_param)):
-            self.assertEqual(param_args.array_param.get_value(i), i)
+            self.assertEqual(param_args.array_param.value[i], i)
 
         # (0, 1, 2, 3, 4, 5, 6, 7)
-        self.assertEqual(param_args.array_param.get_value_array(), tuple(range(len(param_args.array_param))))
-        self.assertEqual(param_args.array_param.get_value_array(None), tuple(range(len(param_args.array_param))))
+        self.assertEqual(param_args.array_param.value,       tuple(range(len(param_args.array_param))))  # Default to type of parameter, i.e: tuple[] when `param->array_size > 1`.
+        self.assertEqual(param_args.array_param.value[None], tuple(range(len(param_args.array_param))))
+        self.assertEqual(param_args.array_param.value[:],    tuple(range(len(param_args.array_param))))
 
     @_pass_param_arguments(test_create_param)
     def test_slicing(self, param_args: ParamArguments):
-        self.assertEqual(param_args.array_param.get_value_array()[5:-1], (5, 6))
-        self.assertEqual(param_args.array_param.get_value_array()[5:], (5, 6, 7))
+        self.assertEqual(param_args.array_param.value[5:-1], (5, 6))
+        self.assertEqual(param_args.array_param.value[5:], (5, 6, 7))
 
     @_pass_param_arguments(test_create_param)
     def test_reverse_slicing(self, param_args: ParamArguments):
 
         # (7, 6, 5, 4, 3, 2, 1, 0)
         expected = tuple(reversed(range(len(param_args.array_param))))
-        self.assertEqual(param_args.array_param.get_value_array()[::-1], expected)
+        self.assertEqual(param_args.array_param.value[::-1], expected)
 
     @_pass_param_arguments(test_create_param)
     def test_set_value_broadcast(self, param_args: ParamArguments):
         """ Setting without index should set all indices, similar to CSH. """
-        param_args.array_param.set_value(10)
-        param_args.array_param.set_value(10, None)  # Explicit None is also allowed, which is normally not the case with `PyArg_ParseTupleAndKeywords()`
-        self.assertEqual(param_args.array_param.get_value_array(), tuple(10 for _ in range(len(param_args.array_param))))
+        param_args.array_param.value = 10
+        param_args.array_param.value[None] = 10  # Explicit None is also allowed, which is normally not the case with `PyArg_ParseTupleAndKeywords()`
+        self.assertEqual(param_args.array_param.value, tuple(10 for _ in range(len(param_args.array_param))))
 
     @_pass_param_arguments(test_create_param)
     def test_invalid_index_type(self, param_args: ParamArguments):
         with self.assertRaises(TypeError):
-            param_args.array_param.set_value(10, "hello index")
+            param_args.array_param.value["hello index"] = 10
 
 
 if __name__ == "__main__":

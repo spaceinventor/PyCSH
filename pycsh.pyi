@@ -16,7 +16,9 @@ from typing import \
     Iterable as _Iterable, \
     Literal as _Literal, \
     Callable as _Callable, \
-    Iterator as _Iterator
+    Iterator as _Iterator, \
+    overload as _overload
+
 from datetime import datetime as _datetime
 from io import IOBase as _IOBase, TextIOBase as _TextIOBase
 
@@ -119,13 +121,49 @@ class InvalidParameterTypeError(ValueError):
 class ValueProxy:
     """ Used by array Parameters to allow the user to use normal slicing syntax to query specific parameters.
         i.e: `Parameter(<name>).get_value_array()[:3]` """
-    
-    def __getitem__(self, index: int | slice) -> tuple[int | float, ...] | str:
-        """ Immediately query unqueried parameters and return the specified indexes. """
+
+    def __call__(self, host: int = None, timeout: int = None, retries: int = None, paramver: int = None, remote: bool = None, verbose: int = None) -> ValueProxy:
+        """ Set attributes on `self` and return `self`, builder pattern like. """
+
+    @_overload
+    def __getitem__(self, index: slice | _Iterable[int] | None) -> tuple[int | float, ...] | str:
+        """ Immediately query unqueried parameters and return a `tuple[..., ...]` with the specified slice/indexes (or the whole array for None). """
+
+    @_overload
+    def __getitem__(self, index: int) -> int | float | str:
+        """ Immediately query unqueried parameters and return the value of the specified index. """
+
+    @_overload
+    def __setitem__(self, indexes: slice | _Iterable[int] | None, value: _Iterable[int | float | str] | (int | float | str)) -> None:
+        """
+        Set the value of multiple indexes from the specified `slice|range|mapping`
+
+        If `value` is iterable, it must match the length of `indexes`, i.e:
+        ```
+        # No exception:
+        test_array_param.value[3:6] = (3,4,5)
+
+        # Exception raised:
+        test_array_param.value[3:6] = (3,4,5,6,7)
+        ```
+
+        If `value` is NOT iterable, it will be applied to all specified indexes, i.e:
+        ```
+        test_array_param.value[3:6] = 4
+        ```
+        """
+
+    @_overload
+    def __setitem__(self, index: int, value: int | float | str) -> None:
+        """ Set the value of a single specified index. """
 
     def __iter__(self) -> _Iterator[int | float | str]:
-        """ Immediately query unqueried parameters and yield the specified indexes. """
+        """
+        Immediately query unqueried parameters and yield the specified indexes.
         
+        :raises TypeError: If called on a non-array parameter, without having sliced the parameter.
+        """
+
     def __str__(self) -> str:
         """ Immediately query unqueried parameters and return `str([:])`.
             Use `.__getitem__()` to only query certain indeces. """
@@ -148,6 +186,22 @@ class Parameter:
     mask: int  # mask of the parameter
     timestamp: int  # timestamp of the parameter
     node: int  # node of the parameter
+
+    @property
+    def value(self) -> ValueProxy:
+        """
+        Return a `ValueProxy` for the `Parameter` (note that `remote` default to True).
+        See `ValueProxy.__call__` for optional arguments (timeout, remote, etc.).
+        See `ValueProxy.__getitem__` for index argument handling.
+        """
+
+    @value.setter
+    def value(self) -> None:
+        """
+        Defers set operation to `ValueProxy` (note that `remote` default to True).
+        See `ValueProxy.__call__` for optional arguments (timeout, remote, etc.).
+        See `ValueProxy.__setitem__` for index argument handling.
+        """
 
     def __new__(cls, param_identifier: _param_ident_hint, node: int = None, host: int = None, timeout: int = None, retries: int = None) -> Parameter:
         """
@@ -186,52 +240,53 @@ class Parameter:
         """ Returns the best Python representation type object of the param_t c struct type. i.e int for uint32. """
 
 
-    def get_value(self, index: int = None, remote: bool = True, verbose: int = None) -> int | float | str:
-        """
-        Returns the value of a single index, so the result will not be iterable*.
+    if 0:  # These are deprecated
+        def get_value(self, index: int = None, remote: bool = True, verbose: int = None) -> int | float | str:
+            """
+            Returns the value of a single index, so the result will not be iterable*.
 
-        If the index argument is `None`, it will pull the entire remote parameter, even though it still only returns index 0.
-        *(with the exception of string parameters, where `index=None` returns the whole string).
-        Returns the value of the parameter from its specified node in the Python representation of its type (i.e `int` for `PARAM_TYPE_UINT8`).
-        """
+            If the index argument is `None`, it will pull the entire remote parameter, even though it still only returns index 0.
+            *(with the exception of string parameters, where `index=None` returns the whole string).
+            Returns the value of the parameter from its specified node in the Python representation of its type (i.e `int` for `PARAM_TYPE_UINT8`).
+            """
 
-    def set_value(self, value: int | float, index: int = None, remote: bool = True, verbose: int = None) -> None:
-        """
-        Sets the value of the parameter.
+        def set_value(self, value: int | float, index: int = None, remote: bool = True, verbose: int = None) -> None:
+            """
+            Sets the value of the parameter.
 
-        :param value: New desired value. Assignments to other parameters, use their value instead, Otherwise uses .__str__().
-        :param index: Leave as None to set whole array, similar to CSH
-        """
-        """
-        Sets the remote value of the parameter.
+            :param value: New desired value. Assignments to other parameters, use their value instead, Otherwise uses .__str__().
+            :param index: Leave as None to set whole array, similar to CSH
+            """
+            """
+            Sets the remote value of the parameter.
 
-        :param value: New desired value. Assignments to other parameters, use their value instead, Otherwise uses .__str__().
-        """
+            :param value: New desired value. Assignments to other parameters, use their value instead, Otherwise uses .__str__().
+            """
 
 
-    def get_value_array(self, remote: bool = True, verbose: int = None) -> ValueProxy:
-        """
-        Always return an iterable from the specified sequence. By default return the whole parameter.
-        Examples for the following parameter `set index_array [0 1 2 3 4 5 6 7]`:
-        ```
-        index_array.get_value_array(indexes=slice(0, None)) == (0, 1, 2, 3, 4, 5, 6, 7)
-        index_array.get_value_array() == (0, 1, 2, 3, 4, 5, 6, 7)
+        def get_value_array(self, remote: bool = True, verbose: int = None) -> ValueProxy:
+            """
+            Always return an iterable from the specified sequence. By default return the whole parameter.
+            Examples for the following parameter `set index_array [0 1 2 3 4 5 6 7]`:
+            ```
+            index_array.get_value_array(indexes=slice(0, None)) == (0, 1, 2, 3, 4, 5, 6, 7)
+            index_array.get_value_array() == (0, 1, 2, 3, 4, 5, 6, 7)
 
-        index_array.get_value_array(slice(1)) == (0)
-        index_array.get_value_array(slice(2)) == (0, 1)
+            index_array.get_value_array(slice(1)) == (0)
+            index_array.get_value_array(slice(2)) == (0, 1)
 
-        index_array.get_value_array(slice(1, 3)) == (1, 2)
-        ```
+            index_array.get_value_array(slice(1, 3)) == (1, 2)
+            ```
 
-        Returns the local cached value of the parameter from its specified node in the Python representation of its type (i.e `int` for `PARAM_TYPE_UINT8`).
-        """
+            Returns the local cached value of the parameter from its specified node in the Python representation of its type (i.e `int` for `PARAM_TYPE_UINT8`).
+            """
 
-    def set_value_array(self, values: str | _Iterable[int | float], indexes: _Iterable[int] | slice = slice(0, None), remote: bool = True, verbose: int = None) -> None:
-        """
-        Set the value of multiple indexes in an array parameter.
+        def set_value_array(self, values: str | _Iterable[int | float], indexes: _Iterable[int] | slice = slice(0, None), remote: bool = True, verbose: int = None) -> None:
+            """
+            Set the value of multiple indexes in an array parameter.
 
-        :param value: New desired value. Assignments to other parameters, use their value instead, Otherwise uses .__str__().
-        """
+            :param value: New desired value. Assignments to other parameters, use their value instead, Otherwise uses .__str__().
+            """
 
 
     @property
