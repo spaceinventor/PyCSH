@@ -270,6 +270,21 @@ class ValueProxy:
     >>>
     ```
 
+    Subscription syntax must still be used to specify attributes when setting the value of non-array parameters:
+    ```
+    >>> Parameter("csp_print_packet").value(remote=False) = 3
+    File "<stdin>", line 1
+        Parameter("csp_print_packet").value(remote=False) = 3
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    SyntaxError: cannot assign to function call here. Maybe you meant '==' instead of '='?
+    >>> Parameter("csp_print_packet").value(remote=False)[:] = 3
+    >>> Parameter("csp_print_packet").value(remote=False)[0] = 3
+    >>> Parameter("csp_print_packet").value(remote=False)
+    csp_print_packet     = 3
+    3
+    >>>
+    ```
+
     """
 
     def __call__(self, host: int = None, timeout: int = None, retries: int = None, paramver: int = None, remote: bool = True, verbose: int = None) -> ValueProxy:
