@@ -19,8 +19,6 @@
 
 extern param_queue_t param_queue;
 
-typedef void (*param_transaction_callback_f)(csp_packet_t *response, int verbose, int version);
-int param_transaction(csp_packet_t *packet, int host, int timeout, param_transaction_callback_f callback, int verbose, int version, void * context);
 
 static void param_transaction_callback_add(csp_packet_t *response, int verbose, int version) {
     if (response->data[0] != PARAM_COMMAND_ADD_RESPONSE){
