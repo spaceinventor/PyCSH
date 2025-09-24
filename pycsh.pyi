@@ -20,6 +20,7 @@ from typing import \
     overload as _overload
 
 from datetime import datetime as _datetime
+from typing_extensions import deprecated as _deprecated
 from io import IOBase as _IOBase, TextIOBase as _TextIOBase
 
 _param_value_hint = int | float | str
@@ -236,57 +237,47 @@ class Parameter:
         """ Naively sets the node used when querying parameters. Uses node when None. """
 
     @property
+    @_deprecated('Use `.py_type` instead')
     def type(self) -> _param_type_hint:
         """ Returns the best Python representation type object of the param_t c struct type. i.e int for uint32. """
 
+    @property
+    def py_type(self) -> _param_type_hint:
+        """ Returns the best Python representation type object of the param_t c struct type. i.e int for uint32. """
 
-    if 0:  # These are deprecated
-        def get_value(self, index: int = None, remote: bool = True, verbose: int = None) -> int | float | str:
-            """
-            Returns the value of a single index, so the result will not be iterable*.
+    @property
+    def c_type(self) -> int:
+        """ Return the `param_type_e` enum integer, i.e pycsh.PARAM_TYPE_UINT8. """
 
-            If the index argument is `None`, it will pull the entire remote parameter, even though it still only returns index 0.
-            *(with the exception of string parameters, where `index=None` returns the whole string).
-            Returns the value of the parameter from its specified node in the Python representation of its type (i.e `int` for `PARAM_TYPE_UINT8`).
-            """
+    @property
+    def cached_value(self) -> int | float:
+        """
+        Returns the local cached value of the parameter from its specified node in the Python representation of its type.
+        Array parameters return a tuple of values, whereas normal parameters return only a single value.
+        """
 
-        def set_value(self, value: int | float, index: int = None, remote: bool = True, verbose: int = None) -> None:
-            """
-            Sets the value of the parameter.
+    @cached_value.setter
+    def cached_value(self, value: int | float) -> None:
+        """
+        Sets the local cached value of the parameter.
 
-            :param value: New desired value. Assignments to other parameters, use their value instead, Otherwise uses .__str__().
-            :param index: Leave as None to set whole array, similar to CSH
-            """
-            """
-            Sets the remote value of the parameter.
+        :param value: New desired value. Assignments to other parameters, use their value instead, Otherwise uses .__str__().
+        """
 
-            :param value: New desired value. Assignments to other parameters, use their value instead, Otherwise uses .__str__().
-            """
+    @property
+    def remote_value(self) -> int | float:
+        """
+        Returns the remote value of the parameter from its specified node in the Python representation of its type.
+        Array parameters return a tuple of values, whereas normal parameters return only a single value.
+        """
 
+    @remote_value.setter
+    def remote_value(self, value: int | float) -> None:
+        """
+        Sets the remote value of the parameter.
 
-        def get_value_array(self, remote: bool = True, verbose: int = None) -> ValueProxy:
-            """
-            Always return an iterable from the specified sequence. By default return the whole parameter.
-            Examples for the following parameter `set index_array [0 1 2 3 4 5 6 7]`:
-            ```
-            index_array.get_value_array(indexes=slice(0, None)) == (0, 1, 2, 3, 4, 5, 6, 7)
-            index_array.get_value_array() == (0, 1, 2, 3, 4, 5, 6, 7)
-
-            index_array.get_value_array(slice(1)) == (0)
-            index_array.get_value_array(slice(2)) == (0, 1)
-
-            index_array.get_value_array(slice(1, 3)) == (1, 2)
-            ```
-
-            Returns the local cached value of the parameter from its specified node in the Python representation of its type (i.e `int` for `PARAM_TYPE_UINT8`).
-            """
-
-        def set_value_array(self, values: str | _Iterable[int | float], indexes: _Iterable[int] | slice = slice(0, None), remote: bool = True, verbose: int = None) -> None:
-            """
-            Set the value of multiple indexes in an array parameter.
-
-            :param value: New desired value. Assignments to other parameters, use their value instead, Otherwise uses .__str__().
-            """
+        :param value: New desired value. Assignments to other parameters, use their value instead, Otherwise uses .__str__().
+        """
 
 
     @property

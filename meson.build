@@ -36,7 +36,6 @@ pycsh_ext = py.extension_module(
 	[
 		'src/python_host.c',
 		'src/csh_defaults.c',
-		'src/param_commands_client.c',
 		'src/known_hosts.c',
 
 		# HK symbol dependencies
