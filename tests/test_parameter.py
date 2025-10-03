@@ -3,7 +3,7 @@ import unittest
 from time import sleep
 from contextlib import contextmanager
 from typing import NamedTuple, Callable, Any
-from pycsh import Parameter, PythonParameter, PARAM_TYPE_STRING, PARAM_TYPE_UINT8, PM_CONF
+from pycsh import Parameter, PythonParameter, PARAM_TYPE_STRING, PARAM_TYPE_UINT8, PM_CONF, ValueProxy
 
 
 class ParamArguments(NamedTuple):
@@ -81,97 +81,142 @@ class TestArrayParameter(unittest.TestCase):
         # assert len(param_args.str_param) > 10
         # self.assertEqual(param_args.str_param.value[len(param_args.str_param)-5], '')
 
-        for new_val in ('hello', 'hi', '123'):
-            param_args.str_param.value = new_val
+        # Test that `Parameter(...)[...]` is a shorthand for `Parameter(...).value[...]`
+        proxy_api = lambda : param_args.str_param.value
+        param_api  = lambda : param_args.str_param
 
-            self.assertEqual(param_args.str_param.value, new_val)
-            self.assertEqual(param_args.str_param.value[:], new_val)
+        for subscript_api in (proxy_api, param_api):
+            for new_val in ('hello', 'hi', '123'):
+                param_args.str_param.value = new_val
 
-            # NOTE: We now raise an IndexError instead of empty string
-            # # Check that getting outside (behind) of the string value gives an empty string.
-            # assert len(new_val) < len(param_args.str_param)-5
-            # self.assertEqual(param_args.str_param.value[len(param_args.str_param)-5], '')
+                if isinstance(subscript_api(), ValueProxy):
+                    self.assertEqual(subscript_api(), new_val)
+                self.assertEqual(subscript_api()[:], new_val)
 
-            # Testing custom step-sizes
-            self.assertEqual(param_args.str_param.value[::-1], new_val[::-1])
-            self.assertEqual(param_args.str_param.value[::-2], new_val[::-2])
-            self.assertEqual(param_args.str_param.value[::2], new_val[::2])
+                # NOTE: We now raise an IndexError instead of empty string
+                # # Check that getting outside (behind) of the string value gives an empty string.
+                # assert len(new_val) < len(param_args.str_param)-5
+                # self.assertEqual(param_args.str_param.value[len(param_args.str_param)-5], '')
+
+                # Testing custom step-sizes
+                self.assertEqual(subscript_api()[::-1], new_val[::-1])
+                self.assertEqual(subscript_api()[::-2], new_val[::-2])
+                self.assertEqual(subscript_api()[::2], new_val[::2])
 
         # Getting an index outside the string value of the parameter is still an IndexError,
         #   even if it inside the bounds of `len(param)`
         short_str: str = "12"
         param_args.str_param.value = short_str
-        with self.assertRaises(IndexError):
-            param_args.str_param.value[len(short_str)+1]
+        for subscript_api in (proxy_api, param_api):
+            with self.assertRaises(IndexError):
+                subscript_api()[len(short_str)+1]
 
-        with self.assertRaises(IndexError):
-            param_args.str_param.value[(i for i in range(len(short_str)+2))]
+            with self.assertRaises(IndexError):
+                subscript_api()[(i for i in range(len(short_str)+2))]
 
-        with self.assertRaises(IndexError):
-            param_args.str_param.value[len(param_args.str_param)+100]
+            with self.assertRaises(IndexError):
+                subscript_api()[len(param_args.str_param)+100]
 
-        with self.assertDoesNotRaise(IndexError):
-            self.assertEqual(param_args.str_param.value[-1], "2")
+            with self.assertDoesNotRaise(IndexError):
+                self.assertEqual(subscript_api()[-1], "2")
 
-        # Just putting this here, to force myself to write unit tests the day we can assign string parameters by index:
-        with self.assertRaises(NotImplementedError):
-            param_args.str_param.value[4] = "5"
+            # Just putting this here, to force myself to write unit tests the day we can assign string parameters by index:
+            with self.assertRaises(NotImplementedError):
+                subscript_api()[4] = "5"
 
     @_pass_param_arguments(test_create_param)
     def test_param_indexerror(self, param_args: ParamArguments):
 
-        with self.assertRaises(IndexError):
-            param_args.array_param.value[len(param_args.array_param)+10]
-        with self.assertRaises(IndexError):
-            param_args.str_param.value[len(param_args.str_param)+10]
+        # Test that `Parameter(...)[...]` is a shorthand for `Parameter(...).value[...]`
+        proxy_api_arr = lambda : param_args.str_param.value
+        param_api_arr  = lambda : param_args.str_param
 
-        with self.assertDoesNotRaise(IndexError):
-            param_args.str_param.value[:len(param_args.str_param)+10]
+        for subscript_api in (proxy_api_arr, param_api_arr):
+            with self.assertRaises(IndexError):
+                subscript_api()[len(param_args.array_param)+10]
+
+        # Test that `Parameter(...)[...]` is a shorthand for `Parameter(...).value[...]`
+        proxy_api = lambda : param_args.str_param.value
+        param_api  = lambda : param_args.str_param
+
+        for subscript_api in (proxy_api, param_api):
+            with self.assertRaises(IndexError):
+                subscript_api()[len(param_args.str_param)+10]
+            with self.assertDoesNotRaise(IndexError):
+                subscript_api()[:len(param_args.str_param)+10]
 
 
     @_pass_param_arguments(test_create_param)
     def test_default_values(self, param_args: ParamArguments):
-        for i in range(len(param_args.array_param)):
-            self.assertEqual(param_args.array_param.value[i], i)
 
-        # (0, 1, 2, 3, 4, 5, 6, 7)
-        self.assertEqual(param_args.array_param.value,       tuple(range(len(param_args.array_param))))  # Default to type of parameter, i.e: tuple[] when `param->array_size > 1`.
-        self.assertEqual(param_args.array_param.value[None], tuple(range(len(param_args.array_param))))
-        self.assertEqual(param_args.array_param.value[:],    tuple(range(len(param_args.array_param))))
+        # Test that `Parameter(...)[...]` is a shorthand for `Parameter(...).value[...]`
+        proxy_api = lambda : param_args.array_param.value
+        param_api  = lambda : param_args.array_param
+
+        for subscript_api in (proxy_api, param_api):
+
+            for i in range(len(param_args.array_param)):
+                self.assertEqual(subscript_api()[i], i)
+
+            # (0, 1, 2, 3, 4, 5, 6, 7)
+            if isinstance(subscript_api(), ValueProxy):
+                self.assertEqual(param_args.array_param.value,       tuple(range(len(param_args.array_param))))  # Default to type of parameter, i.e: tuple[] when `param->array_size > 1`.
+            self.assertEqual(subscript_api()[None], tuple(range(len(param_args.array_param))))
+            self.assertEqual(subscript_api()[:],    tuple(range(len(param_args.array_param))))
 
     @_pass_param_arguments(test_create_param)
     def test_slicing(self, param_args: ParamArguments):
-        self.assertEqual(param_args.array_param.value[5:-1], (5, 6))
-        self.assertEqual(param_args.array_param.value[5:], (5, 6, 7))
+        proxy_api = lambda : param_args.array_param.value
+        param_api  = lambda : param_args.array_param
+
+        for subscript_api in (proxy_api, param_api):
+            self.assertEqual(subscript_api()[5:-1], (5, 6))
+            self.assertEqual(subscript_api()[5:], (5, 6, 7))
 
     @_pass_param_arguments(test_create_param)
     def test_reverse_slicing(self, param_args: ParamArguments):
 
-        # (7, 6, 5, 4, 3, 2, 1, 0)
-        expected = tuple(reversed(range(len(param_args.array_param))))
-        self.assertEqual(param_args.array_param.value[::-1], expected)
+        proxy_api = lambda : param_args.array_param.value
+        param_api  = lambda : param_args.array_param
+
+        for subscript_api in (proxy_api, param_api):
+
+            # (7, 6, 5, 4, 3, 2, 1, 0)
+            expected = tuple(reversed(range(len(param_args.array_param))))
+            self.assertEqual(subscript_api()[::-1], expected)
 
     @_pass_param_arguments(test_create_param)
     def test_set_value_broadcast(self, param_args: ParamArguments):
         """ Setting without index should set all indices, similar to CSH. """
 
-        assert set(param_args.array_param.value) != {10}
-        param_args.array_param.value[:] = 10
+        proxy_api = lambda : param_args.array_param.value
+        param_api  = lambda : param_args.array_param
 
-        with self.assertRaises(IndexError):
-            param_args.array_param.value = 20
-        with self.assertRaises(IndexError):
-            # Explicit None is also allowed, which is normally not the case with `PyArg_ParseTupleAndKeywords()`.
-            #   It is handled as if no index was specified, i.e IndexError for array Parameter.
-            param_args.array_param.value[None] = 20
+        BROADCAST_VAL: int = 10
+        assert set(param_args.array_param.value) != {BROADCAST_VAL}
+        for subscript_api in (proxy_api, param_api):
+
+            subscript_api()[:] = BROADCAST_VAL
+
+            if isinstance(subscript_api, ValueProxy):
+                with self.assertRaises(IndexError):
+                    param_args.array_param.value = BROADCAST_VAL*2
+            with self.assertRaises(IndexError):
+                # Explicit None is also allowed, which is normally not the case with `PyArg_ParseTupleAndKeywords()`.
+                #   It is handled as if no index was specified, i.e IndexError for array Parameter.
+                subscript_api()[None] = BROADCAST_VAL*2
     
-        # Check that broadcast set worked, and that IndexErrors didn't also set values. 
-        self.assertEqual(param_args.array_param.value, tuple(10 for _ in range(len(param_args.array_param))))
+            # Check that broadcast set worked, and that IndexErrors didn't also set values. 
+            self.assertEqual(param_args.array_param.value, tuple(BROADCAST_VAL for _ in range(len(param_args.array_param))))
+            self.assertEqual(subscript_api()[:], tuple(BROADCAST_VAL for _ in range(len(param_args.array_param))))
 
     @_pass_param_arguments(test_create_param)
     def test_invalid_index_type(self, param_args: ParamArguments):
-        with self.assertRaises(TypeError):
-            param_args.array_param.value["hello index"] = 10
+        proxy_api = lambda : param_args.array_param.value
+        param_api  = lambda : param_args.array_param
+        for subscript_api in (proxy_api, param_api):
+            with self.assertRaises(TypeError):
+                subscript_api()["hello index"] = 10
 
 
 if __name__ == "__main__":

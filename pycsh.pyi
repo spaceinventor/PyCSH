@@ -532,28 +532,39 @@ class Parameter:
         Sets the retries the parameter has for transactions.
         Use None to reset default value.
         """
-    
 
-    # def __getitem__(self, index: int) -> _param_type_hint:
-    #     """
-    #     Get the value of an index in an array parameter.
 
-    #     :param index: Index on which to get the value. Supports backwards subscription (i.e: -1).
-    #     :raises IndexError: When trying to get a value outside the bounds of the parameter array.
-    #     :raises ConnectionError: When autosend is on, and no response is received.
+    @_overload
+    def __getitem__(self, index: slice | _Iterable[int] | None) -> tuple[int | float, ...] | str:
+        """
+        Shorthand for `self.value[index]`
 
-    #     :return: The value of the specified index, as its Python type.
-    #     """
+        i.e: `Parameter(...)[...] == Parameter(...).value[...]`
+        """
 
-    # def __setitem__(self, index: int, value: int | float) -> None:
-    #     """
-    #     Set the value of an index in an array parameter.
+    @_overload
+    def __getitem__(self, index: int) -> int | float | str:
+        """
+        Shorthand for `self.value[index]`
 
-    #     :param index: Index on which to set the value. Supports backwards subscription (i.e: -1).
-    #     :param value: New value to set, should match the type of the parameter.
-    #     :raises IndexError: When trying to set value ouside the bounds the parameter array.
-    #     :raises ConnectionError: When autosend is on, and no response is received.
-    #     """ 
+        i.e: `Parameter(...)[...] == Parameter(...).value[...]`
+        """
+
+    @_overload
+    def __setitem__(self, indexes: slice | _Iterable[int] | None, value: _Iterable[int | float | str] | (int | float | str)) -> None:
+        """
+        Shorthand for `self.value[index] = value`
+
+        i.e: `Parameter(...)[...] = ...` == `Parameter(...).value[...] = ...`
+        """
+
+    @_overload
+    def __setitem__(self, index: int, value: int | float | str) -> None:
+        """
+        Shorthand for `self.value[index] = value`
+
+        i.e: `Parameter(...)[...] = ...` == `Parameter(...).value[...] = ...`
+        """
 
 
 class PythonParameter(Parameter):
