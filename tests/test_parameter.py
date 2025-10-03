@@ -77,22 +77,38 @@ class TestArrayParameter(unittest.TestCase):
         self.assertEqual(param_args.str_param.value[:], '')
 
 
-        assert len(param_args.str_param) > 10
-        self.assertEqual(param_args.str_param.value[len(param_args.str_param)-5], '')
+        # NOTE: We now raise an IndexError instead of empty string
+        # assert len(param_args.str_param) > 10
+        # self.assertEqual(param_args.str_param.value[len(param_args.str_param)-5], '')
 
-        new_val: str = 'hello'
-        param_args.str_param.value = new_val
+        for new_val in ('hello', 'hi', '123'):
+            param_args.str_param.value = new_val
 
-        self.assertEqual(param_args.str_param.value, new_val)
-        self.assertEqual(param_args.str_param.value[:], new_val)
+            self.assertEqual(param_args.str_param.value, new_val)
+            self.assertEqual(param_args.str_param.value[:], new_val)
 
-        # Check that getting outside (behind) of the string value gives an empty string.
-        assert len(new_val) < len(param_args.str_param)-5
-        self.assertEqual(param_args.str_param.value[len(param_args.str_param)-5], '')
+            # NOTE: We now raise an IndexError instead of empty string
+            # # Check that getting outside (behind) of the string value gives an empty string.
+            # assert len(new_val) < len(param_args.str_param)-5
+            # self.assertEqual(param_args.str_param.value[len(param_args.str_param)-5], '')
 
-        # Testing custom step-sizes
-        self.assertEqual(param_args.str_param.value[::-1], new_val[::-1])
-        self.assertEqual(param_args.str_param.value[::2], new_val[::2])
+            # Testing custom step-sizes
+            self.assertEqual(param_args.str_param.value[::-1], new_val[::-1])
+            self.assertEqual(param_args.str_param.value[::-2], new_val[::-2])
+            self.assertEqual(param_args.str_param.value[::2], new_val[::2])
+
+        # Getting an index outside the string value of the parameter is still an IndexError,
+        #   even if it inside the bounds of `len(param)`
+        short_str: str = "12"
+        param_args.str_param.value = short_str
+        with self.assertRaises(IndexError):
+            param_args.str_param.value[len(short_str)+1]
+
+        with self.assertRaises(IndexError):
+            param_args.str_param.value[(i for i in range(len(short_str)+2))]
+
+        with self.assertRaises(IndexError):
+            param_args.str_param.value[len(param_args.str_param)+100]
 
     @_pass_param_arguments(test_create_param)
     def test_param_indexerror(self, param_args: ParamArguments):
