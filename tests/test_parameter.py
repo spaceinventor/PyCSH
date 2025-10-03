@@ -110,6 +110,13 @@ class TestArrayParameter(unittest.TestCase):
         with self.assertRaises(IndexError):
             param_args.str_param.value[len(param_args.str_param)+100]
 
+        with self.assertDoesNotRaise(IndexError):
+            self.assertEqual(param_args.str_param.value[-1], "2")
+
+        # Just putting this here, to force myself to write unit tests the day we can assign string parameters by index:
+        with self.assertRaises(NotImplementedError):
+            param_args.str_param.value[4] = "5"
+
     @_pass_param_arguments(test_create_param)
     def test_param_indexerror(self, param_args: ParamArguments):
 
@@ -169,3 +176,23 @@ class TestArrayParameter(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+
+"""
+
+test_str[10] = "12345\x00\x00\x00\x00\x00"
+
+test_str.value = "12345"
+
+test_str.value[::-1] == "54321" OR "\x00"
+
+
+test_str.value = "12"
+test_str == "12\x0045\x00\x00\x00\x00\x00"
+
+test_str.value[::-1] == "21" OR "54" OR "\x00"
+
+test_str.value[(0,3,6)] == "14" OR "14\x00" OR IndexError
+
+"""

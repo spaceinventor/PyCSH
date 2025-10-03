@@ -123,13 +123,14 @@ class ValueProxy:
     """ 
     Used by Parameters to query select indices with slicing/subscription syntax.
 
-    Assuming the existence of the following 2 parameters for demonstration purposes:
+    Assuming the existence of the following 3 parameters for demonstration purposes:
     ```
-     1001:0   test_array_param     = [0 1 2 3 4 5 6 7]    u08[8]     d
      59:0     csp_print_packet     = 2                    u08        d
+     1001:0   test_array_param     = [0 1 2 3 4 5 6 7]    u08[8]     d
+     1002:0   test_str             = "12345\x00\x00\x00\x00\x00"  str[10]	 d
     ```
 
-    When `len(Parameter) > 1` `Parameter.value` returns a tuple, otherwise it returns index 0.
+    When `len(Parameter) > 1`, `Parameter.value` returns a tuple, otherwise it returns index 0.
     ```
     >>> Parameter("csp_print_packet").value
     59:0   csp_print_packet     = 2                    u08         d             
@@ -205,10 +206,13 @@ class ValueProxy:
 
     Assignments work similarly:
     ```
-    >>> Parameter("test_array_param").value(remote=False, verbose=0)
+    # Show current (cached) value without querying remote.
+    >>> Parameter("test_array_param").value(remote=False)
     1001:0   test_array_param     = [0 1 2 3 4 5 6 7]    u08[8]     d
     (0, 1, 2, 3, 4, 5, 6, 7)
+    # Set single index remote value (no `(remote=False)` here).
     >>> Parameter("test_array_param").value[1] = 10
+    # Query remote value to see that index has changed.
     >>> Parameter("test_array_param").value
     1001:0   test_array_param     = [0 10 2 3 4 5 6 7]   u08[8]     d
     (0, 10, 2, 3, 4, 5, 6, 7)
@@ -251,6 +255,7 @@ class ValueProxy:
     (50, 50, 50, 50, 50, 50, 50, 50)
     >>>
     ```
+    # TODO Kevin: Example that PARAM_TYPE_STRING are not settable by index. First fix missing null termination
 
     An `Iterable[int]` may be specified as an alternative to slice indices:
     ```
@@ -270,7 +275,7 @@ class ValueProxy:
     >>>
     ```
 
-    Subscription syntax must still be used to specify attributes when setting the value of non-array parameters:
+    Subscription syntax must still be used to also specify attributes while setting the value of non-array parameters:
     ```
     >>> Parameter("csp_print_packet").value(remote=False) = 3
     File "<stdin>", line 1
@@ -285,6 +290,50 @@ class ValueProxy:
     >>>
     ```
 
+    PARAM_TYPE_STRING Parameter() subscription is constrained to `len(Parameter().value[:])`, rather than `len(Parameter())`.
+    For example (assuming `Parameter("test_str").value == "12345\x00\x00\x00\x00\x00"`:
+    ```
+    >>> pycsh.Parameter("test_str").value
+    12345
+    >>> pycsh.Parameter("test_str").value[0]
+    test_str             = 12345               
+    '1'
+    >>> pycsh.Parameter("test_str").value[-1]
+    test_str             = 12345               
+    '5'  # Notice '5', NOT '\x00'
+    >>> pycsh.Parameter("test_str").value[::-1]
+    1002:0   test_str             = 12345                str[80]    d
+    '54321'
+    >>>
+    >>> pycsh.Parameter("test_str").value[::-2]
+    1002:0   test_str             = 12345                str[80]    d
+    '531'
+    ```
+    Getting a PARAM_TYPE_STRING index which is outside outside to bounds of the string value will raise an IndexError,
+    even if the parameter itself is big enough to hold the index:
+    ```
+    >>> pycsh.Parameter("test_str").value[7]
+    test_str             = 12345               
+    Traceback (most recent call last):
+    File "<stdin>", line 1, in <module>
+    IndexError: Array Parameter index out of range
+    >>>
+    ```
+    Slicing to that index will NOT raise an IndexError, as per normal Python string slicing syntax (`"123"[:10] == "123"`):
+    ```
+    >>> pycsh.Parameter("test_str").value[:7]
+    1002:0   test_str             = 12345                str[80]    d
+    '12345'
+    >>>
+    ```
+    String Parameters cannot (currently) be set by index:
+    ```
+    >>> pycsh.Parameter("test_str").value[4] = "5"
+    Traceback (most recent call last):
+    File "<stdin>", line 1, in <module>
+    NotImplementedError: Cannot set string parameters by index.
+    >>>
+    ```
     """
 
     def __call__(self, host: int = None, timeout: int = None, retries: int = None, paramver: int = None, remote: bool = True, verbose: int = None) -> ValueProxy:
