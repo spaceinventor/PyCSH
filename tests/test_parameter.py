@@ -131,8 +131,18 @@ class TestArrayParameter(unittest.TestCase):
     @_pass_param_arguments(test_create_param)
     def test_set_value_broadcast(self, param_args: ParamArguments):
         """ Setting without index should set all indices, similar to CSH. """
-        param_args.array_param.value = 10
-        param_args.array_param.value[None] = 10  # Explicit None is also allowed, which is normally not the case with `PyArg_ParseTupleAndKeywords()`
+
+        assert set(param_args.array_param.value) != {10}
+        param_args.array_param.value[:] = 10
+
+        with self.assertRaises(IndexError):
+            param_args.array_param.value = 20
+        with self.assertRaises(IndexError):
+            # Explicit None is also allowed, which is normally not the case with `PyArg_ParseTupleAndKeywords()`.
+            #   It is handled as if no index was specified, i.e IndexError for array Parameter.
+            param_args.array_param.value[None] = 20
+    
+        # Check that broadcast set worked, and that IndexErrors didn't also set values. 
         self.assertEqual(param_args.array_param.value, tuple(10 for _ in range(len(param_args.array_param))))
 
     @_pass_param_arguments(test_create_param)
