@@ -255,7 +255,6 @@ class ValueProxy:
     (50, 50, 50, 50, 50, 50, 50, 50)
     >>>
     ```
-    # TODO Kevin: Example that PARAM_TYPE_STRING are not settable by index. First fix missing null termination
 
     An `Iterable[int]` may be specified as an alternative to slice indices:
     ```
