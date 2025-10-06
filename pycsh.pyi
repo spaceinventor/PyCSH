@@ -243,12 +243,12 @@ class ValueProxy:
     (25, 25, 25, 0, 0, 0, 0, 0)
     >>>
     ```
-    By default all indices will be set:
+    It is not permissible to set all indices of an array parameter without specifying `[:]`:
     ```
-    >>> Parameter("test_array_param").value = 200
-    >>> Parameter("test_array_param").value
-    1001:0   test_array_param     = [200 200 200 200 200 200 200 200] u08[8]        d
-    (200, 200, 200, 200, 200, 200, 200, 200)
+    >>> pycsh.Parameter("test_array_param").value = 200
+    Traceback (most recent call last):
+    File "<stdin>", line 1, in <module>
+    IndexError: Use `[:]` to set all indices (of `test_array_param`) from a single value (200). i.e: `Parameter.value = 200` -> `Parameter.value[:] = 200`
     >>> Parameter("test_array_param").value[:] = 50
     >>> Parameter("test_array_param").value
     1001:0   test_array_param     = [50 50 50 50 50 50 50 50] u08[8]        d
@@ -289,14 +289,17 @@ class ValueProxy:
     >>>
     ```
 
-    PARAM_TYPE_STRING Parameter() subscription is constrained to `len(Parameter().value[:])`, rather than `len(Parameter())`.
+    `PARAM_TYPE_STRING` `Parameter()` subscription is constrained to `len(Parameter(...).value[:])`, rather than `len(Parameter(...))`.
     For example (assuming `Parameter("test_str").value == "12345\x00\x00\x00\x00\x00"`:
     ```
+    # Getting without index returns up to first NULL byte
     >>> pycsh.Parameter("test_str").value
     12345
+    # It is permissible to get indices within the string value
     >>> pycsh.Parameter("test_str").value[0]
     test_str             = 12345               
     '1'
+    # Backwards subscription starts at `len(Parameter(...).value[:])`, rather than `len(Parameter(...))`
     >>> pycsh.Parameter("test_str").value[-1]
     test_str             = 12345               
     '5'  # Notice '5', NOT '\x00'
@@ -318,7 +321,8 @@ class ValueProxy:
     IndexError: Array Parameter index out of range
     >>>
     ```
-    Slicing to that index will NOT raise an IndexError, as per normal Python string slicing syntax (`"123"[:10] == "123"`):
+    Slicing to that index will NOT raise an IndexError, as per normal Python string slicing syntax (`"123"[:10] == "123"`).
+    But neither will it include the NULL bytes:
     ```
     >>> pycsh.Parameter("test_str").value[:7]
     1002:0   test_str             = 12345                str[80]    d

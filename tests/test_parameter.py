@@ -221,23 +221,3 @@ class TestArrayParameter(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-
-
-
-"""
-
-test_str[10] = "12345\x00\x00\x00\x00\x00"
-
-test_str.value = "12345"
-
-test_str.value[::-1] == "54321" OR "\x00"
-
-
-test_str.value = "12"
-test_str == "12\x0045\x00\x00\x00\x00\x00"
-
-test_str.value[::-1] == "21" OR "54" OR "\x00"
-
-test_str.value[(0,3,6)] == "14" OR "14\x00" OR IndexError
-
-"""
