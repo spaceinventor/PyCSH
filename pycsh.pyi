@@ -721,7 +721,7 @@ class PythonSlashCommand(SlashCommand):
 
     def __new__(cls: type[_Self], name: str, function: _Callable[..., _slash_command_return_types], args: str = None, short_opts: bool = True) -> _Self:
         """
-        Finds an existing slash command from the provided 'name'
+        Create a new Slash command
 
         :param name: Full name of the slash command (including spaces for sub commands).
         :param function: Function that the slash command will invoke.
