@@ -15,7 +15,10 @@ from typing import \
     Any as _Any, \
     Iterable as _Iterable, \
     Literal as _Literal, \
-    Callable as _Callable
+    Callable as _Callable, \
+    Iterator as _Iterator, \
+    overload as _overload
+
 from datetime import datetime as _datetime
 from typing_extensions import deprecated as _deprecated
 from io import IOBase as _IOBase, TextIOBase as _TextIOBase
@@ -114,6 +117,280 @@ class InvalidParameterTypeError(ValueError):
     Must be caught before ValueError() baseclass.
     """
 
+# NOTE: It is tempting to use generics for ValueProxy return types,
+#   but we're not planning on creating subclasses for the different parameter types.
+class ValueProxy:
+    """ 
+    Used by Parameters to query select indices with slicing/subscription syntax.
+
+    Assuming the existence of the following 3 parameters for demonstration purposes:
+    ```
+     59:0     csp_print_packet     = 2                    u08        d
+     1001:0   test_array_param     = [0 1 2 3 4 5 6 7]    u08[8]     d
+     1002:0   test_str             = "12345\x00\x00\x00\x00\x00"  str[10]	 d
+    ```
+
+    When `len(Parameter) > 1`, `Parameter.value` returns a tuple, otherwise it returns index 0.
+    ```
+    >>> Parameter("csp_print_packet").value
+    59:0   csp_print_packet     = 2                    u08         d             
+    0
+    >>> Parameter("test_array_param").value
+    1001:0   test_array_param     = [0 1 2 3 4 5 6 7]    u08[8]     d
+    (0, 1, 2, 3, 4, 5, 6, 7)
+    >>>
+    ```
+
+    `.value[:]` may be used to force the returned type to be iterable,
+        when it otherwise wouldn't be (such as `csp_print_packet`):
+    ```
+    >>> Parameter("csp_print_packet").value[:]
+    59:0   csp_print_packet     = 2                    u08         d
+    (2,)
+    >>> Parameter("test_array_param").value[:]
+    1001:0   test_array_param     = [0 1 2 3 4 5 6 7]    u08[8]     d
+    (0, 1, 2, 3, 4, 5, 6, 7)
+    >>> 
+    ```
+
+    `.value[0]` can always be used if you are unsure if `Parameter.value` returns an iterable,
+        as it is allowed for non-array parameters as well.
+    ```
+    >>> Parameter("csp_print_packet").value[0]
+    59:0   csp_print_packet     = 2                    u08         d
+    2
+    >>> Parameter("test_array_param").value[0]
+    test_array_param     = [0 1 2 3 4 5 6 7]   
+    0
+    >>> 
+    ```
+    But an `IndexError` will be raised for any other index which is out-of-range:
+    ```
+    >>> Parameter("csp_print_packet").value[1]
+    Traceback (most recent call last):
+    File "<stdin>", line 1, in <module>
+    IndexError: Array Parameter index out of range
+    >>> Parameter("test_array_param").value[1]
+    test_array_param     = [0 1 2 3 4 5 6 7]   
+    1
+    >>>
+    ```
+
+    Normal (expected) slicing syntax is supported as well,
+        which also effects which indices are queried on the network:
+    ```
+    >>> Parameter("test_array_param").value[3:5]
+    1001:0   test_array_param     = [0 1 2 3 4 5 6 7]    u08[8]     d
+    (3, 4)
+    >>> Parameter("test_array_param").value[5:3:-1]
+    1001:0   test_array_param     = [0 1 2 3 4 5 6 7]    u08[8]     d
+    (5, 4)
+    >>>
+    ```
+    For example: `Parameter("test_array_param").value[:3]` only queries index (0,1,2),
+        despite the parameter being an array of 8.
+
+    Additional (optional) attributes may be specified for the query
+        by calling the `ValueProxy` object before "evaluating" it
+        (Similar to Django's QuerySet)
+        (See `ValueProxy.__call__()` for a list of options):
+    ```
+    >>> Parameter("test_array_param").value(remote=True, timeout=3000)[1]
+    test_array_param     = [0 1 2 3 4 5 6 7]   
+    1
+    >>> Parameter("test_array_param").value(remote=False, verbose=0)
+    1001:0   test_array_param     = [0 1 2 3 4 5 6 7]    u08[8]     d
+    (0, 1, 2, 3, 4, 5, 6, 7)
+    >>>
+    ```
+
+    Assignments work similarly:
+    ```
+    # Show current (cached) value without querying remote.
+    >>> Parameter("test_array_param").value(remote=False)
+    1001:0   test_array_param     = [0 1 2 3 4 5 6 7]    u08[8]     d
+    (0, 1, 2, 3, 4, 5, 6, 7)
+    # Set single index remote value (no `(remote=False)` here).
+    >>> Parameter("test_array_param").value[1] = 10
+    # Query remote value to see that index has changed.
+    >>> Parameter("test_array_param").value
+    1001:0   test_array_param     = [0 10 2 3 4 5 6 7]   u08[8]     d
+    (0, 10, 2, 3, 4, 5, 6, 7)
+    >>>
+    ```
+    Slices may be assigned as well:
+    ```
+    >>> Parameter("test_array_param").value[:3] = (98,99,100)
+    >>> Parameter("test_array_param").value
+    1001:0   test_array_param     = [98 99 100 3 4 5 6 7] u08[8]    d
+    (98, 99, 100, 3, 4, 5, 6, 7)
+    >>>
+    ```
+    But `len(values)` must then match `len(slice)`, (only) if the "values" are iterable: 
+    ```
+    >>> Parameter("test_array_param").value[:3] = (1,2,3,4,5,6)
+    Traceback (most recent call last):
+    File "<stdin>", line 1, in <module>
+    ValueError: Received fewer indexes than values (number of indices: 3, param->array_size: 8)
+    >>>
+    ```
+    If the value is NOT iterable, it will be set to all specified indices:
+    ```
+    >>> Parameter("test_array_param").value = 0
+    >>> Parameter("test_array_param").value[:3] = 25
+    >>> Parameter("test_array_param").value
+    1001:0   test_array_param     = [25 25 25 0 0 0 0 0] u08[8]     d
+    (25, 25, 25, 0, 0, 0, 0, 0)
+    >>>
+    ```
+    It is not permissible to set all indices of an array parameter without specifying `[:]`:
+    ```
+    >>> pycsh.Parameter("test_array_param").value = 200
+    Traceback (most recent call last):
+    File "<stdin>", line 1, in <module>
+    IndexError: Use `[:]` to set all indices (of `test_array_param`) from a single value (200). i.e: `Parameter.value = 200` -> `Parameter.value[:] = 200`
+    >>> Parameter("test_array_param").value[:] = 50
+    >>> Parameter("test_array_param").value
+    1001:0   test_array_param     = [50 50 50 50 50 50 50 50] u08[8]        d
+    (50, 50, 50, 50, 50, 50, 50, 50)
+    >>>
+    ```
+
+    An `Iterable[int]` may be specified as an alternative to slice indices:
+    ```
+    >>> Parameter("test_array_param").value = (1,2,4,8,16,32,64,128)
+    >>> Parameter("test_array_param").value[(1,4,6)]
+    1001:0   test_array_param     = [1 2 4 8 16 32 64 128] u08[8]   d
+    (2, 16, 64)
+    >>>
+    ```
+    And this works for assignments as well:
+    ```
+    >>> Parameter("test_array_param").value = 0
+    >>> Parameter("test_array_param").value[(1,4,6)] = (1,2,3)
+    >>> Parameter("test_array_param").value
+    1001:0   test_array_param     = [0 1 0 0 2 0 3 0]    u08[8]     d
+    (0, 1, 0, 0, 2, 0, 3, 0)
+    >>>
+    ```
+
+    Subscription syntax must still be used to also specify attributes while setting the value of non-array parameters:
+    ```
+    >>> Parameter("csp_print_packet").value(remote=False) = 3
+    File "<stdin>", line 1
+        Parameter("csp_print_packet").value(remote=False) = 3
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    SyntaxError: cannot assign to function call here. Maybe you meant '==' instead of '='?
+    >>> Parameter("csp_print_packet").value(remote=False)[:] = 3
+    >>> Parameter("csp_print_packet").value(remote=False)[0] = 3
+    >>> Parameter("csp_print_packet").value(remote=False)
+    csp_print_packet     = 3
+    3
+    >>>
+    ```
+
+    `PARAM_TYPE_STRING` `Parameter()` subscription is constrained to `len(Parameter(...).value[:])`, rather than `len(Parameter(...))`.
+    For example (assuming `Parameter("test_str").value == "12345\x00\x00\x00\x00\x00"`:
+    ```
+    # Getting without index returns up to first NULL byte
+    >>> pycsh.Parameter("test_str").value
+    12345
+    # It is permissible to get indices within the string value
+    >>> pycsh.Parameter("test_str").value[0]
+    test_str             = 12345               
+    '1'
+    # Backwards subscription starts at `len(Parameter(...).value[:])`, rather than `len(Parameter(...))`
+    >>> pycsh.Parameter("test_str").value[-1]
+    test_str             = 12345               
+    '5'  # Notice '5', NOT '\x00'
+    >>> pycsh.Parameter("test_str").value[::-1]
+    1002:0   test_str             = 12345                str[80]    d
+    '54321'
+    >>>
+    >>> pycsh.Parameter("test_str").value[::-2]
+    1002:0   test_str             = 12345                str[80]    d
+    '531'
+    ```
+    Getting a PARAM_TYPE_STRING index which is outside outside to bounds of the string value will raise an IndexError,
+    even if the parameter itself is big enough to hold the index:
+    ```
+    >>> pycsh.Parameter("test_str").value[7]
+    test_str             = 12345               
+    Traceback (most recent call last):
+    File "<stdin>", line 1, in <module>
+    IndexError: Array Parameter index out of range
+    >>>
+    ```
+    Slicing to that index will NOT raise an IndexError, as per normal Python string slicing syntax (`"123"[:10] == "123"`).
+    But neither will it include the NULL bytes:
+    ```
+    >>> pycsh.Parameter("test_str").value[:7]
+    1002:0   test_str             = 12345                str[80]    d
+    '12345'
+    >>>
+    ```
+    String Parameters cannot (currently) be set by index:
+    ```
+    >>> pycsh.Parameter("test_str").value[4] = "5"
+    Traceback (most recent call last):
+    File "<stdin>", line 1, in <module>
+    NotImplementedError: Cannot set string parameters by index.
+    >>>
+    ```
+    """
+
+    def __call__(self, host: int = None, timeout: int = None, retries: int = None, paramver: int = None, remote: bool = True, verbose: int = None) -> ValueProxy:
+        """ Set attributes on `self` and return `self`, builder pattern like. """
+
+    def __int__(self) -> (int|float|str) | _Iterable[int|float|str]:
+        """ Evaluate the value before returning it. """
+
+    @_overload
+    def __getitem__(self, index: slice | _Iterable[int] | None) -> tuple[int | float, ...] | str:
+        """ Immediately query unqueried parameters and return a `tuple[..., ...]` with the specified slice/indexes (or the whole array for None). """
+
+    @_overload
+    def __getitem__(self, index: int) -> int | float | str:
+        """ Immediately query unqueried parameters and return the value of the specified index. """
+
+    @_overload
+    def __setitem__(self, indexes: slice | _Iterable[int] | None, value: _Iterable[int | float | str] | (int | float | str)) -> None:
+        """
+        Set the value of multiple indexes from the specified `slice|range|mapping`
+
+        If `value` is iterable, it must match the length of `indexes`, i.e:
+        ```
+        # No exception:
+        test_array_param.value[3:6] = (3,4,5)
+
+        # Exception raised:
+        test_array_param.value[3:6] = (3,4,5,6,7)
+        ```
+
+        If `value` is NOT iterable, it will be applied to all specified indexes, i.e:
+        ```
+        test_array_param.value[3:6] = 4
+        ```
+        """
+
+    @_overload
+    def __setitem__(self, index: int, value: int | float | str) -> None:
+        """ Set the value of a single specified index. """
+
+    def __iter__(self) -> _Iterator[int | float | str]:
+        """
+        Immediately query unqueried parameters and yield the specified indexes.
+        
+        :raises TypeError: If called on a non-array parameter, without having sliced the parameter.
+        """
+
+    def __str__(self) -> str:
+        """ Immediately query unqueried parameters and return `str([:])`.
+            Use `.__getitem__()` to only query certain indeces. """
+
+    def __repr__(self) -> str:
+        """ Same as `.__str__()` """
+
 
 class Parameter:
     """
@@ -125,12 +402,28 @@ class Parameter:
     unit: str  # The unit of the wrapped param_t c struct as a string or None
     docstr: str  # The help-text of the wrapped param_t c struct as a string or None
     id: int  # ID of the parameter
-    type: type  # type of the parameter
+    type: _param_type_hint  # best Python representation type object of the param_t c struct type. i.e int for uint32
     mask: int  # mask of the parameter
     timestamp: int  # timestamp of the parameter
     node: int  # node of the parameter
 
-    def __new__(cls, param_identifier: _param_ident_hint, node: int = None, host: int = None, timeout: int = None, retries: int = None) -> Parameter | ParameterArray:
+    @property
+    def value(self) -> ValueProxy:
+        """
+        Return a `ValueProxy` for the `Parameter` (note that `remote` default to True).
+        See `ValueProxy.__call__` for optional arguments (timeout, remote, etc.).
+        See `ValueProxy.__getitem__` for index argument handling.
+        """
+
+    @value.setter
+    def value(self) -> None:
+        """
+        Defers set operation to `ValueProxy` (note that `remote` default to True).
+        See `ValueProxy.__call__` for optional arguments (timeout, remote, etc.).
+        See `ValueProxy.__setitem__` for index argument handling.
+        """
+
+    def __new__(cls, param_identifier: _param_ident_hint, node: int = None, host: int = None, timeout: int = None, retries: int = None) -> Parameter:
         """
         As stated; this class simply wraps existing parameters,
         and cannot create new ones. It therefore requires an 'identifier'
@@ -143,7 +436,15 @@ class Parameter:
 
         :raises ValueError: When no parameter can be found from an otherwise valid identifier.
 
-        :returns: An instance of a Parameter or ParameterArray, matching the identifier.
+        :returns: An instance of a Parameter, matching the identifier.
+        """
+
+    def __len__(self) -> int:
+        """
+        Gets the length of array parameters.
+
+        :raises AttributeError: For non-array type parameters.
+        :return: The value of the wrapped param_t->array_size.
         """
 
     @property
@@ -168,6 +469,7 @@ class Parameter:
         """ Return the `param_type_e` enum integer, i.e pycsh.PARAM_TYPE_UINT8. """
 
     @property
+    @_deprecated('Use `.value` instead')
     def cached_value(self) -> int | float:
         """
         Returns the local cached value of the parameter from its specified node in the Python representation of its type.
@@ -175,6 +477,7 @@ class Parameter:
         """
 
     @cached_value.setter
+    @_deprecated('Use `.value` instead')
     def cached_value(self, value: int | float) -> None:
         """
         Sets the local cached value of the parameter.
@@ -183,6 +486,7 @@ class Parameter:
         """
 
     @property
+    @_deprecated('Use `.value` instead')
     def remote_value(self) -> int | float:
         """
         Returns the remote value of the parameter from its specified node in the Python representation of its type.
@@ -190,12 +494,14 @@ class Parameter:
         """
 
     @remote_value.setter
+    @_deprecated('Use `.value` instead')
     def remote_value(self, value: int | float) -> None:
         """
         Sets the remote value of the parameter.
 
         :param value: New desired value. Assignments to other parameters, use their value instead, Otherwise uses .__str__().
         """
+
 
     @property
     def is_vmem(self) -> bool:
@@ -231,72 +537,37 @@ class Parameter:
         Use None to reset default value.
         """
 
-class ParameterArray(Parameter):
-    """
-    Subclass of Parameter specifically designed to provide an interface
-    to array parameters. In practical terms; the class implements:
-        __len__(), __getitem__() and __setitem__().
-    The Parameter class will automatically create instances of this class when needed,
-    which means that manual instantiation of ParameterArrays is unnecessary.
-    """
 
-    def __len__(self) -> int:
+    @_overload
+    def __getitem__(self, index: slice | _Iterable[int] | None) -> tuple[int | float, ...] | str:
         """
-        Gets the length of array parameters.
+        Shorthand for `self.value[index]`
 
-        :raises AttributeError: For non-array type parameters.
-        :return: The value of the wrapped param_t->array_size.
+        i.e: `Parameter(...)[...] == Parameter(...).value[...]`
         """
 
-    def __getitem__(self, index: int) -> _param_type_hint:
+    @_overload
+    def __getitem__(self, index: int) -> int | float | str:
         """
-        Get the value of an index in an array parameter.
+        Shorthand for `self.value[index]`
 
-        :param index: Index on which to get the value. Supports backwards subscription (i.e: -1).
-        :raises IndexError: When trying to get a value outside the bounds of the parameter array.
-        :raises ConnectionError: When autosend is on, and no response is received.
-
-        :return: The value of the specified index, as its Python type.
+        i.e: `Parameter(...)[...] == Parameter(...).value[...]`
         """
 
-    def __setitem__(self, index: int, value: int | float) -> None:
+    @_overload
+    def __setitem__(self, indexes: slice | _Iterable[int] | None, value: _Iterable[int | float | str] | (int | float | str)) -> None:
         """
-        Set the value of an index in an array parameter.
+        Shorthand for `self.value[index] = value`
 
-        :param index: Index on which to set the value. Supports backwards subscription (i.e: -1).
-        :param value: New value to set, should match the type of the parameter.
-        :raises IndexError: When trying to set value ouside the bounds the parameter array.
-        :raises ConnectionError: When autosend is on, and no response is received.
+        i.e: `Parameter(...)[...] = ...` == `Parameter(...).value[...] = ...`
         """
 
-    @property
-    def cached_value(self) -> str | tuple[int | float, ...]:
+    @_overload
+    def __setitem__(self, index: int, value: int | float | str) -> None:
         """
-        Returns the local cached value of the parameter from its specified node in the Python representation of its type.
-        Array parameters return a tuple of values, whereas normal parameters return only a single value.
-        """
+        Shorthand for `self.value[index] = value`
 
-    @cached_value.setter
-    def cached_value(self, value: str | _Iterable[int | float]) -> None:
-        """
-        Sets the local cached value of the parameter.
-
-        :param value: New desired value. Assignments to other parameters, use their value instead, Otherwise uses .__str__().
-        """
-
-    @property
-    def remote_value(self) -> str | tuple[int | float, ...]:
-        """
-        Returns the remote value of the parameter from its specified node in the Python representation of its type.
-        Array parameters return a tuple of values, whereas normal parameters return only a single value.
-        """
-
-    @remote_value.setter
-    def remote_value(self, value: str | _Iterable[int | float]) -> None:
-        """
-        Sets the remote value of the parameter.
-
-        :param value: New desired value. Assignments to other parameters, use their value instead, Otherwise uses .__str__().
+        i.e: `Parameter(...)[...] = ...` == `Parameter(...).value[...] = ...`
         """
 
 
@@ -315,7 +586,7 @@ class PythonParameter(Parameter):
         :param mask: Parameter flags, i.e PM_CONF. Multiple flags may be ORed together.
         :param unit: Unit of the new parameter.
         :param docstr: Docstring of the new parameter.
-        :param array_size: Array size of the new parameter. Creates a ParameterArray when > 1.
+        :param array_size: Array size of the new parameter.
         :param callback: Python function called when the parameter is set, signature: def callback(param: Parameter, offset: int) -> None
         :param host:
         :param timeout: Timeout to use when setting remote parameters.
@@ -351,22 +622,32 @@ class PythonParameter(Parameter):
         Change the callback of the parameter
         """
 
-class PythonArrayParameter(PythonParameter, ParameterArray):
-    """ ParameterArray created in Python. """
-
 class PythonGetSetParameter(PythonParameter):
     """ ParameterArray created in Python. """
 
     def __new__(cls, id: int, name: str, type: int, mask: int | str, unit: str = None, docstr: str = None, array_size: int = 0,
                    callback: _Callable[[Parameter, int], None] = None, host: int = None, timeout: int = None,
                    retries: int = 0, paramver: int = 2, getter: _Callable[[Parameter, int], _Any] = None, setter: _Callable[[Parameter, int, _Any], None] = None) -> PythonGetSetParameter:
-        """  """
+        """
+        Allows you to specify a `getter` and `setter` function for the parameter.
+        Signature for the getter:
+        ```
+        def getter(param: Parameter, idx: int) -> _param_value_hint:
+            " receives the parameter and index for which to retrieve a value.
+                The type of the returned value must match the type of the parameter, i.e `int` for `PARAM_TYPE_UINT8` "
+        ```
 
-class PythonGetSetArrayParameter(PythonGetSetParameter, PythonArrayParameter):
-    """ ParameterArray created in Python. """
+        Signature for the setter:
+        ```
+        def setter(param: Parameter, idx: int, value: _param_value_hint) -> None:
+            " receives the parameter and index for which to set the value. Also receives the actual value to set.
+                The setter should not return anything. "
+        ```
+        """
+
 
 # PyCharm may refuse to acknowledge that a list subclass is iterable, so we explicitly state that it is.
-class ParameterList(_pylist[Parameter | ParameterArray], _Iterable):
+class ParameterList(_pylist[Parameter], _Iterable):
     """
     Convenience class providing an interface for pulling and pushing the value of multiple parameters
     in a single request using param_queue_t's
@@ -440,7 +721,7 @@ class PythonSlashCommand(SlashCommand):
 
     def __new__(cls: type[_Self], name: str, function: _Callable[..., _slash_command_return_types], args: str = None, short_opts: bool = True) -> _Self:
         """
-        Finds an existing slash command from the provided 'name'
+        Create a new Slash command
 
         :param name: Full name of the slash command (including spaces for sub commands).
         :param function: Function that the slash command will invoke.
