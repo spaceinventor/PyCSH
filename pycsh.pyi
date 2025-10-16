@@ -537,6 +537,25 @@ class Parameter:
         Use None to reset default value.
         """
 
+    def list_add(self, return_self: bool = True) -> Parameter | int:
+        """
+        Add `self` the global parameter list.
+        Exposes it to other CSP nodes on the network,
+		And allows it to be found in `pycsh.list()`
+
+        :param return_self: Return `self` when True, otherwise return the `param_list_add()` error code.
+        :returns: `self` when `return_self`, otherwise returns the `param_list_add()` error code.
+        """
+
+    def list_forget(self, verbose: int = None) -> None:
+        """
+        Remove this parameter from the global parameter list.
+        Hiding it from other CSP nodes on the network. "
+		Also removes it from `pycsh.list()`
+
+        :returns: None; because Edvard removed the return code from `param_list_remove_specific()` :)
+        """
+
 
     @_overload
     def __getitem__(self, index: slice | _Iterable[int] | None) -> tuple[int | float, ...] | str:
@@ -592,22 +611,10 @@ class PythonParameter(Parameter):
         :param timeout: Timeout to use when setting remote parameters.
         :param retries: Amount of retries when setting remote parameters.
         :param paramver: Parameter version to use for this parameter.
+
+        :raises ValueError: If a parameter with the specified id or name, on the specified node, already exists.
+
         :return: The created Parameter instance.
-        """
-
-    @property
-    def keep_alive(self) -> bool:
-        """
-        Whether the Parameter should remain in the parameter list,
-        when all Python references are lost.
-        This makes it possible to recover the Parameter instance through list()
-        """
-
-    @keep_alive.setter
-    def keep_alive(self, value: bool) -> None:
-        """
-        Change whether the Parameter should remain in the parameter list,
-        when all Python references are lost.
         """
 
     @property

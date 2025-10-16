@@ -43,8 +43,20 @@ class TestArrayParameter(unittest.TestCase):
         #   TODO Kevin: We should also test that they don't have to be,
         #       but we don't have a public API for it yet, even though we already support it.
         for param in param_arguments:
-            self.assertIs(param, Parameter(param.name))
-            self.assertIs(param, Parameter(param.id))
+            with self.assertRaises(ValueError):
+                Parameter(param.name)
+            with self.assertRaises(ValueError):
+                Parameter(param.id)
+
+        for param in param_arguments:
+            self.assertEqual(param.list_add(False), 0)  # Test that we can successfully add parameters to the list.
+            self.assertIs(param.list_add(), Parameter(param.name))
+            self.assertIs(param.list_add(), Parameter(param.id))
+            # 5 is a unique return value (albeit obtuse) (unlikely to be used by `param_list_add()` in the future),
+			#   which indicates that we did not update `self` in the list.
+            self.assertEqual(param.list_add(False), 5)
+            if param.c_type == PARAM_TYPE_STRING:
+                param.list_forget()  # Check that no Valgrind errors occur, whether or not the parameter is in the list.
 
         # NOTE: This should also be tested.
         param_arguments.array_param.value = (0, 1, 2, 3, 4, 5, 6, 7)
