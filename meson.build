@@ -27,6 +27,7 @@ project('PyCSH', 'c',
 py = import('python').find_installation('python'+get_option('python3_version'), pure: false)
 
 dependencies = [
+	dependency('slash', fallback: ['slash', 'slash_dep'], required: true).as_link_whole(),
 	dependency('pycsh_core', fallback: ['pycsh_core', 'pycsh_core_dep']).as_link_whole(),
 	dependency('libcurl', not_found_message: 'libcurl not found! Please install libcurl4-openssl-dev or the appropriate package for your system.'),
 ]
