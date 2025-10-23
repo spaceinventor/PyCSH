@@ -425,9 +425,7 @@ class Parameter:
 
     def __new__(cls, param_identifier: _param_ident_hint, node: int = None, host: int = None, timeout: int = None, retries: int = None) -> Parameter:
         """
-        As stated; this class simply wraps existing parameters,
-        and cannot create new ones. It therefore requires an 'identifier'
-        to the parameter you wish to retrieve.
+        Find an existing parameter in the global parameter list, using a parameter identifier.
 
         :param param_identifier: an int or string of the parameter ID or name respectively.
         :param node: Node on which the parameter is located.
@@ -437,6 +435,49 @@ class Parameter:
         :raises ValueError: When no parameter can be found from an otherwise valid identifier.
 
         :returns: An instance of a Parameter, matching the identifier.
+        """
+
+    @classmethod
+    def find(cls, param_identifier: _param_ident_hint, node: int = None, host: int = None, timeout: int = None, retries: int = None) -> Parameter:
+        """
+        Just calls `.__new__()`, really.
+        """
+
+    @classmethod
+    def new(cls, id: int, name: str, type: int, mask: int | str, array_size: int = 0, callback: _Callable[[Parameter, int], None] = None, unit: str = None, docstr: str = None, 
+                host: int = None, timeout: int = None,
+                retries: int = 0, paramver: int = 2) -> Parameter:
+        """
+        Create a new parameter from the provided options, and add it to the global list.
+
+        :param id: ID of the new parameter.
+        :param name: Name of the new parameter.
+        :param type: Type of the parameter i.e PARAM_TYPE_UINT8.
+        :param mask: Parameter flags, i.e PM_CONF. Multiple flags may be ORed together.
+        :param unit: Unit of the new parameter.
+        :param docstr: Docstring of the new parameter.
+        :param array_size: Array size of the new parameter.
+        :param callback: Python function called when the parameter is set, signature: def callback(param: Parameter, offset: int) -> None
+        :param host:
+        :param timeout: Timeout to use when setting remote parameters.
+        :param retries: Amount of retries when setting remote parameters.
+        :param paramver: Parameter version to use for this parameter.
+
+        :raises ValueError: If a parameter with the specified id or name, on the specified node, already exists.
+
+        :return: The created Parameter instance.
+        """
+
+    @property
+    def callback(self) -> _Callable[[Parameter, int], None] | None:
+        """
+        Callback of the parameter
+        """
+
+    @callback.setter
+    def callback(self, callback: _Callable[[Parameter, int], None] | None) -> None:
+        """
+        Change the callback of the parameter
         """
 
     def __len__(self) -> int:
@@ -537,6 +578,25 @@ class Parameter:
         Use None to reset default value.
         """
 
+    def list_add(self, return_self: bool = True) -> Parameter | int:
+        """
+        Add `self` the global parameter list.
+        Exposes it to other CSP nodes on the network,
+		And allows it to be found in `pycsh.list()`
+
+        :param return_self: Return `self` when True, otherwise return the `param_list_add()` error code.
+        :returns: `self` when `return_self`, otherwise returns the `param_list_add()` error code.
+        """
+
+    def list_forget(self, verbose: int = None) -> None:
+        """
+        Remove this parameter from the global parameter list.
+        Hiding it from other CSP nodes on the network. "
+		Also removes it from `pycsh.list()`
+
+        :returns: None; because Edvard removed the return code from `param_list_remove_specific()` :)
+        """
+
 
     @_overload
     def __getitem__(self, index: slice | _Iterable[int] | None) -> tuple[int | float, ...] | str:
@@ -571,58 +631,7 @@ class Parameter:
         """
 
 
-class PythonParameter(Parameter):
-    """ Parameter created in Python. """
-
-    def __new__(cls, id: int, name: str, type: int, mask: int | str, unit: str = None, docstr: str = None, array_size: int = 0,
-                   callback: _Callable[[Parameter, int], None] = None, host: int = None, timeout: int = None,
-                   retries: int = 0, paramver: int = 2) -> PythonParameter:
-        """
-        Create a new parameter from the provided options, and add it to the global list.
-
-        :param id: ID of the new parameter.
-        :param name: Name of the new parameter.
-        :param type: Type of the parameter i.e PARAM_TYPE_UINT8.
-        :param mask: Parameter flags, i.e PM_CONF. Multiple flags may be ORed together.
-        :param unit: Unit of the new parameter.
-        :param docstr: Docstring of the new parameter.
-        :param array_size: Array size of the new parameter.
-        :param callback: Python function called when the parameter is set, signature: def callback(param: Parameter, offset: int) -> None
-        :param host:
-        :param timeout: Timeout to use when setting remote parameters.
-        :param retries: Amount of retries when setting remote parameters.
-        :param paramver: Parameter version to use for this parameter.
-        :return: The created Parameter instance.
-        """
-
-    @property
-    def keep_alive(self) -> bool:
-        """
-        Whether the Parameter should remain in the parameter list,
-        when all Python references are lost.
-        This makes it possible to recover the Parameter instance through list()
-        """
-
-    @keep_alive.setter
-    def keep_alive(self, value: bool) -> None:
-        """
-        Change whether the Parameter should remain in the parameter list,
-        when all Python references are lost.
-        """
-
-    @property
-    def callback(self) -> _Callable[[Parameter, int], None] | None:
-        """
-        Callback of the parameter
-        """
-
-    @callback.setter
-    def callback(self, callback: _Callable[[Parameter, int], None] | None) -> None:
-        """
-        Change the callback of the parameter
-        """
-
-class PythonGetSetParameter(PythonParameter):
+class PythonGetSetParameter(Parameter):
     """ ParameterArray created in Python. """
 
     def __new__(cls, id: int, name: str, type: int, mask: int | str, unit: str = None, docstr: str = None, array_size: int = 0,

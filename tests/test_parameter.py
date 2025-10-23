@@ -3,7 +3,7 @@ import unittest
 from time import sleep
 from contextlib import contextmanager
 from typing import NamedTuple, Callable, Any
-from pycsh import Parameter, PythonParameter, PARAM_TYPE_STRING, PARAM_TYPE_UINT8, PM_CONF, ValueProxy
+from pycsh import Parameter, PARAM_TYPE_STRING, PARAM_TYPE_UINT8, PM_CONF, ValueProxy
 
 
 class ParamArguments(NamedTuple):
@@ -28,23 +28,35 @@ class TestArrayParameter(unittest.TestCase):
         # Set default node to 0
         pycsh.node(0)
 
-    def test_create_param(self) -> PythonParameter:
+    def test_create_param(self) -> Parameter:
         """ If this test fails, then we know the act of creating parameters themselves doesn't work.
             Which will cause all other tests to fail. """
 
         # TODO Kevin: Also test setting remote parameters.
         param_arguments = ParamArguments(
-            PythonParameter(300, 'normal_param', PARAM_TYPE_UINT8, PM_CONF, '', 'A new parameter created to be used by tests', 1),
-            PythonParameter(301, 'array_param', PARAM_TYPE_UINT8, PM_CONF, '', 'A new parameter created to be used by tests', 8),
-            PythonParameter(302, 'str_param', PARAM_TYPE_STRING, PM_CONF, '', 'A new parameter created to be used by tests', 20),
+            Parameter.new(300, 'normal_param', PARAM_TYPE_UINT8, PM_CONF, 1, None, '', 'A new parameter created to be used by tests',),
+            Parameter.new(301, 'array_param', PARAM_TYPE_UINT8, PM_CONF, 8, None, '', 'A new parameter created to be used by tests',),
+            Parameter.new(302, 'str_param', PARAM_TYPE_STRING, PM_CONF, 20, None, '', 'A new parameter created to be used by tests',),
         )
 
         # Test that parameters were added and can be found in the Parameter linked list.
         #   TODO Kevin: We should also test that they don't have to be,
         #       but we don't have a public API for it yet, even though we already support it.
         for param in param_arguments:
-            self.assertIs(param, Parameter(param.name))
-            self.assertIs(param, Parameter(param.id))
+            with self.assertRaises(ValueError):
+                Parameter(param.name)
+            with self.assertRaises(ValueError):
+                Parameter(param.id)
+
+        for param in param_arguments:
+            self.assertEqual(param.list_add(False), 0)  # Test that we can successfully add parameters to the list.
+            self.assertIs(param.list_add(), Parameter(param.name))
+            self.assertIs(param.list_add(), Parameter(param.id))
+            # 5 is a unique return value (albeit obtuse) (unlikely to be used by `param_list_add()` in the future),
+			#   which indicates that we did not update `self` in the list.
+            self.assertEqual(param.list_add(False), 5)
+            if param.c_type == PARAM_TYPE_STRING:
+                param.list_forget()  # Check that no Valgrind errors occur, whether or not the parameter is in the list.
 
         # NOTE: This should also be tested.
         param_arguments.array_param.value = (0, 1, 2, 3, 4, 5, 6, 7)
@@ -218,6 +230,28 @@ class TestArrayParameter(unittest.TestCase):
             with self.assertRaises(TypeError):
                 subscript_api()["hello index"] = 10
 
+    @_pass_param_arguments(test_create_param)
+    def test_callback(self, param_args: ParamArguments):
+        param: Parameter = param_args.normal_param
+        def invalid_callback() -> None:
+            pass
+        with self.assertRaises(TypeError):
+            param.callback = invalid_callback
+
+        previous_callback = param.callback
+        previous_value = int(param.value)
+
+        callback_called: bool = False
+
+        def valid_callback(param: Parameter, index: int) -> None:
+            nonlocal callback_called
+            callback_called = True
+        param.callback = valid_callback
+        param.value = 1
+        self.assertTrue(callback_called)
+        
+        param.value = previous_value
+        param.callback = previous_callback
 
 if __name__ == "__main__":
     unittest.main()
