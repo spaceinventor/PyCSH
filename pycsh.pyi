@@ -1011,8 +1011,21 @@ def push(node: int, timeout: int = None, hwid: int = None, retries: int = None) 
     :raises ConnectionError: when no response is received.
     """
 
-def pull(node: int = None, timeout: int = None, include_mask: str | int = None, exclude_mask: str | int = None, paramver: int = None) -> None:
-    """ Pull all or a specific mask of parameters. """
+def pull(node: int = None, timeout: int = None, include_mask: str | int = None, exclude_mask: str | int = None, paramver: int = None, decoding_error_callback: _Callable[[int, int], None] = None) -> None:
+    """
+    Pull all or a specific mask of parameters.
+    
+    :param node: Node to pull parameters from.
+    :param timeout: Timeout in ms for the pull request.
+    :param include_mask: `pycsh.PM_TELEM | pycsh.PM_DEBUG | pycsh.PM_CONF` or "tdc"
+    :param exclude_mask: `pycsh.PM_TELEM | pycsh.PM_DEBUG | pycsh.PM_CONF` or "tdc"
+    :param paramver: Pull with specific parameter (libparam) version, should almost always be left default.
+    :param decoding_error_callback: Callable which accepts (int) 2 positional arguments, i.e:
+        def my_err_callback(node: int, id: int) -> None:
+            ...
+
+    :raises ConnectionError: when no response is received.
+    """
 
 def slash_execute(command: str) -> int:
     """ Execute string as a slash command. Used to run .csh scripts """
