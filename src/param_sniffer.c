@@ -8,8 +8,9 @@
 #include <stdio.h>
 #include <sys/time.h>
 #include <pthread.h>
-#include <param/param_server.h>
 #include <param/param_queue.h>
+#include <param/param_server.h>
+#include <param/param_serializer.h>
 #include <mpack/mpack.h>
 #include <csp/csp.h>
 #include <csp/csp_hooks.h>
@@ -145,7 +146,7 @@ static void * param_sniffer(void * param) {
             continue;
         }
 
-        if (packet->id.sport != PARAM_PORT_SERVER) {
+        if (packet->id.sport != PARAM_PORT_SERVER && packet->id.dport != PARAM_PORT_SERVER) {
             csp_buffer_free(packet);
             continue;
         }
