@@ -1066,9 +1066,15 @@ def list(node: int = None, verbose: int = None, mask: str | int = None, globstr:
     :param mask: Mask on which to filter the list.
     """
 
-def list_download(node: int = None, timeout: int = None, version: int = None) -> ParameterList:
+def list_download(node: int = None, timeout: int = None, version: int = 3, remote: bool = False) -> ParameterList:
     """
-    Download all parameters on the specified node.
+    Download parameters from the specified node, adding them to the global parameter list.
+
+    :param node: Node to download parameters from.
+    :param timeout: Timeout for each CSP packet in milliseconds.
+    :param version: Verbosity/version to use for the download. 3 includes docstring.
+    :param remote: Whether to download remote parameters on the specified node as well.
+        I.e, if downloading from another CSH, should we also download the remtote parameters it has downloaded?
 
     :raises RuntimeError: When called before .init().
     :raises ConnectionError: When no response is received.
