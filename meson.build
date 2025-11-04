@@ -54,8 +54,6 @@ pycsh_ext = py.extension_module(
 	gnu_symbol_visibility: 'default',
 )
 
-# Add .pyi file for type-hints
-pyi = configure_file(input: 'pycsh.pyi', output: 'pycsh.pyi', copy: true)
 # Also __init__.py that ensures we can expose CSH symbols/dependencies.
 __init__py = configure_file(input: '__init__.py', output: '__init__.py', copy: true)
-py.install_sources([pyi, __init__py], subdir: 'pycsh')
+py.install_sources([__init__py], subdir: 'pycsh')
