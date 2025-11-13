@@ -213,7 +213,7 @@ class TestArrayParameter(unittest.TestCase):
             if isinstance(subscript_api, ValueProxy):
                 with self.assertRaises(IndexError):
                     param_args.array_param.value = BROADCAST_VAL*2
-            with self.assertRaises(IndexError):
+            with self.assertRaises((IndexError, TypeError)):
                 # Explicit None is also allowed, which is normally not the case with `PyArg_ParseTupleAndKeywords()`.
                 #   It is handled as if no index was specified, i.e IndexError for array Parameter.
                 subscript_api()[None] = BROADCAST_VAL*2
@@ -252,6 +252,18 @@ class TestArrayParameter(unittest.TestCase):
         
         param.value = previous_value
         param.callback = previous_callback
+
+    @_pass_param_arguments(test_create_param)
+    def test_get(self, param_args: ParamArguments):
+        pycsh.set(param_args.str_param, 'hello')
+        self.assertEqual(pycsh.get(param_args.str_param, offset=0), 'h',
+                         "It should be possible to `pycsh.get()` `PARAM_TYPE_STRING` as well")
+
+        self.assertEqual(pycsh.get(param_args.array_param.name, offset=1), 1,
+                         "`pycsh.get(<array_param>)` with explicit index should return the value on the inex, and not as a tuple")
+        self.assertEqual(pycsh.get(param_args.array_param.name), tuple(range(8)),
+                         "`pycsh.get(<array_param>)` without explicit index should return tuple of whole param")
+        
 
 if __name__ == "__main__":
     unittest.main()

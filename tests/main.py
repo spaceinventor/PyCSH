@@ -93,8 +93,7 @@ class ValgrindTestRunner:
                 print(f"❌ {test_id} failed: {reason}")
             return False
 
-
-if __name__ == "__main__":
+def main() -> None:
     # Discover tests recursively (e.g. tests/test_*.py)
     os.chdir(dirname(realpath(__file__)))  # Fix `unittest` working directory, so imports work
     suite = unittest.defaultTestLoader.discover(os.path.dirname(os.path.abspath(__file__)))
@@ -102,3 +101,6 @@ if __name__ == "__main__":
     runner = ValgrindTestRunner(verbosity=1)
     success = runner.run(suite)
     sys.exit(0 if success else 1)
+
+if __name__ == "__main__":
+    main()
