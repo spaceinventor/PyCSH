@@ -260,10 +260,57 @@ class TestArrayParameter(unittest.TestCase):
                          "It should be possible to `pycsh.get()` `PARAM_TYPE_STRING` as well")
 
         self.assertEqual(pycsh.get(param_args.array_param.name, offset=1), 1,
-                         "`pycsh.get(<array_param>)` with explicit index should return the value on the inex, and not as a tuple")
+                         "`pycsh.get(<array_param>, offset=...)` (with explicit index) should return the value on the index, and not as a tuple")
         self.assertEqual(pycsh.get(param_args.array_param.name), tuple(range(8)),
                          "`pycsh.get(<array_param>)` without explicit index should return tuple of whole param")
         
+
+    @_pass_param_arguments(test_create_param)
+    def test_list_add(self, param_args: ParamArguments):
+
+        list_param: Parameter = param_args.normal_param
+
+        assert pycsh.Parameter(list_param.id, list_param.node), \
+            'Test parameter not in list, please update the test.'
+
+        assert list_param.c_type != pycsh.PARAM_TYPE_UINT16
+        original_type: int = list_param.c_type
+        new_param: Parameter = pycsh.list_add(list_param.node,
+                       len(list_param),
+                       list_param.id,
+                       list_param.name,
+                       pycsh.PARAM_TYPE_UINT16, #list_param.c_type,
+                       list_param.mask,
+                       list_param.docstr,
+                       list_param.unit,
+                       )  # Adding a new overriding parameter should update the one in the list, too.
+
+        # Adding it again should not cause memory errors.
+        new_param: Parameter = pycsh.list_add(list_param.node,
+                       len(list_param),
+                       list_param.id,
+                       list_param.name,
+                       pycsh.PARAM_TYPE_UINT16, #list_param.c_type,
+                       list_param.mask,
+                       list_param.docstr,
+                       list_param.unit,
+                       )
+
+        self.assertEqual(list_param.c_type, pycsh.PARAM_TYPE_UINT16)
+        self.assertEqual(new_param.c_type, pycsh.PARAM_TYPE_UINT16)
+        self.assertEqual(new_param, list_param)
+
+        # Undo type change
+        pycsh.list_add(list_param.node,
+                       len(list_param),
+                       list_param.id,
+                       list_param.name,
+                       original_type, #list_param.c_type,
+                       list_param.mask,
+                       list_param.docstr,
+                       list_param.unit,
+                       )  # Adding a new overriding parameter should update the one in the list, too.
+
 
 if __name__ == "__main__":
     unittest.main()
