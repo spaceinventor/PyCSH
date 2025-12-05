@@ -8,10 +8,9 @@ from posixpath import dirname
 from subprocess import PIPE, run
 
 
-def main() -> None:
+def version_to_ersion(version: str) -> str:
 
-    ersion: str = run(['git', '-C', dirname(__file__), 'describe', '--long', '--always', '--dirty=+'], stdout=PIPE).stdout.decode()
-    ersion = ersion.lstrip('vV').strip('\n\t ')
+    ersion = version.lstrip('vV').strip('\n\t ')
 
     semantic_ersion = ersion.split('-')[0]
 
@@ -23,6 +22,17 @@ def main() -> None:
     if ersion.endswith('+'):  # Dirty working tree
         now = datetime.now()
         semantic_ersion += f".dev{now.strftime('%H%M')}"
+
+    return semantic_ersion
+
+
+def main() -> None:
+
+    version: str = run(['git', '-C', dirname(__file__), 'describe', '--long', '--always', '--dirty=+'], stdout=PIPE).stdout.decode()
+    try:
+        semantic_ersion: str = version_to_ersion(version)
+    except (ValueError, IndexError) as e:
+        raise Exception(f"Failed to convert '{version}' to pip3 ersion") from e
 
     print(semantic_ersion, end='')
 
