@@ -13,7 +13,6 @@ jobs:
         with:
           fetch-depth: 0
           #fetch-tags: true
-      - uses: actions/setup-python@v1
       # - name: Install gcovr
       #   run: pip3 install gcovr==5.0      
       - name: Install apt dependencies
