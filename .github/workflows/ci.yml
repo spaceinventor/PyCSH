@@ -16,7 +16,7 @@ jobs:
       # - name: Install gcovr
       #   run: pip3 install gcovr==5.0      
       - name: Install apt dependencies
-        run: sudo apt install -y libbsd-dev python3-pip pkg-config libcurl4-openssl-dev libzmq3-dev libpython3.12t64
+        run: sudo apt install -y libbsd-dev python3-pip pkg-config libcurl4-openssl-dev libzmq3-dev libpython3.12t64 valgrind
       - name: Install pip dependencies
         run: pip3 install --break-system-packages meson ninja
       # - uses: BSFishy/meson-build@v1.0.3
