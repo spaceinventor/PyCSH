@@ -11,7 +11,7 @@ See pycsh.pyi for full interface documentation.
 ### Dependencies
 
 ```
-sudo apt install libcurl4-openssl-dev git build-essential libsocketcan-dev can-utils libzmq3-dev libyaml-dev pkg-config pipx libelf-dev libbsd-dev python3-dev
+sudo apt install libcurl4-openssl-dev git build-essential libsocketcan-dev can-utils libzmq3-dev pkg-config pipx libelf-dev libbsd-dev python3-dev
 pipx install meson ninja
 ```
 
