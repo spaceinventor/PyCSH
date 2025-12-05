@@ -1,0 +1,33 @@
+name: PyCSH CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  ci:
+    runs-on: ubuntu-24.04
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v1
+      # - name: Install gcovr
+      #   run: pip3 install gcovr==5.0      
+      - name: Install apt dependencies
+        run: sudo apt install -y libbsd-dev python3-pip pkg-config libcurl4-openssl-dev libzmq3-dev
+      - name: Install pip dependencies
+        run: pip3 install --break-system-packages meson ninja
+      # - uses: BSFishy/meson-build@v1.0.3
+      #   with:
+      #     action: build
+      #     options: --verbose
+      #     #setup-options: -Db_coverage=true -Ddefault_library=static
+      #     directory: builddir
+      #     meson-version: 1.9.1
+      #     ninja-version: 1.13.0
+      - name: Build and install PyCSH
+        run: ./configure && ./install
+      - name: Run unit tests
+        run: ./tests/main.py
+      # - name: Run gcovr
+      #   run: ninja -C builddir test coverage-text && tail -n3 builddir/meson-logs/coverage.txt
