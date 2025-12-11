@@ -1,3 +1,5 @@
+![Build workflow](https://github.com/spaceinventor/PyCSH/actions/workflows/ci.yml/badge.svg) 
+
 ### PyCSH
 
 Python bindings to spaceinventor/csh
