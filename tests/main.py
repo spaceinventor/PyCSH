@@ -26,6 +26,7 @@ MAX_WORKERS = max(1, cpu_count() // 2)
 
 def run_test(test_id):
     import test_parameter
+    import test_vmem
     """Run a single unittest under Valgrind."""
     cmd = VALGRIND + [sys.executable, "-m", "unittest", test_id]
     proc = subprocess.run(cmd, capture_output=True, text=True)
