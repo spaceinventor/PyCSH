@@ -17,9 +17,10 @@ requires = ['meson-python']
 [tool.meson-python.args]
 # setup = ['-Dcsp:b_ndbebug=false']
 # We need to install the targets of the lib/pycsh_core/ subproject, since we now defer the targets to that dependency.
-#   Normally all subproject targets would be installed, but we have to skip the CSP subproject, which causes errors due to header files not being in the Python wheel (maybe just for now?)
+#   Normally all subproject targets would be installed, but we have to skip the CSP and libparam subprojects,
+#   which cause errors due to their header files not being in the Python wheel (maybe just for now?)
 #   P.S Many thanks to JB
-install = ['--skip-subprojects', 'csp']
+install = ['--skip-subprojects', 'csp,param']
 # TODO Kevin: builddir argument is documeted here: https://meson-python.readthedocs.io/en/stable/reference/config-settings.html#cmdoption-arg-builddir
 #   But is doesn't appear to work.
 #builddir = 'builddir-pip'  # Default pip builddir is 'build/', but that name is already taken by the 'build' script
