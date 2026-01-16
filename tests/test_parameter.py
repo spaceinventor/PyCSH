@@ -312,5 +312,69 @@ class TestArrayParameter(unittest.TestCase):
                        )  # Adding a new overriding parameter should update the one in the list, too.
 
 
+    @_pass_param_arguments(test_create_param)
+    def test_valueproxy_operators(self, param_args: ParamArguments):
+
+        param_args.normal_param.value = 2
+        assert int(param_args.normal_param.value) == 2
+
+
+        with self.assertDoesNotRaise(TypeError):
+            param_args.normal_param.value + 2  # ValueProxy + int
+
+        with self.assertDoesNotRaise(TypeError):
+            2 + param_args.normal_param.value  # int + ValueProxy
+
+
+        with self.assertDoesNotRaise(TypeError):
+            param_args.normal_param.value * 2  # ValueProxy * int
+
+        with self.assertDoesNotRaise(TypeError):
+            2 * param_args.normal_param.value  # int * ValueProxy
+
+
+        with self.assertDoesNotRaise(TypeError):
+            param_args.normal_param.value % 2  # ValueProxy % int
+
+        with self.assertDoesNotRaise(TypeError):
+           2 % param_args.normal_param.value  # int % ValueProxy
+
+
+        with self.assertDoesNotRaise(TypeError):
+            2 / param_args.normal_param.value  # int / ValueProxy
+
+        with self.assertDoesNotRaise(TypeError):
+            param_args.normal_param.value / 2  # ValueProxy / int
+
+
+        with self.assertDoesNotRaise(TypeError):
+            param_args.normal_param.value // 2  # ValueProxy // int
+
+        with self.assertDoesNotRaise(TypeError):
+            2 // param_args.normal_param.value  # int // ValueProxy
+
+
+        with self.assertDoesNotRaise(TypeError):
+            param_args.str_param.value + "123"  # ValueProxy + str
+
+        with self.assertDoesNotRaise(TypeError):
+            "123" + param_args.str_param.value  # str + ValueProxy
+
+
+        try:
+            param_args.str_param.value + 2
+        except TypeError as e:
+            # Assert that operator is correctly forwarded to the string value.
+            # It's a bit tricky to check since both cases will raise a TypeError.
+            self.assertTrue('ValueProxy' not in e.args[0])
+
+        try:
+            2 + param_args.str_param.value
+        except TypeError as e:
+            # Assert that operator is correctly forwarded to the string value.
+            # It's a bit tricky to check since both cases will raise a TypeError.
+            self.assertTrue('ValueProxy' not in e.args[0])
+
+
 if __name__ == "__main__":
     unittest.main()
