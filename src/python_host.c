@@ -21,7 +21,7 @@
 
 static uint32_t _serial0;
 
-PARAM_DEFINE_STATIC_RAM(PARAMID_SERIAL0, serial0, PARAM_TYPE_INT32, -1, 0, PM_HWREG, NULL, "", &_serial0, NULL);
+PARAM_DEFINE_STATIC_RAM(PARAMID_SERIAL0, serial0, PARAM_TYPE_XINT32, -1, 0, PM_HWREG, NULL, "", &_serial0, NULL);
 PARAM_DEFINE_STATIC_RAM(PARAMID_CSP_DBG_BUFFER_OUT,   csp_buf_out,         PARAM_TYPE_UINT8,  0, 0, PM_DEBUG | PM_ERRCNT, NULL, "", &csp_dbg_buffer_out, "Number of buffer overruns");
 PARAM_DEFINE_STATIC_RAM(PARAMID_CSP_DBG_CONN_OUT,     csp_conn_out,        PARAM_TYPE_UINT8,  0, 0, PM_DEBUG | PM_ERRCNT, NULL, "", &csp_dbg_conn_out, "Number of connection overruns");
 PARAM_DEFINE_STATIC_RAM(PARAMID_CSP_DBG_CONN_OVF,     csp_conn_ovf,        PARAM_TYPE_UINT8,  0, 0, PM_DEBUG | PM_ERRCNT, NULL, "", &csp_dbg_conn_ovf, "Number of rx-queue overflows");
